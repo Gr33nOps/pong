@@ -41,6 +41,7 @@ jobs:
 
       - name: Export Web build
         run: |
+          mkdir -p pong/web
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Web"
 
       - name: Upload Pages artifact
