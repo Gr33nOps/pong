@@ -1,0 +1,219 @@
+[gd_scene load_steps=16 format=3 uid="uid://ddvgkqvwq14t"]
+
+[ext_resource type="Script" uid="uid://dg57qf2651sc4" path="res://main.gd" id="1_lquwl"]
+[ext_resource type="Script" uid="uid://dwnolbsnwc6vl" path="res://paddle.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://crs0yyu7700wy" path="res://ball.gd" id="3_1bvp3"]
+[ext_resource type="Texture2D" uid="uid://cot1a2d04gqau" path="res://circle-128.png" id="4_lquwl"]
+[ext_resource type="Script" uid="uid://duq3dvcqpx6wg" path="res://pause.gd" id="6_7mycd"]
+[ext_resource type="Script" uid="uid://b1dl8en1b48eu" path="res://game_over.gd" id="8_5vw27"]
+[ext_resource type="PackedScene" uid="uid://br10dqpa0e8yi" path="res://paddle.tscn" id="9_pdl"]
+[ext_resource type="Script" uid="uid://cb21hfgpmk3si" path="res://serve.gd" id="10_srv"]
+[ext_resource type="Script" uid="uid://c8dtoa7jlxb7o" path="res://ai.gd" id="11_ai"]
+[ext_resource type="Script" uid="uid://p4yexboe7g6v" path="res://trail.gd" id="12_trl"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ball"]
+radius = 21.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause"]
+bg_color = Color(0, 0, 0, 0.8)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_serve"]
+bg_color = Color(0, 0, 0, 0.8)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over"]
+bg_color = Color(0.0392157, 0.0392157, 0.0392157, 1)
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 3
+glow_enabled = true
+glow_strength = 0.7
+glow_blend_mode = 1
+
+[node name="MAIN" type="Node2D"]
+script = ExtResource("1_lquwl")
+
+[node name="leftScore" type="Label" parent="."]
+offset_left = 197.0
+offset_top = 178.0
+offset_right = 311.0
+offset_bottom = 451.0
+theme_override_colors/font_color = Color(0.25, 0.3, 0.35, 1)
+theme_override_font_sizes/font_size = 200
+text = "0"
+
+[node name="rightScore" type="Label" parent="."]
+offset_left = 842.0
+offset_top = 180.0
+offset_right = 956.0
+offset_bottom = 453.0
+theme_override_colors/font_color = Color(0.25, 0.3, 0.35, 1)
+theme_override_font_sizes/font_size = 200
+text = "0"
+
+[node name="Divider" type="Line2D" parent="."]
+default_color = Color(1, 1, 1, 0.15)
+width = 4.0
+dashed = true
+dash_pattern = PackedFloat32Array(24, 16)
+points = PackedVector2Array(576, 16, 576, 632)
+
+[node name="ball" type="Area2D" parent="."]
+position = Vector2(576, 324)
+script = ExtResource("3_1bvp3")
+
+[node name="Sprite2D" type="Sprite2D" parent="ball"]
+scale = Vector2(0.328125, 0.328125)
+texture = ExtResource("4_lquwl")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ball"]
+shape = SubResource("CircleShape2D_ball")
+
+[node name="paddleLeft" parent="." instance=ExtResource("9_pdl")]
+position = Vector2(10.5, 324)
+is_left = true
+
+[node name="paddleRight" parent="." instance=ExtResource("9_pdl")]
+position = Vector2(1141.5, 324)
+is_left = false
+
+[node name="AI" type="Node" parent="."]
+script = ExtResource("11_ai")
+paddle_path = NodePath("../paddleRight")
+ball_path = NodePath("../ball")
+
+[node name="Trail" type="Line2D" parent="."]
+script = ExtResource("12_trl")
+ball_path = NodePath("../ball")
+
+[node name="serveOverlay" type="Node2D" parent="."]
+process_mode = 3
+script = ExtResource("10_srv")
+
+[node name="PanelContainer" type="PanelContainer" parent="serveOverlay"]
+offset_right = 1152.0
+offset_bottom = 648.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_serve")
+
+[node name="title" type="Label" parent="serveOverlay"]
+offset_left = 156.0
+offset_top = 140.0
+offset_right = 996.0
+offset_bottom = 300.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 120
+text = "PONG"
+
+[node name="option1" type="Label" parent="serveOverlay"]
+offset_left = 156.0
+offset_top = 330.0
+offset_right = 996.0
+offset_bottom = 400.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 48
+text = "> Player vs AI"
+
+[node name="option2" type="Label" parent="serveOverlay"]
+offset_left = 156.0
+offset_top = 410.0
+offset_right = 996.0
+offset_bottom = 480.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 48
+text = "  Player vs Player"
+
+[node name="hint" type="Label" parent="serveOverlay"]
+offset_left = 156.0
+offset_top = 510.0
+offset_right = 996.0
+offset_bottom = 550.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+text = "Use W/S or Arrows to pick  -  Space/A to confirm"
+
+[node name="devices" type="Label" parent="serveOverlay"]
+offset_left = 156.0
+offset_top = 565.0
+offset_right = 996.0
+offset_bottom = 600.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+text = "P1: Keyboard          P2: Keyboard"
+
+[node name="pause" type="Node2D" parent="."]
+process_mode = 3
+script = ExtResource("6_7mycd")
+
+[node name="PanelContainer" type="PanelContainer" parent="pause"]
+offset_right = 1152.0
+offset_bottom = 648.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_pause")
+
+[node name="pauseLabel" type="Label" parent="pause"]
+offset_left = 406.0
+offset_top = 230.0
+offset_right = 746.0
+offset_bottom = 340.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 90
+text = "Paused"
+
+[node name="resumeHint" type="Label" parent="pause"]
+offset_left = 336.0
+offset_top = 350.0
+offset_right = 816.0
+offset_bottom = 400.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 30
+text = "Press ESC / START To Resume"
+
+[node name="gameOver" type="Node2D" parent="."]
+process_mode = 3
+script = ExtResource("8_5vw27")
+
+[node name="PanelContainer" type="PanelContainer" parent="gameOver"]
+offset_right = 1152.0
+offset_bottom = 648.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_over")
+
+[node name="gameover" type="Label" parent="gameOver"]
+offset_left = 326.0
+offset_top = 150.0
+offset_right = 826.0
+offset_bottom = 270.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 90
+text = "GAME OVER"
+
+[node name="blue" type="Label" parent="gameOver"]
+offset_left = 306.0
+offset_top = 300.0
+offset_right = 846.0
+offset_bottom = 380.0
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0, 1, 1, 1)
+theme_override_font_sizes/font_size = 60
+text = "BLUE WINS!"
+
+[node name="red" type="Label" parent="gameOver"]
+offset_left = 306.0
+offset_top = 300.0
+offset_right = 846.0
+offset_bottom = 380.0
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+theme_override_font_sizes/font_size = 60
+text = "RED WINS!"
+
+[node name="restartHint" type="Label" parent="gameOver"]
+offset_left = 236.0
+offset_top = 500.0
+offset_right = 916.0
+offset_bottom = 560.0
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 40
+text = "Press Space Or A To Restart"
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[connection signal="area_entered" from="ball" to="ball" method="_on_area_entered"]
