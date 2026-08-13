@@ -1,6 +1,6 @@
 # PONG
 
-A classic Pong remake built with **Godot 4.7** — two modes, gamepad + keyboard support, and a glowing motion trail.
+A classic Pong remake built with **Godot 4.7** — aimed serves, rally heat, and a glowing motion trail.
 
 ## Play
 
@@ -9,20 +9,25 @@ A classic Pong remake built with **Godot 4.7** — two modes, gamepad + keyboard
 
 ## Features
 
-- Player vs AI and Player vs Player modes (pick on the start screen)
-- Keyboard controls (W/S for P1, Arrows for P2) plus auto-detecting gamepads (first pad = P1, second = P2)
-- Serve, pause (ESC / START), first to 5 wins
-- Ball stays white; the fading trail shifts blue/red with whoever touched it last
-- AI paddle with a forgiving reaction delay
+- Player vs AI and Player vs Player (pick on the start screen)
+- Keyboard (W/S for P1, arrows for P2) plus auto-detecting gamepads
+- Loser serves: ball sits on the paddle; aim with movement, then Space / A to launch
+- Center hits are faster and flatter; edge hits are sharper and a bit slower
+- Paddle english, rally speed ramp, and paddles that shrink after a long volley
+- Live **RALLY** counter, speed-scaled SFX pitch and screen shake
+- Pause menu (ESC / START) with volume, AI difficulty, and colorblind colors
+- First to 5 wins
 
 ## Controls
 
-| Action    | P1        | P2           | Gamepad          |
-|-----------|-----------|--------------|------------------|
+| Action    | P1        | P2           | Gamepad           |
+|-----------|-----------|--------------|-------------------|
 | Move      | W / S     | ↑ / ↓        | Left stick, D-pad |
-| Confirm   | Space / A | (pad A)      | A / START        |
-| Mode pick | 1 / 2     | (pad d-pad)  | D-pad + A        |
-| Pause     | ESC       | START / BACK | START / BACK     |
+| Confirm   | Space / A | (pad A)      | A / START         |
+| Mode pick | 1 / 2     | (pad d-pad)  | D-pad + A         |
+| Pause     | ESC       | START / BACK | START / BACK      |
+
+Aim the serve by moving the paddle before you launch. In vs AI, the computer auto-serves after a short delay.
 
 ## Running from source
 
@@ -40,9 +45,10 @@ godot --headless --path . --export-release "Web"
 
 ## Project layout
 
+- `constants.gd` — shared gameplay numbers
 - `game_state.gd` — scores, serve/pause/game-over flow, mode selection
-- `main.gd` — scoring logic and rally flow
+- `main.gd` — scoring, aimed serve placement, rally UI
 - `ball.gd`, `paddle.gd`, `ai.gd`, `trail.gd` — gameplay
 - `players.gd` — gamepad auto-assignment + input latches
 - `serve.gd`, `pause.gd`, `game_over.gd` — UI overlays
-- `sfx.gd` — procedural sound effects
+- `sfx.gd`, `screen_shake.gd`, `particle_effects.gd` — juice
