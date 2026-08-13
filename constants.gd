@@ -72,8 +72,8 @@ const KEY_AI_DIFFICULTY_NAME = "ai_difficulty_name"
 const KEY_HIGH_SCORE = "high_score"
 const KEY_PLAYER_IS_LEFT = "player_is_left"
 
-const DIFFICULTY_EASY := 0.72
-const DIFFICULTY_NORMAL := 0.9
+const DIFFICULTY_EASY := 0.55
+const DIFFICULTY_NORMAL := 0.82
 const DIFFICULTY_HARD := 1.0
 const KEY_MUTED = "muted"
 

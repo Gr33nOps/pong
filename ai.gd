@@ -15,6 +15,7 @@ var difficulty := Constants.DIFFICULTY_NORMAL
 var _incoming := false
 var _aim_offset := 0.0
 var _serve_target := 0.0
+var _reaction_elapsed := 0.0
 
 
 func _ready() -> void:
@@ -56,6 +57,10 @@ func _physics_process(delta: float) -> void:
 		else:
 			_move_toward(paddle, center_y, delta)
 		return
+	_update_incoming(delta)
+	if _incoming and _reaction_elapsed < _reaction_delay():
+		_move_toward(paddle, paddle.position.y, delta)
+		return
 	_move_toward(paddle, _aim_y(paddle), delta)
 
 
@@ -68,12 +73,36 @@ func _move_toward(paddle, target_y: float, delta: float) -> void:
 	paddle.last_vy = move / delta if delta > 0.0 else 0.0
 
 
+func _update_incoming(delta: float) -> void:
+	var vel: Vector2 = ball.velocity
+	var cpu_left := _cpu_is_left()
+	var now_incoming: bool = vel.x < 0.0 if cpu_left else vel.x > 0.0
+	if not now_incoming:
+		_incoming = false
+		return
+	if not _incoming:
+		_incoming = true
+		_reaction_elapsed = 0.0
+		var error := _aim_error()
+		_aim_offset = randf_range(-error, error)
+	else:
+		_reaction_elapsed += delta
+
+
+func _reaction_delay() -> float:
+	if difficulty <= 0.8:
+		return 0.32
+	if difficulty >= 0.97:
+		return 0.0
+	return 0.12
+
+
 func _aim_error() -> float:
 	if difficulty <= 0.8:
-		return 85.0
+		return 130.0
 	if difficulty >= 0.97:
 		return 12.0
-	return 38.0
+	return 55.0
 
 
 func _aim_y(paddle) -> float:
@@ -81,12 +110,7 @@ func _aim_y(paddle) -> float:
 	var cpu_left := _cpu_is_left()
 	var incoming: bool = vel.x < 0.0 if cpu_left else vel.x > 0.0
 	if not incoming:
-		_incoming = false
 		return center_y
-	if not _incoming:
-		_incoming = true
-		var error := _aim_error()
-		_aim_offset = randf_range(-error, error)
 	var face_x: float = paddle.position.x + Constants.PADDLE_WIDTH * 0.5 if cpu_left else paddle.position.x - Constants.PADDLE_WIDTH * 0.5
 	var past_face: bool = ball.position.x <= face_x if cpu_left else ball.position.x >= face_x
 	if past_face:
