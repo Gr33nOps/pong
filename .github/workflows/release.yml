@@ -43,6 +43,13 @@ jobs:
           mkdir -v -p pong/web
           godot --headless --verbose --export-release "Web" "$(pwd)/pong/web/index.html"
 
+      - name: Install Android build template
+        run: |
+          mkdir -v -p android/build
+          unzip -q "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip" -d android/build
+          echo "${GODOT_VERSION}.stable" > android/.build_version
+          touch android/build/.gdignore
+
       - name: Export Android (debug-signed APK)
         run: |
           mkdir -v -p pong/android
