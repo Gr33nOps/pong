@@ -18,6 +18,10 @@ config/name="PONG"
 run/main_scene="uid://ddvgkqvwq14t"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0.027, 0.04, 0.07, 1)
+boot_splash/image="res://logo.png"
+boot_splash/fullsize=false
+boot_splash/use_filter=true
 
 [autoload]
 
