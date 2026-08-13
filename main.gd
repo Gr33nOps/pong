@@ -18,7 +18,6 @@ extends Node2D
 @onready var bottom_rail = $Court/BottomRail
 
 var playfield_size := Vector2.ZERO
-var _click_gate: CanvasLayer = null
 
 
 func _ready() -> void:
@@ -41,13 +40,9 @@ func _ready() -> void:
 	score_flash.modulate.a = 0.0
 	score_flash.visible = false
 	_set_match_visible(false)
-	if OS.has_feature("web"):
-		_show_click_gate()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _click_gate != null:
-		return
 	if GameState.paused or GameState.is_game_over or not GameState.mode_selected:
 		return
 	var pos := Vector2.INF
@@ -75,41 +70,6 @@ func _steer_from_pointer(pos: Vector2) -> void:
 		paddle_left.position.y = clampf(pos.y, paddle_left.top_limit, paddle_left.bottom_limit)
 	else:
 		paddle_right.position.y = clampf(pos.y, paddle_right.top_limit, paddle_right.bottom_limit)
-
-
-func _show_click_gate() -> void:
-	_click_gate = CanvasLayer.new()
-	_click_gate.layer = 100
-	_click_gate.process_mode = Node.PROCESS_MODE_ALWAYS
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.02, 0.022, 0.03, 0.92)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	var label := Label.new()
-	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.text = "TAP TO PLAY" if GameState.is_touch_ui() else "CLICK TO PLAY"
-	label.add_theme_font_size_override("font_size", 22)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	root.add_child(dim)
-	root.add_child(label)
-	_click_gate.add_child(root)
-	add_child(_click_gate)
-	dim.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed:
-			_hide_click_gate()
-		elif event is InputEventScreenTouch and event.pressed:
-			_hide_click_gate()
-	)
-
-
-func _hide_click_gate() -> void:
-	if _click_gate:
-		_click_gate.queue_free()
-		_click_gate = null
 
 
 func _on_mode_changed(_mode: int) -> void:
