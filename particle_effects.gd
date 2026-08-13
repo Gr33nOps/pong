@@ -1,5 +1,5 @@
 extends Node
-# Burst FX via CPUParticles2D (GPUParticles2D does not expose CPU-style properties).
+# Burst FX via CPUParticles2D. Kept below the HUD by spawn clamp, not visibility_rect.
 
 var _particle_pool: Array[CPUParticles2D] = []
 const POOL_SIZE = 20
@@ -51,14 +51,14 @@ func _setup_particles(particles: CPUParticles2D, amount: int, lifetime: float, s
 	particles.one_shot = true
 	particles.explosiveness = 1.0
 	particles.direction = Vector2.UP
-	particles.spread = 180.0
+	particles.spread = 140.0
 	particles.gravity = gravity
-	particles.initial_velocity_min = speed * 0.45
-	particles.initial_velocity_max = speed
-	particles.scale_amount_min = 0.04
-	particles.scale_amount_max = 0.1
-	particles.damping_min = 2.0
-	particles.damping_max = 8.0
+	particles.initial_velocity_min = speed * 0.3
+	particles.initial_velocity_max = speed * 0.7
+	particles.scale_amount_min = 0.03
+	particles.scale_amount_max = 0.07
+	particles.damping_min = 6.0
+	particles.damping_max = 14.0
 	particles.color = color
 	var ramp := Gradient.new()
 	ramp.offsets = PackedFloat32Array([0.0, 1.0])
@@ -67,13 +67,20 @@ func _setup_particles(particles: CPUParticles2D, amount: int, lifetime: float, s
 
 
 func _burst(world_position: Vector2, amount: int, lifetime: float, speed: float, gravity: Vector2, color: Color) -> void:
+	if not GameState.mode_selected:
+		return
 	var particles := _get_particle()
 	_setup_particles(particles, amount, lifetime, speed, gravity, color)
 	var scene := get_tree().current_scene
 	if scene == null:
 		_return_particle(particles)
 		return
-	scene.add_child(particles)
+	var host: Node = scene
+	host.add_child(particles)
+	particles.z_index = 6
+	var view: Vector2 = get_viewport().get_visible_rect().size
+	world_position.x = clampf(world_position.x, 12.0, view.x - 12.0)
+	world_position.y = clampf(world_position.y, Constants.HUD_HEIGHT + 16.0, view.y - 16.0)
 	particles.global_position = world_position
 	particles.restart()
 	particles.emitting = true
@@ -82,12 +89,12 @@ func _burst(world_position: Vector2, amount: int, lifetime: float, speed: float,
 
 
 func spawn_paddle_hit(world_position: Vector2, color: Color) -> void:
-	_burst(world_position, 15, 0.3, 200.0, Vector2(0, 100), color)
+	_burst(world_position, 8, 0.22, 90.0, Vector2(0, 30), color)
 
 
 func spawn_wall_bounce(world_position: Vector2) -> void:
-	_burst(world_position, 8, 0.2, 150.0, Vector2(0, 50), Color(0.8, 0.8, 0.8, 1))
+	_burst(world_position, 5, 0.16, 70.0, Vector2(0, 16), Color(0.8, 0.8, 0.8, 1))
 
 
-func spawn_score(world_position: Vector2) -> void:
-	_burst(world_position, 30, 0.6, 300.0, Vector2(0, 200), Color(1, 1, 0, 1))
+func spawn_score(world_position: Vector2, color: Color = Color(1, 1, 1, 1)) -> void:
+	_burst(world_position, 14, 0.32, 130.0, Vector2(0, 40), color)

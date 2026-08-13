@@ -10,6 +10,7 @@ var rally_hits := 0
 
 var _playfield_size := Vector2.ZERO
 var _last_paddle := ""
+const SPRITE_BASE := 0.328125
 
 
 func _ready() -> void:
@@ -17,6 +18,21 @@ func _ready() -> void:
 	monitorable = false
 	_playfield_size = get_viewport_rect().size
 	GameState.colorblind_changed.connect(_on_colorblind_changed)
+	_apply_look()
+
+
+func _process(_delta: float) -> void:
+	_apply_look()
+
+
+func _apply_look() -> void:
+	$Sprite2D.modulate = Color.WHITE
+	$Sprite2D.rotation = 0.0
+	if GameState.serving and GameState.mode_selected:
+		var pulse := 1.0 + sin(Time.get_ticks_msec() * 0.008) * 0.08
+		$Sprite2D.scale = Vector2(SPRITE_BASE, SPRITE_BASE) * pulse
+	else:
+		$Sprite2D.scale = Vector2(SPRITE_BASE, SPRITE_BASE)
 
 
 func launch(toward_right: bool, aim: float) -> void:
@@ -58,8 +74,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _bounce_walls() -> void:
-	var min_y := Constants.BALL_RADIUS
-	var max_y := _playfield_size.y - Constants.BALL_RADIUS
+	var min_y := Constants.HUD_HEIGHT + Constants.BALL_RADIUS
+	var max_y := _playfield_size.y - 10.0 - Constants.BALL_RADIUS
 	if position.y < min_y:
 		position.y = min_y
 		if velocity.y < 0.0:
@@ -109,8 +125,10 @@ func _hit_front_face(previous: Vector2, paddle: Area2D) -> bool:
 		t = (previous.x - contact_x) / span
 	t = clampf(t, 0.0, 1.0)
 	var contact_y: float = previous.y + (position.y - previous.y) * t
-	if absf(contact_y - paddle.position.y) > half_h + Constants.BALL_RADIUS * 0.15:
+	var y_limit := half_h + Constants.BALL_RADIUS
+	if absf(contact_y - paddle.position.y) > y_limit:
 		return false
+	contact_y = clampf(contact_y, paddle.position.y - half_h, paddle.position.y + half_h)
 
 	_reflect(paddle, is_left, contact_x, contact_y, half_h)
 	return true
@@ -127,11 +145,20 @@ func _reflect(paddle: Area2D, is_left: bool, contact_x: float, contact_y: float,
 	var speed := minf(base, Constants.MAX_SPEED)
 	var paddle_vy: float = float(paddle.get("last_vy"))
 	var vy := sin(angle) * speed + paddle_vy * Constants.ENGLISH
-	var vx := dir * maxf(absf(cos(angle) * speed), speed * Constants.MIN_HORIZONTAL)
-	velocity = Vector2(vx, vy).limit_length(Constants.MAX_SPEED)
+	var min_vx := speed * Constants.MIN_HORIZONTAL
+	var vx := dir * maxf(absf(cos(angle) * speed), min_vx)
+	var vel := Vector2(vx, vy)
+	if vel.length() > Constants.MAX_SPEED:
+		vel = vel.limit_length(Constants.MAX_SPEED)
+	min_vx = vel.length() * Constants.MIN_HORIZONTAL
+	if absf(vel.x) < min_vx:
+		var max_vy := sqrt(maxf(vel.length_squared() - min_vx * min_vx, 0.0))
+		vel.x = dir * min_vx
+		vel.y = signf(vel.y) * max_vy
+	velocity = vel
 
 	position.x = contact_x + dir * 1.0
-	position.y = clampf(contact_y, Constants.BALL_RADIUS, _playfield_size.y - Constants.BALL_RADIUS)
+	position.y = clampf(contact_y, Constants.HUD_HEIGHT + Constants.BALL_RADIUS, _playfield_size.y - 10.0 - Constants.BALL_RADIUS)
 
 	_last_paddle = "left" if is_left else "right"
 	_color_side = _last_paddle
@@ -143,6 +170,8 @@ func _reflect(paddle: Area2D, is_left: bool, contact_x: float, contact_y: float,
 	SFX.play("paddle", 0.95 + ratio * 0.85)
 	ScreenShake.shake(lerpf(4.0, 18.0, ratio))
 	ParticleEffects.spawn_paddle_hit(global_position, ball_color)
+	if paddle.has_method("pulse"):
+		paddle.pulse()
 
 
 func _on_colorblind_changed(_enabled: bool) -> void:

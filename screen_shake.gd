@@ -31,23 +31,28 @@ func _process(delta: float) -> void:
 
 
 func shake(magnitude: float) -> void:
+	if get_tree().paused:
+		return
 	if _active:
-		# Extend existing shake if stronger
 		if magnitude > _shake_magnitude:
 			_shake_magnitude = magnitude
 			_shake_time = Constants.SHAKE_DURATION
 		return
-	
 	_active = true
 	_shake_time = Constants.SHAKE_DURATION
 	_shake_magnitude = magnitude
-	_original_offset = get_viewport().canvas_transform.origin
+	_original_offset = Vector2.ZERO
 	shake_started.emit(magnitude)
+
+
+func reset() -> void:
+	_stop_shake()
 
 
 func _stop_shake() -> void:
 	_active = false
 	_shake_time = 0.0
 	_shake_magnitude = 0.0
-	get_viewport().canvas_transform.origin = _original_offset
+	if is_inside_tree():
+		get_viewport().canvas_transform.origin = Vector2.ZERO
 	shake_stopped.emit()

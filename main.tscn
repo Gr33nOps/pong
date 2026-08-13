@@ -1,7 +1,6 @@
-[gd_scene load_steps=16 format=3 uid="uid://ddvgkqvwq14t"]
+[gd_scene load_steps=26 format=3 uid="uid://ddvgkqvwq14t"]
 
 [ext_resource type="Script" uid="uid://dg57qf2651sc4" path="res://main.gd" id="1_lquwl"]
-[ext_resource type="Script" uid="uid://dwnolbsnwc6vl" path="res://paddle.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://crs0yyu7700wy" path="res://ball.gd" id="3_1bvp3"]
 [ext_resource type="Texture2D" uid="uid://cot1a2d04gqau" path="res://circle-128.png" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://duq3dvcqpx6wg" path="res://pause.gd" id="6_7mycd"]
@@ -10,45 +9,174 @@
 [ext_resource type="Script" uid="uid://cb21hfgpmk3si" path="res://serve.gd" id="10_srv"]
 [ext_resource type="Script" uid="uid://c8dtoa7jlxb7o" path="res://ai.gd" id="11_ai"]
 [ext_resource type="Script" uid="uid://p4yexboe7g6v" path="res://trail.gd" id="12_trl"]
+[ext_resource type="Script" path="res://hud.gd" id="13_hud"]
+[ext_resource type="Shader" path="res://shaders/vignette.gdshader" id="14_vig"]
+[ext_resource type="Shader" path="res://shaders/scanlines.gdshader" id="15_scan"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ball"]
 radius = 21.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause"]
-bg_color = Color(0, 0, 0, 0.8)
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_serve"]
-bg_color = Color(0, 0, 0, 0.8)
+bg_color = Color(0.02, 0.022, 0.03, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_banner"]
+bg_color = Color(0.02, 0.04, 0.08, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.12)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause"]
+bg_color = Color(0.0, 0.0, 0.0, 0.78)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause_card"]
+bg_color = Color(0.04, 0.045, 0.055, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.28)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over"]
-bg_color = Color(0.0392157, 0.0392157, 0.0392157, 1)
+bg_color = Color(0.0, 0.0, 0.0, 0.8)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over_card"]
+bg_color = Color(0.04, 0.045, 0.055, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.28)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_option"]
+bg_color = Color(1, 1, 1, 0.08)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 1, 1, 0.92)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_option2"]
+bg_color = Color(1, 1, 1, 0.03)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.2)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar"]
+bg_color = Color(0.06, 0.08, 0.11, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_serve_msg"]
+bg_color = Color(0.01, 0.016, 0.03, 0.82)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vig"]
+shader = ExtResource("14_vig")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_scan"]
+shader = ExtResource("15_scan")
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 3
-glow_enabled = true
-glow_strength = 0.7
-glow_blend_mode = 1
+glow_enabled = false
 
 [node name="MAIN" type="Node2D"]
 script = ExtResource("1_lquwl")
 
+[node name="Court" type="Node2D" parent="."]
+z_index = -10
+
+[node name="Background" type="ColorRect" parent="Court"]
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(0.027, 0.04, 0.07, 1)
+
+[node name="LeftWash" type="ColorRect" parent="Court"]
+visible = false
+offset_right = 320.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(0, 1, 1, 0.018)
+
+[node name="RightWash" type="ColorRect" parent="Court"]
+visible = false
+offset_left = 832.0
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(1, 0, 0, 0.018)
+
+[node name="TopRail" type="ColorRect" parent="Court"]
+offset_left = 20.0
+offset_top = 72.0
+offset_right = 1132.0
+offset_bottom = 74.0
+mouse_filter = 2
+color = Color(0.55, 0.65, 0.75, 0.18)
+
+[node name="BottomRail" type="ColorRect" parent="Court"]
+offset_left = 20.0
+offset_top = 640.0
+offset_right = 1132.0
+offset_bottom = 642.0
+mouse_filter = 2
+color = Color(0.55, 0.65, 0.75, 0.18)
+
 [node name="leftScore" type="Label" parent="."]
-offset_left = 197.0
-offset_top = 178.0
-offset_right = 311.0
-offset_bottom = 451.0
-theme_override_colors/font_color = Color(0.55, 0.62, 0.7, 1)
-theme_override_font_sizes/font_size = 200
+visible = false
+offset_left = 180.0
+offset_top = 250.0
+offset_right = 520.0
+offset_bottom = 360.0
+theme_override_colors/font_color = Color(0, 1, 1, 0.1)
+theme_override_font_sizes/font_size = 72
 text = "0"
+horizontal_alignment = 1
 
 [node name="rightScore" type="Label" parent="."]
-offset_left = 842.0
-offset_top = 180.0
-offset_right = 956.0
-offset_bottom = 453.0
-theme_override_colors/font_color = Color(0.55, 0.62, 0.7, 1)
-theme_override_font_sizes/font_size = 200
+visible = false
+offset_left = 632.0
+offset_top = 250.0
+offset_right = 972.0
+offset_bottom = 360.0
+theme_override_colors/font_color = Color(1, 0, 0, 0.1)
+theme_override_font_sizes/font_size = 72
 text = "0"
+horizontal_alignment = 1
 
 [node name="rallyLabel" type="Label" parent="."]
 visible = false
@@ -56,19 +184,40 @@ offset_left = 376.0
 offset_top = 18.0
 offset_right = 776.0
 offset_bottom = 64.0
+mouse_filter = 2
 horizontal_alignment = 1
-theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
 theme_override_font_sizes/font_size = 28
 text = "RALLY 0"
 
 [node name="Divider" type="Line2D" parent="."]
-default_color = Color(1, 1, 1, 0.15)
-width = 4.0
+visible = false
+default_color = Color(1, 1, 1, 0.12)
+width = 2.0
 dashed = true
-dash_pattern = PackedFloat32Array(24, 16)
-points = PackedVector2Array(576, 16, 576, 632)
+dash_pattern = PackedFloat32Array(10, 14)
+points = PackedVector2Array(576, 82, 576, 634)
+
+[node name="PlayfieldClip" type="ColorRect" parent="."]
+clip_children = 1
+z_index = 1
+offset_top = 72.0
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
+
+[node name="Trail" type="Line2D" parent="."]
+z_index = 1
+width = 8.0
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+script = ExtResource("12_trl")
+ball_path = NodePath("../ball")
 
 [node name="ball" type="Area2D" parent="."]
+visible = false
+z_index = 2
 position = Vector2(576, 324)
 script = ExtResource("3_1bvp3")
 
@@ -80,214 +229,602 @@ texture = ExtResource("4_lquwl")
 shape = SubResource("CircleShape2D_ball")
 
 [node name="paddleLeft" parent="." instance=ExtResource("9_pdl")]
+visible = false
+z_index = 1
 position = Vector2(26.5, 324)
 is_left = true
 
 [node name="paddleRight" parent="." instance=ExtResource("9_pdl")]
+visible = false
+z_index = 1
 position = Vector2(1125.5, 324)
 is_left = false
 
 [node name="AI" type="Node" parent="."]
 script = ExtResource("11_ai")
-paddle_path = NodePath("../paddleRight")
+left_paddle_path = NodePath("../paddleLeft")
+right_paddle_path = NodePath("../paddleRight")
 ball_path = NodePath("../ball")
 
-[node name="Trail" type="Line2D" parent="."]
-script = ExtResource("12_trl")
-ball_path = NodePath("../ball")
+[node name="ScoreFlash" type="ColorRect" parent="."]
+z_index = 8
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(1, 1, 1, 1)
+modulate = Color(1, 1, 1, 0)
 
-[node name="serveOverlay" type="Node2D" parent="."]
+[node name="HUD" type="CanvasLayer" parent="."]
+layer = 8
+script = ExtResource("13_hud")
+
+[node name="Root" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Band" type="ColorRect" parent="HUD/Root"]
+layout_mode = 0
+offset_right = 1152.0
+offset_bottom = 72.0
+mouse_filter = 2
+color = Color(0.015, 0.02, 0.03, 0.92)
+
+[node name="P1Name" type="Label" parent="HUD/Root"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 8.0
+offset_right = 240.0
+offset_bottom = 32.0
+theme_override_colors/font_color = Color(0, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "YOU"
+
+[node name="P1Score" type="Label" parent="HUD/Root"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 28.0
+offset_right = 180.0
+offset_bottom = 68.0
+theme_override_colors/font_color = Color(0, 1, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "0"
+
+[node name="P2Name" type="Label" parent="HUD/Root"]
+layout_mode = 0
+offset_left = 912.0
+offset_top = 8.0
+offset_right = 1104.0
+offset_bottom = 32.0
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+theme_override_font_sizes/font_size = 16
+text = "CPU"
+horizontal_alignment = 2
+
+[node name="P2Score" type="Label" parent="HUD/Root"]
+layout_mode = 0
+offset_left = 972.0
+offset_top = 28.0
+offset_right = 1104.0
+offset_bottom = 68.0
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+theme_override_font_sizes/font_size = 28
+text = "0"
+horizontal_alignment = 2
+
+[node name="MatchLabel" type="Label" parent="HUD/Root"]
+layout_mode = 0
+offset_left = 326.0
+offset_top = 10.0
+offset_right = 826.0
+offset_bottom = 36.0
+theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "FIRST TO 5"
+horizontal_alignment = 1
+
+[node name="RallyBadge" type="Label" parent="HUD/Root"]
+visible = false
+layout_mode = 0
+offset_left = 326.0
+offset_top = 36.0
+offset_right = 826.0
+offset_bottom = 64.0
+theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "RALLY 0"
+horizontal_alignment = 1
+
+[node name="serveOverlay" type="CanvasLayer" parent="."]
+layer = 20
 process_mode = 3
 script = ExtResource("10_srv")
 
-[node name="PanelContainer" type="PanelContainer" parent="serveOverlay"]
-offset_right = 1152.0
-offset_bottom = 648.0
+[node name="Root" type="Control" parent="serveOverlay"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dimmer" type="PanelContainer" parent="serveOverlay/Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_serve")
 
-[node name="title" type="Label" parent="serveOverlay"]
-offset_left = 156.0
-offset_top = 140.0
-offset_right = 996.0
-offset_bottom = 300.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 120
+[node name="title" type="Label" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 76.0
+offset_top = 118.0
+offset_right = 1076.0
+offset_bottom = 210.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 56
 text = "PONG"
-
-[node name="option1" type="Label" parent="serveOverlay"]
-offset_left = 156.0
-offset_top = 330.0
-offset_right = 996.0
-offset_bottom = 400.0
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 48
-text = "> Player vs AI"
 
-[node name="option2" type="Label" parent="serveOverlay"]
+[node name="subtitle" type="Label" parent="serveOverlay/Root"]
+layout_mode = 0
 offset_left = 156.0
-offset_top = 410.0
+offset_top = 200.0
 offset_right = 996.0
-offset_bottom = 480.0
+offset_bottom = 232.0
+theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "FIRST TO FIVE"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 48
-text = "  Player vs Player"
 
-[node name="hint" type="Label" parent="serveOverlay"]
-offset_left = 80.0
-offset_top = 500.0
-offset_right = 1072.0
+[node name="option1Bg" type="Panel" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 336.0
+offset_top = 268.0
+offset_right = 816.0
+offset_bottom = 336.0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_option")
+
+[node name="option2Bg" type="Panel" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 336.0
+offset_top = 356.0
+offset_right = 816.0
+offset_bottom = 424.0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_option2")
+
+[node name="option1" type="Label" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 336.0
+offset_top = 286.0
+offset_right = 816.0
+offset_bottom = 320.0
+theme_override_font_sizes/font_size = 18
+text = "›  VS CPU"
+horizontal_alignment = 1
+
+[node name="option2" type="Label" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 336.0
+offset_top = 374.0
+offset_right = 816.0
+offset_bottom = 408.0
+theme_override_font_sizes/font_size = 18
+text = "VS PLAYER"
+horizontal_alignment = 1
+
+[node name="serveBack" type="Panel" parent="serveOverlay/Root"]
+visible = false
+layout_mode = 0
+offset_left = 316.0
+offset_top = 278.0
+offset_right = 836.0
+offset_bottom = 386.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_serve_msg")
+
+[node name="serveTitle" type="Label" parent="serveOverlay/Root"]
+visible = false
+layout_mode = 0
+offset_left = 76.0
+offset_top = 520.0
+offset_right = 1076.0
 offset_bottom = 560.0
-horizontal_alignment = 1
-autowrap_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "W/S or Arrows to pick  -  Space/A to confirm"
-
-[node name="devices" type="Label" parent="serveOverlay"]
-offset_left = 156.0
-offset_top = 565.0
-offset_right = 996.0
-offset_bottom = 600.0
+text = "YOUR SERVE"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 22
-text = "P1: Keyboard          P2: Keyboard"
 
-[node name="pause" type="Node2D" parent="."]
+[node name="hint" type="Label" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 80.0
+offset_top = 456.0
+offset_right = 1072.0
+offset_bottom = 492.0
+theme_override_colors/font_color = Color(0.88, 0.91, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+text = "W/S OR ARROWS  NAVIGATE     SPACE/ENTER  SELECT"
+horizontal_alignment = 1
+
+[node name="devices" type="Label" parent="serveOverlay/Root"]
+layout_mode = 0
+offset_left = 76.0
+offset_top = 500.0
+offset_right = 1076.0
+offset_bottom = 536.0
+theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 14
+text = "P1: W / S      P2: UP / DOWN      C COLORBLIND"
+horizontal_alignment = 1
+
+[node name="pause" type="CanvasLayer" parent="."]
+layer = 30
 process_mode = 3
 script = ExtResource("6_7mycd")
 
-[node name="PanelContainer" type="PanelContainer" parent="pause"]
-offset_right = 1152.0
-offset_bottom = 648.0
+[node name="Root" type="Control" parent="pause"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dimmer" type="PanelContainer" parent="pause/Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pause")
 
-[node name="pauseLabel" type="Label" parent="pause"]
-offset_left = 326.0
-offset_top = 90.0
-offset_right = 826.0
-offset_bottom = 180.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 70
-text = "Paused"
+[node name="Card" type="Control" parent="pause/Root"]
+layout_mode = 0
+offset_left = 316.0
+offset_top = 64.0
+offset_right = 836.0
+offset_bottom = 584.0
 
-[node name="resumeHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 200.0
-offset_right = 876.0
-offset_bottom = 240.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "> Resume"
+[node name="Bg" type="Panel" parent="pause/Root/Card"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pause_card")
 
-[node name="restartHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 245.0
-offset_right = 876.0
-offset_bottom = 285.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "  Restart"
+[node name="Cursor" type="ColorRect" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 80.0
+offset_right = 500.0
+offset_bottom = 114.0
+mouse_filter = 2
+color = Color(1, 1, 1, 0.12)
 
-[node name="quitHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 290.0
-offset_right = 876.0
-offset_bottom = 330.0
+[node name="pauseLabel" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 24.0
+offset_right = 500.0
+offset_bottom = 64.0
+theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "PAUSED"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "  Quit to Desktop"
 
-[node name="volumeHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 335.0
-offset_right = 876.0
-offset_bottom = 375.0
+[node name="resumeHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 86.0
+offset_right = 484.0
+offset_bottom = 112.0
+theme_override_font_sizes/font_size = 16
+text = "RESUME"
+
+[node name="restartHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 124.0
+offset_right = 484.0
+offset_bottom = 150.0
+theme_override_font_sizes/font_size = 16
+text = "RESTART"
+
+[node name="quitHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 162.0
+offset_right = 484.0
+offset_bottom = 188.0
+theme_override_font_sizes/font_size = 16
+text = "QUIT"
+
+[node name="audioHeader" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 204.0
+offset_right = 484.0
+offset_bottom = 226.0
+theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 12
+text = "AUDIO"
+
+[node name="masterHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 234.0
+offset_right = 200.0
+offset_bottom = 260.0
+theme_override_font_sizes/font_size = 14
+text = "MASTER"
+
+[node name="masterPct" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 408.0
+offset_top = 234.0
+offset_right = 500.0
+offset_bottom = 260.0
+theme_override_font_sizes/font_size = 12
+text = "100%"
+horizontal_alignment = 2
+
+[node name="MasterTrack" type="Panel" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 188.0
+offset_top = 242.0
+offset_right = 392.0
+offset_bottom = 250.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
+
+[node name="MasterFill" type="ColorRect" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 188.0
+offset_top = 242.0
+offset_right = 392.0
+offset_bottom = 250.0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.96, 1)
+
+[node name="MasterKnob" type="ColorRect" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 384.0
+offset_top = 238.0
+offset_right = 392.0
+offset_bottom = 254.0
+mouse_filter = 2
+color = Color(0.88, 0.95, 1, 1)
+
+[node name="volumeHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 278.0
+offset_right = 200.0
+offset_bottom = 304.0
+theme_override_font_sizes/font_size = 14
+text = "SFX"
+
+[node name="sfxPct" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 408.0
+offset_top = 278.0
+offset_right = 500.0
+offset_bottom = 304.0
+theme_override_font_sizes/font_size = 12
+text = "100%"
+horizontal_alignment = 2
+
+[node name="SfxTrack" type="Panel" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 188.0
+offset_top = 286.0
+offset_right = 392.0
+offset_bottom = 294.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
+
+[node name="SfxFill" type="ColorRect" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 188.0
+offset_top = 286.0
+offset_right = 392.0
+offset_bottom = 294.0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.96, 1)
+
+[node name="SfxKnob" type="ColorRect" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 384.0
+offset_top = 282.0
+offset_right = 392.0
+offset_bottom = 298.0
+mouse_filter = 2
+color = Color(0.88, 0.95, 1, 1)
+
+[node name="gameHeader" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 324.0
+offset_right = 484.0
+offset_bottom = 346.0
+theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
+theme_override_font_sizes/font_size = 12
+text = "GAME"
+
+[node name="difficultyHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 358.0
+offset_right = 484.0
+offset_bottom = 384.0
+theme_override_font_sizes/font_size = 14
+text = "CPU DIFFICULTY    <  NORMAL  >"
+
+[node name="colorblindHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 402.0
+offset_right = 484.0
+offset_bottom = 428.0
+theme_override_font_sizes/font_size = 14
+text = "HIGH CONTRAST     <  OFF  >"
+
+[node name="pauseHint" type="Label" parent="pause/Root/Card"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 448.0
+offset_right = 504.0
+offset_bottom = 508.0
+theme_override_colors/font_color = Color(0.8, 0.84, 0.9, 1)
+theme_override_font_sizes/font_size = 13
+text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST
+SPACE/ENTER SELECT     ESC RESUME"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "  SFX Volume: 100%"
+autowrap_mode = 2
 
-[node name="masterHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 380.0
-offset_right = 876.0
-offset_bottom = 420.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "  Master Volume: 100%"
-
-[node name="difficultyHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 425.0
-offset_right = 876.0
-offset_bottom = 465.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "  AI Difficulty: Normal"
-
-[node name="colorblindHint" type="Label" parent="pause"]
-offset_left = 276.0
-offset_top = 470.0
-offset_right = 876.0
-offset_bottom = 510.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "  Colorblind: Off"
-
-[node name="gameOver" type="Node2D" parent="."]
+[node name="gameOver" type="CanvasLayer" parent="."]
+layer = 40
 process_mode = 3
 script = ExtResource("8_5vw27")
 
-[node name="PanelContainer" type="PanelContainer" parent="gameOver"]
-offset_right = 1152.0
-offset_bottom = 648.0
+[node name="Root" type="Control" parent="gameOver"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dimmer" type="PanelContainer" parent="gameOver/Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_over")
 
-[node name="gameover" type="Label" parent="gameOver"]
-offset_left = 326.0
-offset_top = 150.0
-offset_right = 826.0
-offset_bottom = 270.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 90
-text = "GAME OVER"
+[node name="Card" type="Control" parent="gameOver/Root"]
+layout_mode = 0
+offset_left = 286.0
+offset_top = 110.0
+offset_right = 866.0
+offset_bottom = 538.0
 
-[node name="blue" type="Label" parent="gameOver"]
-offset_left = 306.0
-offset_top = 300.0
-offset_right = 846.0
+[node name="Bg" type="Panel" parent="gameOver/Root/Card"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_over_card")
+
+[node name="gameover" type="Label" parent="gameOver/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 36.0
+offset_right = 560.0
+offset_bottom = 64.0
+theme_override_colors/font_color = Color(0.7, 0.75, 0.82, 0.85)
+theme_override_font_sizes/font_size = 14
+text = "MATCH OVER"
+horizontal_alignment = 1
+
+[node name="blue" type="Label" parent="gameOver/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 92.0
+offset_right = 560.0
+offset_bottom = 150.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "YOU WIN"
+horizontal_alignment = 1
+
+[node name="red" type="Label" parent="gameOver/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 92.0
+offset_right = 560.0
+offset_bottom = 150.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "CPU WINS"
+horizontal_alignment = 1
+
+[node name="finalScore" type="Label" parent="gameOver/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 170.0
+offset_right = 560.0
+offset_bottom = 230.0
+theme_override_font_sizes/font_size = 28
+text = "0  -  0"
+horizontal_alignment = 1
+
+[node name="rallyRecord" type="Label" parent="gameOver/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 250.0
+offset_right = 560.0
+offset_bottom = 280.0
+theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "BEST RALLY  0"
+horizontal_alignment = 1
+
+[node name="restartHint" type="Label" parent="gameOver/Root/Card"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 340.0
+offset_right = 560.0
 offset_bottom = 380.0
+theme_override_colors/font_color = Color(0.9, 0.93, 0.98, 1)
+theme_override_font_sizes/font_size = 14
+text = "SPACE / ENTER REMATCH"
 horizontal_alignment = 1
-theme_override_colors/font_color = Color(0, 1, 1, 1)
-theme_override_font_sizes/font_size = 60
-text = "P1 WINS!"
 
-[node name="red" type="Label" parent="gameOver"]
-offset_left = 306.0
-offset_top = 300.0
-offset_right = 846.0
-offset_bottom = 380.0
-horizontal_alignment = 1
-theme_override_colors/font_color = Color(1, 0, 0, 1)
-theme_override_font_sizes/font_size = 60
-text = "P2 WINS!"
+[node name="PostFX" type="CanvasLayer" parent="."]
+layer = 5
 
-[node name="restartHint" type="Label" parent="gameOver"]
-offset_left = 236.0
-offset_top = 500.0
-offset_right = 916.0
-offset_bottom = 560.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 40
-text = "Press Space Or A To Restart"
+[node name="Vignette" type="ColorRect" parent="PostFX"]
+material = SubResource("ShaderMaterial_vig")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 1)
 
-[node name="rallyRecord" type="Label" parent="gameOver"]
-offset_left = 336.0
-offset_top = 430.0
-offset_right = 816.0
-offset_bottom = 480.0
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 30
-text = "Longest Rally: 0"
+[node name="Scanlines" type="ColorRect" parent="PostFX"]
+material = SubResource("ShaderMaterial_scan")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 1)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_main")
-

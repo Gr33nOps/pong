@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="PONG logo" width="220">
+</p>
+
 # PONG
 
 A classic Pong remake built with **Godot 4.7** — aimed serves, rally heat, and a glowing motion trail.
@@ -6,6 +10,7 @@ A classic Pong remake built with **Godot 4.7** — aimed serves, rally heat, and
 
 - **Web (browser):** <https://gr33nops.github.io/pong/> — built and deployed automatically by GitHub Actions on every push to `main`.
 - **Windows:** grab `pong-windows.zip` from the [Releases](https://github.com/Gr33nOps/pong/releases) page, unzip, and run `pong.exe`.
+- **Android:** grab `pong-android.apk` from the [Releases](https://github.com/Gr33nOps/pong/releases) page and install it (enable "Install unknown apps" for your browser/file manager first).
 
 ## Features
 
@@ -36,12 +41,15 @@ Aim the serve by moving the paddle before you launch. In vs AI, the computer aut
 
 ## Building
 
-Both presets are in `export_presets.cfg`. From the project root:
+All presets are in `export_presets.cfg`. From the project root:
 
 ```bash
 godot --headless --path . --export-release "Windows Desktop"
 godot --headless --path . --export-release "Web"
+godot --headless --path . --export-debug "Android"
 ```
+
+Pushing a `v*` tag (e.g. `v1.0.0`) triggers [`release.yml`](.github/workflows/release.yml), which builds all three and publishes them to a [GitHub Release](https://github.com/Gr33nOps/pong/releases).
 
 ## Project layout
 

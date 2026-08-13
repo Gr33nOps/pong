@@ -11,6 +11,7 @@ const PLAYER_2 := 2
 const DEADZONE := 0.25
 
 var _devices := {PLAYER_1: -1, PLAYER_2: -1}
+var _stick_dir := {}
 
 var _confirm_frame := -1
 var _pause_frame := -1
@@ -35,13 +36,22 @@ func _unhandled_input(event: InputEvent) -> void:
 				_nav_up_frame = Engine.get_process_frames()
 			elif event.button_index == JOY_BUTTON_DPAD_DOWN:
 				_nav_down_frame = Engine.get_process_frames()
-	elif event is InputEventJoypadMotion and absf(event.axis_value) > 0.5:
+	elif event is InputEventJoypadMotion and event.axis == JOY_AXIS_LEFT_Y:
 		_assign(event.device)
-		if _is_assigned(event.device) and event.axis == JOY_AXIS_LEFT_Y:
-			if event.axis_value < -0.5:
+		if not _is_assigned(event.device):
+			return
+		var dir := 0
+		if event.axis_value < -0.6:
+			dir = -1
+		elif event.axis_value > 0.6:
+			dir = 1
+		var prev: int = int(_stick_dir.get(event.device, 0))
+		if dir != 0 and dir != prev:
+			if dir < 0:
 				_nav_up_frame = Engine.get_process_frames()
-			elif event.axis_value > 0.5:
+			else:
 				_nav_down_frame = Engine.get_process_frames()
+		_stick_dir[event.device] = dir
 
 
 func get_device(player: int) -> int:
