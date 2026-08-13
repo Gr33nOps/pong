@@ -18,6 +18,7 @@ extends Node2D
 @onready var bottom_rail = $Court/BottomRail
 
 var playfield_size := Vector2.ZERO
+var _rotate_hint: CanvasLayer = null
 
 
 func _ready() -> void:
@@ -40,6 +41,40 @@ func _ready() -> void:
 	score_flash.modulate.a = 0.0
 	score_flash.visible = false
 	_set_match_visible(false)
+	if GameState.is_touch_ui():
+		_make_rotate_hint()
+		_update_rotate_hint()
+
+
+func _make_rotate_hint() -> void:
+	_rotate_hint = CanvasLayer.new()
+	_rotate_hint.layer = 90
+	_rotate_hint.process_mode = Node.PROCESS_MODE_ALWAYS
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.022, 0.03, 0.97)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	var label := Label.new()
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.text = "↻\n\nROTATE YOUR DEVICE\nPONG plays in landscape"
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	root.add_child(dim)
+	root.add_child(label)
+	_rotate_hint.add_child(root)
+	add_child(_rotate_hint)
+	_rotate_hint.visible = false
+
+
+func _update_rotate_hint() -> void:
+	if _rotate_hint == null:
+		return
+	var size := get_viewport_rect().size
+	_rotate_hint.visible = size.y > size.x
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -194,6 +229,7 @@ func _update_playfield_size() -> void:
 	playfield_clip.size = Vector2(playfield_size.x, playfield_size.y - Constants.HUD_HEIGHT)
 	if $AI:
 		$AI.center_y = (playfield_size.y + Constants.HUD_HEIGHT) * 0.5
+	_update_rotate_hint()
 
 
 func _on_score_changed(left_score: int, right_score: int) -> void:
