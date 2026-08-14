@@ -30,7 +30,7 @@ func _ready() -> void:
 
 func _make_pause_button() -> void:
 	pause_hit = Panel.new()
-	pause_hit.position = Vector2(476.0, 600.0)
+	pause_hit.position = Vector2(476.0, 520.0)
 	pause_hit.size = Vector2(200.0, 40.0)
 	pause_hit.mouse_filter = Control.MOUSE_FILTER_STOP
 	var style := StyleBoxFlat.new()
@@ -38,7 +38,7 @@ func _make_pause_button() -> void:
 	style.border_color = Color(0, 0, 0, 0)
 	pause_hit.add_theme_stylebox_override("panel", style)
 	pause_label = Label.new()
-	pause_label.position = Vector2(476.0, 604.0)
+	pause_label.position = Vector2(476.0, 524.0)
 	pause_label.size = Vector2(200.0, 32.0)
 	pause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pause_label.text = "PAUSE"
