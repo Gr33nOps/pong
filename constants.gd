@@ -10,6 +10,7 @@ const COLOR_P2_ALT = Color(0.25, 0.5, 1.0, 1)  # Blue (colorblind)
 const WINNER_SCORE = 5
 const MODE_AI = 1
 const MODE_2P = 2
+const GAME_VERSION := "1.1.3"
 
 # Ball physics — arcade Pong (front-face hits only)
 const BALL_RADIUS = 21.0
@@ -29,6 +30,7 @@ const HALF_HEIGHT = PADDLE_HEIGHT / 2.0
 const PADDLE_WIDTH = 21.0
 const PADDLE_MARGIN = 16.0
 const PADDLE_SPEED = 580.0
+const PADDLE_POINTER_SNAP_SPEED = PADDLE_SPEED
 const PADDLE_SHRINK_START = 5
 const PADDLE_MIN_SCALE = 0.7
 
@@ -61,6 +63,7 @@ const UI_DIM_TEXT = Color(0.7, 0.74, 0.8, 1)
 const COURT_BG = Color(0.027, 0.04, 0.07, 1)
 const HUD_HEIGHT = 72.0
 const HUD_PAD = 28.0
+const TOUCH_UI_SCALE := 1.05
 
 # Settings keys
 const SETTINGS_FILE = "user://settings.cfg"
@@ -80,9 +83,29 @@ const KEY_MUTED = "muted"
 
 func read_config() -> ConfigFile:
 	var config := ConfigFile.new()
-	config.load(SETTINGS_FILE)
+	var err := config.load(SETTINGS_FILE)
+	if err != OK and err != ERR_FILE_NOT_FOUND:
+		push_warning("Could not load settings (%s); using defaults." % err)
 	return config
 
 
 func write_config(config: ConfigFile) -> void:
-	config.save(SETTINGS_FILE)
+	var err := config.save(SETTINGS_FILE)
+	if err != OK:
+		push_warning("Could not save settings (%s)." % err)
+
+
+func configure_touch_root(root: Control) -> void:
+	var state := get_node_or_null("/root/GameState")
+	var touch_ui := OS.has_feature("mobile")
+	if state != null and state.has_method("is_touch_ui"):
+		touch_ui = state.is_touch_ui()
+	if not touch_ui:
+		return
+	root.pivot_offset = Vector2(576.0, 324.0)
+	# Compact landscape phones already use the full reference height; scaling the
+	# whole overlay there would crop the top/bottom safe area. Larger touch
+	# displays get a modest visual bump while hit testing remains logical.
+	var window_size := get_window().size
+	var scale := TOUCH_UI_SCALE if window_size.y >= 600 else 1.0
+	root.scale = Vector2.ONE * scale

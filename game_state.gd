@@ -28,6 +28,7 @@ var ai_difficulty := Constants.DIFFICULTY_NORMAL
 var serve_toward_right := true
 var between_points := false
 var player_is_left := true
+var _last_input_was_touch := false
 
 
 func _ready() -> void:
@@ -48,7 +49,15 @@ func _notification(what: int) -> void:
 
 
 func is_touch_ui() -> bool:
-	return OS.has_feature("mobile") or DisplayServer.is_touchscreen_available()
+	return OS.has_feature("mobile") or _last_input_was_touch
+
+
+func note_input(modality: String) -> void:
+	_last_input_was_touch = modality == "touch"
+
+
+func server_is_left() -> bool:
+	return serve_toward_right
 
 
 func handle_back() -> void:
@@ -78,10 +87,6 @@ func _read_difficulty(config: ConfigFile) -> float:
 		"hard":
 			return Constants.DIFFICULTY_HARD
 	var value := float(config.get_value("game", Constants.KEY_AI_DIFFICULTY, Constants.DIFFICULTY_NORMAL))
-	if value >= 1.4:
-		return Constants.DIFFICULTY_HARD
-	if value <= 0.55:
-		return Constants.DIFFICULTY_EASY
 	if value <= 0.8:
 		return Constants.DIFFICULTY_EASY
 	if value >= 0.97:
@@ -217,7 +222,7 @@ func toggle_colorblind() -> void:
 
 
 func set_ai_difficulty(value: float) -> void:
-	ai_difficulty = value
+	ai_difficulty = clampf(value, Constants.DIFFICULTY_EASY, Constants.DIFFICULTY_HARD)
 	ai_difficulty_changed.emit(ai_difficulty)
 	_save_settings()
 

@@ -78,6 +78,12 @@ func play(sound_name: String, pitch: float = 1.0) -> void:
 		player.play()
 
 
+func stop_all() -> void:
+	for child in get_children():
+		if child is AudioStreamPlayer:
+			child.stop()
+
+
 func play_score() -> void:
 	play("score_low", 0.9)
 	play("score", 1.05)

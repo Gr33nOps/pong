@@ -15,6 +15,7 @@ var menu_hint: Label
 func _ready() -> void:
 	visible = false
 	layer = 40
+	Constants.configure_touch_root(root)
 	root.modulate = Color(1, 1, 1, 0)
 	red_win_label.visible = false
 	blue_win_label.visible = false

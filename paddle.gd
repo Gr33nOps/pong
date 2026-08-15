@@ -9,6 +9,9 @@ var last_vy := 0.0
 var _playfield_h := 648.0
 var _pulse_tween: Tween = null
 var _size_tween: Tween = null
+var _pointer_id := -1
+var _pointer_target_y := 0.0
+var _pointer_active := false
 
 
 func _ready() -> void:
@@ -38,13 +41,43 @@ func get_move_input() -> float:
 	if not is_human():
 		return 0.0
 	if GameState.mode == Constants.MODE_AI:
-		var keyboard := Input.get_axis("up", "down") + Input.get_axis("up2", "down2")
+		var keyboard_input := Input.get_axis("up", "down") + Input.get_axis("up2", "down2")
 		var pad := Players.get_axis(Players.PLAYER_1) + Players.get_axis(Players.PLAYER_2)
-		return clampf(keyboard + pad, -1.0, 1.0)
+		return clampf(keyboard_input + pad, -1.0, 1.0)
 	var use_p1 := _uses_p1_controls()
 	var player := Players.PLAYER_1 if use_p1 else Players.PLAYER_2
-	var keyboard := Input.get_axis("up", "down") if use_p1 else Input.get_axis("up2", "down2")
-	return clampf(keyboard + Players.get_axis(player), -1.0, 1.0)
+	var player_keyboard_input := Input.get_axis("up", "down") if use_p1 else Input.get_axis("up2", "down2")
+	return clampf(player_keyboard_input + Players.get_axis(player), -1.0, 1.0)
+
+
+func begin_pointer(pointer_id: int, target_y: float) -> bool:
+	if not is_human():
+		return false
+	if _pointer_active and _pointer_id != pointer_id:
+		return false
+	_pointer_id = pointer_id
+	_pointer_active = true
+	set_pointer_target(target_y, pointer_id)
+	return true
+
+
+func set_pointer_target(target_y: float, pointer_id: int = -1) -> bool:
+	if _pointer_active and pointer_id != _pointer_id:
+		return false
+	_pointer_id = pointer_id
+	_pointer_active = true
+	_pointer_target_y = clampf(target_y, top_limit, bottom_limit)
+	return true
+
+
+func release_pointer(pointer_id: int = -1) -> void:
+	if pointer_id == -1 or pointer_id == _pointer_id:
+		_pointer_id = -1
+		_pointer_active = false
+
+
+func has_pointer_target() -> bool:
+	return _pointer_active
 
 
 func apply_rally_size(hits: int) -> void:
@@ -96,9 +129,14 @@ func _physics_process(delta: float) -> void:
 		last_vy = 0.0
 		return
 	if not is_human():
+		last_vy = 0.0
 		return
 	var before := position.y
-	position.y += get_move_input() * speed * delta
+	if has_pointer_target():
+		var pointer_step := clampf(_pointer_target_y - position.y, -Constants.PADDLE_POINTER_SNAP_SPEED * delta, Constants.PADDLE_POINTER_SNAP_SPEED * delta)
+		position.y += pointer_step
+	else:
+		position.y += get_move_input() * speed * delta
 	position.y = clampf(position.y, top_limit, bottom_limit)
 	last_vy = (position.y - before) / delta if delta > 0.0 else 0.0
 

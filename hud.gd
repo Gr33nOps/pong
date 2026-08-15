@@ -15,6 +15,7 @@ var pause_label: Label
 
 func _ready() -> void:
 	layer = 8
+	Constants.configure_touch_root($Root)
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.mode_changed.connect(_on_mode_changed)
 	GameState.serving_changed.connect(_on_serving_changed)
