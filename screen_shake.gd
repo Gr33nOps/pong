@@ -12,6 +12,7 @@ var _active: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(false)
 
 
 func _process(delta: float) -> void:

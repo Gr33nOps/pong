@@ -20,8 +20,8 @@ A classic Pong remake built with **Godot 4.7** — aimed serves, rally heat, and
 - Loser serves: ball sits on the paddle; aim with movement or a touch drag, then Space / A / tap to launch
 - Center hits are faster and flatter; edge hits are sharper and a bit slower
 - Paddle english, rally speed ramp, and paddles that shrink after a long volley
-- Live **RALLY** counter, speed-scaled SFX pitch and screen shake
-- Pause menu (ESC / START) with volume, AI difficulty, and colorblind colors
+- Rally-based gameplay balancing, speed-scaled SFX pitch and screen shake
+- Pause menu (ESC / START) with volume and AI difficulty controls in a monochrome ink UI
 - Touch play supports speed-limited paddle movement, aimed serves, two-player side ownership, and draggable volume controls
 - First to 5 wins
 

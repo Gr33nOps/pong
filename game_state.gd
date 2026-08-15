@@ -36,7 +36,7 @@ func _ready() -> void:
 	_load_settings()
 
 
-func _process(_delta: float) -> void:
+func _sync_tree_pause() -> void:
 	get_tree().paused = paused or is_game_over
 
 
@@ -118,6 +118,7 @@ func reset_game() -> void:
 	score_changed.emit(left_score, right_score)
 	serving_changed.emit(serving)
 	paused_changed.emit(paused)
+	_sync_tree_pause()
 
 
 func add_point(side: String) -> void:
@@ -133,6 +134,7 @@ func add_point(side: String) -> void:
 	if left_score >= Constants.WINNER_SCORE or right_score >= Constants.WINNER_SCORE:
 		is_game_over = true
 		var winner := "blue" if left_score >= Constants.WINNER_SCORE else "red"
+		_sync_tree_pause()
 		game_over.emit(winner)
 		return
 	between_points = true
@@ -159,6 +161,7 @@ func toggle_pause() -> void:
 	if is_game_over:
 		return
 	paused = not paused
+	_sync_tree_pause()
 	paused_changed.emit(paused)
 
 
@@ -200,6 +203,7 @@ func rematch() -> void:
 	serve_toward_right = randf() >= 0.5
 	score_changed.emit(left_score, right_score)
 	paused_changed.emit(paused)
+	_sync_tree_pause()
 	rematch_started.emit()
 	serving_changed.emit(serving)
 
@@ -213,6 +217,16 @@ func cycle_difficulty(direction: int) -> void:
 		index = 2
 	index = clampi(index + direction, 0, steps.size() - 1)
 	set_ai_difficulty(steps[index])
+
+
+func advance_difficulty() -> void:
+	var steps := [Constants.DIFFICULTY_EASY, Constants.DIFFICULTY_NORMAL, Constants.DIFFICULTY_HARD]
+	var index := 1
+	if ai_difficulty <= 0.8:
+		index = 0
+	elif ai_difficulty >= 0.97:
+		index = 2
+	set_ai_difficulty(steps[(index + 1) % steps.size()])
 
 
 func toggle_colorblind() -> void:

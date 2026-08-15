@@ -7,9 +7,12 @@ extends CanvasLayer
 @onready var rally_label = $Root/Card/rallyRecord
 @onready var final_score = $Root/Card/finalScore
 @onready var card = $Root/Card
+@onready var rematch_button: Panel = $Root/Card/RematchButton
+@onready var menu_button: Panel = $Root/Card/MenuButton
 
 var _fade_tween: Tween = null
 var menu_hint: Label
+var _cursor := 0
 
 
 func _ready() -> void:
@@ -20,13 +23,34 @@ func _ready() -> void:
 	red_win_label.visible = false
 	blue_win_label.visible = false
 	GameState.game_over.connect(_on_game_over)
-	GameState.colorblind_changed.connect(_apply_winner_colors)
 	GameState.rematch_started.connect(_on_rematch_started)
 	GameState.back_pressed.connect(_on_android_back)
 	_make_menu_hint()
-	_apply_winner_colors(GameState.colorblind_mode)
+	_set_cursor(0)
+	_apply_winner_colors(false)
 	restart_hint.mouse_filter = Control.MOUSE_FILTER_STOP
 	restart_hint.gui_input.connect(_on_hint_gui.bind("rematch"))
+	restart_hint.mouse_entered.connect(_focus_button.bind(true))
+	menu_hint.mouse_entered.connect(_focus_button.bind(false))
+
+
+func _focus_button(rematch: bool) -> void:
+	if not GameState.is_game_over:
+		return
+	_set_cursor(0 if rematch else 1)
+
+
+func _set_cursor(index: int) -> void:
+	_cursor = clampi(index, 0, 1)
+	rematch_button.set("selected", _cursor == 0)
+	menu_button.set("selected", _cursor == 1)
+
+
+func _activate_cursor() -> void:
+	if _cursor == 0:
+		_do_rematch()
+	else:
+		_do_menu()
 
 
 func _make_menu_hint() -> void:
@@ -34,14 +58,15 @@ func _make_menu_hint() -> void:
 	menu_hint.position = Vector2(20, 380)
 	menu_hint.size = Vector2(540, 36)
 	menu_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	menu_hint.add_theme_font_size_override("font_size", 14)
-	menu_hint.add_theme_color_override("font_color", Color(0.82, 0.86, 0.9, 1))
+	menu_hint.add_theme_font_size_override("font_size", 18)
+	menu_hint.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 	menu_hint.text = "TAP FOR MENU" if GameState.is_touch_ui() else "ESC MENU"
 	menu_hint.mouse_filter = Control.MOUSE_FILTER_STOP
 	menu_hint.gui_input.connect(_on_hint_gui.bind("menu"))
 	card.add_child(menu_hint)
 	restart_hint.text = "TAP TO REMATCH" if GameState.is_touch_ui() else "SPACE / ENTER REMATCH"
-	restart_hint.position.y = 340.0
+	restart_hint.position.y = 308.0
+	menu_hint.position.y = 354.0
 
 
 func _on_hint_gui(event: InputEvent, action: String) -> void:
@@ -62,11 +87,34 @@ func _on_hint_gui(event: InputEvent, action: String) -> void:
 func _process(_delta: float) -> void:
 	if not GameState.is_game_over:
 		return
-	restart_hint.modulate.a = 0.55 + sin(Time.get_ticks_msec() * 0.006) * 0.45
-	if Input.is_action_just_pressed("stop") or Input.is_action_just_pressed("ui_accept") or Players.is_confirm_just_pressed():
-		_do_rematch()
-	elif Input.is_action_just_pressed("ui_cancel"):
+	restart_hint.modulate.a = 1.0
+	if Players.is_nav_up_just_pressed():
+		_set_cursor(0)
+	elif Players.is_nav_down_just_pressed():
+		_set_cursor(1)
+	elif Players.is_confirm_just_pressed():
+		_activate_cursor()
+	elif Players.is_pause_just_pressed():
 		_do_menu()
+
+
+func _input(event: InputEvent) -> void:
+	if not GameState.is_game_over or not event is InputEventKey:
+		return
+	if not event.pressed or event.echo:
+		return
+	if event.physical_keycode == KEY_UP or event.physical_keycode == KEY_W:
+		get_viewport().set_input_as_handled()
+		_set_cursor(0)
+	elif event.physical_keycode == KEY_DOWN or event.physical_keycode == KEY_S:
+		get_viewport().set_input_as_handled()
+		_set_cursor(1)
+	elif event.physical_keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		_do_menu()
+	elif event.physical_keycode == KEY_SPACE or event.physical_keycode == KEY_ENTER or event.physical_keycode == KEY_KP_ENTER:
+		get_viewport().set_input_as_handled()
+		_activate_cursor()
 
 
 func _do_rematch() -> void:
@@ -93,9 +141,10 @@ func _on_rematch_started() -> void:
 
 func _on_game_over(winner: String) -> void:
 	visible = true
+	_set_cursor(0)
 	red_win_label.visible = winner == "red"
 	blue_win_label.visible = winner == "blue"
-	_apply_winner_colors(GameState.colorblind_mode)
+	_apply_winner_colors(false)
 	final_score.text = "%d  -  %d" % [GameState.left_score, GameState.right_score]
 	rally_label.text = "RALLY %d     BEST %d" % [GameState.last_rally, GameState.longest_rally]
 	SFX.play_win()
@@ -116,8 +165,8 @@ func _apply_winner_colors(_enabled: bool) -> void:
 	else:
 		blue_win_label.text = "P2 WINS"
 		red_win_label.text = "P1 WINS"
-	blue_win_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
-	red_win_label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	blue_win_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
+	red_win_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 
 
 func _fade_in() -> void:
