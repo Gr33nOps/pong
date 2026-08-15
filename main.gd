@@ -6,7 +6,7 @@ extends Node2D
 @onready var paddle_left = $paddleLeft
 @onready var paddle_right = $paddleRight
 @onready var divider = $Divider
-@onready var rally_label = $rallyLabel
+@onready var center_line_ink: Sprite2D = $CenterLineInk
 @onready var trail = $Trail
 @onready var playfield_clip = $PlayfieldClip
 @onready var hud = $HUD
@@ -16,6 +16,7 @@ extends Node2D
 @onready var right_wash = $Court/RightWash
 @onready var top_rail = $Court/TopRail
 @onready var bottom_rail = $Court/BottomRail
+@onready var ink_rails = $InkRails
 
 var playfield_size := Vector2.ZERO
 var _rotate_hint: CanvasLayer = null
@@ -40,11 +41,13 @@ func _ready() -> void:
 	hud.bind_ball(ball)
 	GameState.reset_game()
 	get_tree().root.connect("size_changed", _update_playfield_size)
-	rally_label.visible = false
 	left_label.visible = false
 	right_label.visible = false
 	score_flash.modulate.a = 0.0
 	score_flash.visible = false
+	# The trail was deliberately removed from the presentation; do not keep its
+	# script in the frame loop on lower-powered browsers and phones.
+	trail.set_process(false)
 	_set_match_visible(false)
 	if GameState.is_touch_ui():
 		_make_rotate_hint()
@@ -59,7 +62,7 @@ func _make_rotate_hint() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.02, 0.022, 0.03, 0.97)
+	dim.color = Color(1.0, 1.0, 1.0, 0.98)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	var label := Label.new()
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -67,7 +70,8 @@ func _make_rotate_hint() -> void:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.text = "↻\n\nROTATE YOUR DEVICE\nPONG plays in landscape"
 	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1.0))
+	root.theme = preload("res://ink_theme.tres")
 	root.add_child(dim)
 	root.add_child(label)
 	_rotate_hint.add_child(root)
@@ -175,15 +179,18 @@ func _on_rematch_started() -> void:
 func _set_match_visible(on: bool) -> void:
 	left_label.visible = false
 	right_label.visible = false
-	divider.visible = on and not GameState.serving
+	divider.visible = false
+	center_line_ink.visible = on and not GameState.serving
 	left_wash.visible = false
 	right_wash.visible = false
-	top_rail.visible = on
-	bottom_rail.visible = on
+	top_rail.visible = false
+	bottom_rail.visible = false
+	ink_rails.visible = on
 	ball.visible = on
 	paddle_left.visible = on
 	paddle_right.visible = on
-	trail.visible = on
+	# The ball stays clean and still; the old motion trail is intentionally disabled.
+	trail.visible = false
 	if not on:
 		trail.clear_points()
 		ball.velocity = Vector2.ZERO
@@ -213,7 +220,6 @@ func _score_goal(side: String, impact: Vector2, color: Color) -> void:
 	ball.velocity = Vector2.ZERO
 	trail.clear_points()
 	GameState.update_longest_rally(ball.rally_hits)
-	ScreenShake.shake(lerpf(6.0, 12.0, ball.speed_ratio()))
 	ParticleEffects.spawn_score(impact, color)
 	GameState.add_point(side)
 
@@ -227,7 +233,7 @@ func _on_point_scored(_side: String) -> void:
 		return
 	GameState.set_serving(true)
 	ball.visible = true
-	trail.visible = true
+	trail.visible = false
 
 
 func _place_serve_ball() -> void:
@@ -277,6 +283,9 @@ func _update_playfield_size() -> void:
 			Vector2(playfield_size.x * 0.5, Constants.HUD_HEIGHT + 10.0),
 			Vector2(playfield_size.x * 0.5, playfield_size.y - 14.0),
 		])
+	if center_line_ink:
+		center_line_ink.position = Vector2(playfield_size.x * 0.5, (Constants.HUD_HEIGHT + playfield_size.y) * 0.5)
+		center_line_ink.scale = Vector2(1.0, maxf((playfield_size.y - Constants.HUD_HEIGHT - 24.0) / 560.0, 0.1))
 	court_bg.size = playfield_size
 	var wash_w := 72.0
 	left_wash.position = Vector2(0.0, Constants.HUD_HEIGHT)
@@ -315,20 +324,20 @@ func _on_serving_changed(serving: bool) -> void:
 		paddle_right.reset_size()
 		_on_rally_changed(0)
 		divider.visible = false
+		center_line_ink.visible = false
 		ball.visible = GameState.mode_selected
 	else:
-		divider.visible = GameState.mode_selected
+		divider.visible = false
+		center_line_ink.visible = GameState.mode_selected
 		ball.launch(GameState.serve_toward_right, _serve_aim())
 
 
 func _on_rally_changed(hits: int) -> void:
-	rally_label.visible = false
 	paddle_left.apply_rally_size(hits)
 	paddle_right.apply_rally_size(hits)
 
 
 func _on_game_over(_winner: String) -> void:
-	rally_label.visible = false
 	ScreenShake.reset()
 	trail.clear_points()
 	ball.velocity = Vector2.ZERO

@@ -6,6 +6,7 @@ var speed := Constants.PADDLE_SPEED
 var top_limit := 0.0
 var bottom_limit := 0.0
 var last_vy := 0.0
+var previous_y := 0.0
 var _playfield_h := 648.0
 var _pulse_tween: Tween = null
 var _size_tween: Tween = null
@@ -15,9 +16,11 @@ var _pointer_active := false
 
 
 func _ready() -> void:
+	process_priority = -10
 	monitoring = false
 	monitorable = false
 	_playfield_h = get_viewport_rect().size.y
+	previous_y = position.y
 	_refresh_limits()
 	_apply_color()
 	GameState.colorblind_changed.connect(_on_colorblind_changed)
@@ -42,7 +45,7 @@ func get_move_input() -> float:
 		return 0.0
 	if GameState.mode == Constants.MODE_AI:
 		var keyboard_input := Input.get_axis("up", "down") + Input.get_axis("up2", "down2")
-		var pad := Players.get_axis(Players.PLAYER_1) + Players.get_axis(Players.PLAYER_2)
+		var pad := Players.get_axis(Players.PLAYER_1)
 		return clampf(keyboard_input + pad, -1.0, 1.0)
 	var use_p1 := _uses_p1_controls()
 	var player := Players.PLAYER_1 if use_p1 else Players.PLAYER_2
@@ -132,6 +135,7 @@ func _physics_process(delta: float) -> void:
 		last_vy = 0.0
 		return
 	var before := position.y
+	previous_y = before
 	if has_pointer_target():
 		var pointer_step := clampf(_pointer_target_y - position.y, -Constants.PADDLE_POINTER_SNAP_SPEED * delta, Constants.PADDLE_POINTER_SNAP_SPEED * delta)
 		position.y += pointer_step
@@ -142,7 +146,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_color() -> void:
-	$ColorRect.color = GameState.get_p1_color() if is_left else GameState.get_p2_color()
+	# Both paddles share the same black-ink artwork; side identity comes from layout and labels.
+	$Sprite2D.modulate = Color.WHITE
 
 
 func _on_colorblind_changed(_enabled: bool) -> void:

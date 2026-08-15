@@ -1,21 +1,24 @@
 extends Node
 
 # Colors
-const COLOR_P1 = Color(0, 1, 1, 1)   # Cyan/Blue
-const COLOR_P2 = Color(1, 0, 0, 1)   # Red
-const COLOR_P1_ALT = Color(1.0, 0.92, 0.2, 1)  # Yellow (colorblind)
-const COLOR_P2_ALT = Color(0.25, 0.5, 1.0, 1)  # Blue (colorblind)
+const COLOR_P1 = Color(0.12, 0.12, 0.11, 1)   # Black ink
+const COLOR_P2 = Color(0.12, 0.12, 0.11, 1)   # Black ink
+const COLOR_P1_ALT = Color(0.12, 0.12, 0.11, 1)  # Monochrome fallback
+const COLOR_P2_ALT = Color(0.12, 0.12, 0.11, 1)  # Monochrome fallback
 
 # Game settings
 const WINNER_SCORE = 5
 const MODE_AI = 1
 const MODE_2P = 2
-const GAME_VERSION := "1.1.3"
+const GAME_VERSION := "1.1.5"
 
 # Ball physics — arcade Pong (front-face hits only)
 const BALL_RADIUS = 21.0
 const START_SPEED = 480.0
 const MAX_SPEED = 1020.0
+const BALL_COLLISION_STEP = 4.0
+const MAX_BALL_SUBSTEPS = 64
+const PADDLE_COLLISION_PAD = 2.0
 const SPEED_INCREMENT = 1.042
 const MAX_BOUNCE_ANGLE_DEG = 72.0
 const SERVE_ANGLE_DEG = 28.0
@@ -33,6 +36,15 @@ const PADDLE_SPEED = 580.0
 const PADDLE_POINTER_SNAP_SPEED = PADDLE_SPEED
 const PADDLE_SHRINK_START = 5
 const PADDLE_MIN_SCALE = 0.7
+
+# Gamepad — scaled deadzone removes stick drift without making the first part
+# of the paddle travel feel sluggish.
+const GAMEPAD_DEADZONE := 0.18
+const GAMEPAD_RESPONSE_EXPONENT := 1.15
+const GAMEPAD_NAV_ENGAGE := 0.62
+const GAMEPAD_NAV_RELEASE := 0.42
+const GAMEPAD_NAV_INITIAL_REPEAT := 0.32
+const GAMEPAD_NAV_REPEAT := 0.12
 
 # Trail
 const MAX_TRAIL_POINTS = 18
@@ -57,10 +69,10 @@ const GAME_OVER_FADE_IN = 0.45
 const MENU_FADE_IN = 0.28
 
 # UI
-const UI_GOLD = Color(1.0, 0.82, 0.28, 1)
-const UI_MUTED = Color(0.78, 0.82, 0.88, 1)
-const UI_DIM_TEXT = Color(0.7, 0.74, 0.8, 1)
-const COURT_BG = Color(0.027, 0.04, 0.07, 1)
+const UI_GOLD = Color(0.12, 0.12, 0.11, 1)
+const UI_MUTED = Color(0.22, 0.22, 0.22, 1)
+const UI_DIM_TEXT = Color(0.40, 0.40, 0.40, 1)
+const COURT_BG = Color(1.0, 1.0, 1.0, 1)
 const HUD_HEIGHT = 72.0
 const HUD_PAD = 28.0
 const TOUCH_UI_SCALE := 1.05

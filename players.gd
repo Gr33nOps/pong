@@ -8,10 +8,9 @@ signal player_released(player: int)
 
 const PLAYER_1 := 1
 const PLAYER_2 := 2
-const DEADZONE := 0.25
-
 var _devices := {PLAYER_1: -1, PLAYER_2: -1}
 var _stick_dir := {}
+var _stick_repeat_at := {}
 
 var _confirm_frame := -1
 var _pause_frame := -1
@@ -22,6 +21,26 @@ var _nav_down_frame := -1
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
+
+
+func _process(_delta: float) -> void:
+	var now := Time.get_ticks_msec() * 0.001
+	for device_value in _devices.values():
+		var device := int(device_value)
+		if device < 0:
+			continue
+		var previous: int = int(_stick_dir.get(device, 0))
+		var direction := _navigation_direction(Input.get_joy_axis(device, JOY_AXIS_LEFT_Y), previous)
+		if direction != previous:
+			_stick_dir[device] = direction
+			if direction != 0:
+				_emit_navigation(direction)
+				_stick_repeat_at[device] = now + Constants.GAMEPAD_NAV_INITIAL_REPEAT
+			else:
+				_stick_repeat_at.erase(device)
+		elif direction != 0 and now >= float(_stick_repeat_at.get(device, now + Constants.GAMEPAD_NAV_INITIAL_REPEAT)):
+			_emit_navigation(direction)
+			_stick_repeat_at[device] = now + Constants.GAMEPAD_NAV_REPEAT
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -38,20 +57,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				_nav_down_frame = Engine.get_process_frames()
 	elif event is InputEventJoypadMotion and event.axis == JOY_AXIS_LEFT_Y:
 		_assign(event.device)
-		if not _is_assigned(event.device):
-			return
-		var dir := 0
-		if event.axis_value < -0.6:
-			dir = -1
-		elif event.axis_value > 0.6:
-			dir = 1
-		var prev: int = int(_stick_dir.get(event.device, 0))
-		if dir != 0 and dir != prev:
-			if dir < 0:
-				_nav_up_frame = Engine.get_process_frames()
-			else:
-				_nav_down_frame = Engine.get_process_frames()
-		_stick_dir[event.device] = dir
+
+
+func _emit_navigation(direction: int) -> void:
+	if direction < 0:
+		_nav_up_frame = Engine.get_process_frames()
+	else:
+		_nav_down_frame = Engine.get_process_frames()
 
 
 func get_device(player: int) -> int:
@@ -62,14 +74,31 @@ func get_axis(player: int) -> float:
 	var device := get_device(player)
 	if device < 0:
 		return 0.0
-	var value := Input.get_joy_axis(device, JOY_AXIS_LEFT_Y)
+	var dpad := 0.0
 	if Input.is_joy_button_pressed(device, JOY_BUTTON_DPAD_UP):
-		value -= 1.0
+		dpad -= 1.0
 	if Input.is_joy_button_pressed(device, JOY_BUTTON_DPAD_DOWN):
-		value += 1.0
-	if absf(value) < DEADZONE:
+		dpad += 1.0
+	if dpad != 0.0:
+		return dpad
+	return _shape_stick(Input.get_joy_axis(device, JOY_AXIS_LEFT_Y))
+
+
+func _shape_stick(value: float) -> float:
+	var magnitude := absf(value)
+	if magnitude <= Constants.GAMEPAD_DEADZONE:
 		return 0.0
-	return clampf(value, -1.0, 1.0)
+	var normalized := (magnitude - Constants.GAMEPAD_DEADZONE) / (1.0 - Constants.GAMEPAD_DEADZONE)
+	return signf(value) * pow(normalized, Constants.GAMEPAD_RESPONSE_EXPONENT)
+
+
+func _navigation_direction(value: float, previous: int) -> int:
+	var magnitude := absf(value)
+	if previous != 0 and magnitude < Constants.GAMEPAD_NAV_RELEASE:
+		return 0
+	if magnitude < Constants.GAMEPAD_NAV_ENGAGE:
+		return previous
+	return -1 if value < 0.0 else 1
 
 
 func is_confirm_just_pressed() -> bool:
@@ -110,3 +139,5 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 		if _devices[player] == device:
 			_devices[player] = -1
 			player_released.emit(player)
+	_stick_dir.erase(device)
+	_stick_repeat_at.erase(device)

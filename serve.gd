@@ -31,10 +31,6 @@ var _pointer_start := Vector2.ZERO
 var _pointer_dragged := false
 var _touch_starts: Dictionary = {}
 var _touch_dragged: Dictionary = {}
-var _menu_eyebrow: Label
-var _menu_version: Label
-var _menu_rule_left: ColorRect
-var _menu_rule_right: ColorRect
 const TAP_SLACK := 28.0
 
 
@@ -49,7 +45,6 @@ func _ready() -> void:
 	GameState.rematch_started.connect(_on_rematch_started)
 	Players.player_assigned.connect(_on_player_assigned)
 	Players.player_released.connect(_on_player_released)
-	GameState.colorblind_changed.connect(func(_e: bool) -> void: _update_devices_label())
 	option1_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	option2_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	option1_bg.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -58,7 +53,6 @@ func _ready() -> void:
 	option2_bg.gui_input.connect(_on_option_gui.bind(1))
 	_make_option3()
 	_update_devices_label()
-	_make_menu_chrome()
 	GameState.back_pressed.connect(_on_back_pressed)
 	serve_title.mouse_filter = Control.MOUSE_FILTER_STOP
 	hint_label.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -69,44 +63,9 @@ func _ready() -> void:
 	devices_label.gui_input.connect(_on_devices_gui)
 
 
-func _make_menu_chrome() -> void:
-	_menu_eyebrow = Label.new()
-	_menu_eyebrow.position = Vector2(76.0, 88.0)
-	_menu_eyebrow.size = Vector2(1000.0, 24.0)
-	_menu_eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_menu_eyebrow.add_theme_font_size_override("font_size", 11)
-	_menu_eyebrow.add_theme_color_override("font_color", Color(0.45, 0.82, 0.86, 0.8))
-	_menu_eyebrow.text = "GR33NOPS  //  ARCADE 01"
-	_menu_eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_menu_eyebrow)
-
-	_menu_version = Label.new()
-	_menu_version.position = Vector2(76.0, 594.0)
-	_menu_version.size = Vector2(1000.0, 22.0)
-	_menu_version.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_menu_version.add_theme_font_size_override("font_size", 10)
-	_menu_version.add_theme_color_override("font_color", Color(0.42, 0.46, 0.54, 0.8))
-	_menu_version.text = "PONG  v%s" % Constants.GAME_VERSION
-	_menu_version.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_menu_version)
-
-	_menu_rule_left = ColorRect.new()
-	_menu_rule_left.position = Vector2(248.0, 165.0)
-	_menu_rule_left.size = Vector2(184.0, 1.0)
-	_menu_rule_left.color = Color(0.12, 0.75, 0.8, 0.35)
-	_menu_rule_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_menu_rule_left)
-
-	_menu_rule_right = ColorRect.new()
-	_menu_rule_right.position = Vector2(720.0, 165.0)
-	_menu_rule_right.size = Vector2(184.0, 1.0)
-	_menu_rule_right.color = Color(0.9, 0.18, 0.2, 0.35)
-	_menu_rule_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_menu_rule_right)
-
-
 func _make_option3() -> void:
 	option3_bg = Panel.new()
+	option3_bg.set_script(preload("res://ink_button.gd"))
 	option3_bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	option3_bg.add_theme_stylebox_override("panel", _style_idle)
 	option3_label = Label.new()
@@ -125,8 +84,8 @@ func _make_back_label() -> void:
 	back_label.position = Vector2(36.0, 20.0)
 	back_label.size = Vector2(160.0, 40.0)
 	back_label.text = "<  BACK"
-	back_label.add_theme_font_size_override("font_size", 14)
-	back_label.add_theme_color_override("font_color", Color(0.82, 0.86, 0.9, 1))
+	back_label.add_theme_font_size_override("font_size", 18)
+	back_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 	back_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	back_label.gui_input.connect(_on_back_gui)
 	root.add_child(back_label)
@@ -158,7 +117,7 @@ func _process(delta: float) -> void:
 	if GameState.mode_selected:
 		_handle_serve_input(delta)
 		if _serve_ready:
-			hint_label.modulate.a = 0.7 + sin(Time.get_ticks_msec() * 0.007) * 0.3
+			hint_label.modulate.a = 1.0
 		return
 	_handle_menu_input()
 
@@ -174,10 +133,6 @@ func _handle_menu_input() -> void:
 		if Input.is_action_just_pressed("mode_2"):
 			_confirm_mode(Constants.MODE_2P)
 			return
-	if Input.is_action_just_pressed("colorblind"):
-		GameState.toggle_colorblind()
-		SFX.play("ui", 1.2)
-		return
 	var nav := 0
 	if Input.is_action_just_pressed("up") or Input.is_action_just_pressed("ui_up"):
 		nav = -1
@@ -284,14 +239,7 @@ func _on_devices_gui(event: InputEvent) -> void:
 		tapped = true
 	if not tapped:
 		return
-	var local_x := 0.0
-	if event is InputEventMouseButton or event is InputEventScreenTouch:
-		local_x = event.position.x
-	if local_x < devices_label.size.x * 0.5:
-		GameState.toggle_colorblind()
-		SFX.play("ui", 1.2)
-	else:
-		SFX.toggle_mute()
+	SFX.toggle_mute()
 	_update_devices_label()
 
 
@@ -481,11 +429,6 @@ func _refresh() -> void:
 	subtitle_label.visible = in_menu
 	panel.visible = in_menu
 	devices_label.visible = in_menu
-	if _menu_eyebrow:
-		_menu_eyebrow.visible = in_menu
-		_menu_version.visible = in_menu
-		_menu_rule_left.visible = in_menu
-		_menu_rule_right.visible = in_menu
 	if back_label:
 		back_label.visible = in_menu and _step != Step.MODE
 	serve_title.visible = not in_menu
@@ -493,11 +436,13 @@ func _refresh() -> void:
 	hint_label.modulate.a = 1.0
 	if in_menu:
 		cursor = mini(cursor, _option_count() - 1)
-		hint_label.position = Vector2(80, 456)
+		hint_label.position = Vector2(80, 476 if _step == Step.DIFF else 456)
 		hint_label.size = Vector2(992, 36)
-		hint_label.add_theme_color_override("font_color", Color(0.82, 0.86, 0.9, 1))
+		devices_label.position.y = 520.0 if _step == Step.DIFF else 500.0
+		hint_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 		match _step:
 			Step.DIFF:
+				subtitle_label.position.y = 218.0
 				subtitle_label.text = "CPU DIFFICULTY"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP A DIFFICULTY"
@@ -505,6 +450,7 @@ func _refresh() -> void:
 					hint_label.text = "W/S NAVIGATE   SPACE/ENTER SELECT   ESC BACK"
 				_update_devices_label()
 			Step.SIDE:
+				subtitle_label.position.y = 226.0
 				subtitle_label.text = "YOUR SIDE" if GameState.mode == Constants.MODE_AI else "P1 SIDE"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP LEFT OR RIGHT"
@@ -519,6 +465,7 @@ func _refresh() -> void:
 					else:
 						devices_label.text = "P1: W / S ON YOUR SIDE      P2: ARROWS ON THE OTHER"
 			_:
+				subtitle_label.position.y = 226.0
 				subtitle_label.text = "FIRST TO FIVE"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP A MODE"
@@ -532,7 +479,7 @@ func _refresh() -> void:
 		serve_title.size = Vector2(1000, 40)
 		hint_label.position = Vector2(76, 336)
 		hint_label.size = Vector2(1000, 32)
-		hint_label.add_theme_color_override("font_color", Color(0.7, 0.74, 0.8, 1))
+		hint_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 		if GameState.is_cpu_serving():
 			serve_title.text = "CPU SERVE"
 			hint_label.text = "PAUSE AT BOTTOM" if GameState.is_touch_ui() else "ESC PAUSE"
@@ -549,7 +496,7 @@ func _refresh() -> void:
 				hint_label.text = "DRAG %s HALF TO AIM   TAP TO SERVE" % half
 			else:
 				hint_label.text = "UP/DOWN Aim  ·  SPACE/CLICK Serve  ·  ESC Pause"
-		serve_title.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+		serve_title.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 	hint_label.visible = true
 
 
@@ -572,14 +519,14 @@ func _place_option(bg: Control, label: Control, y: float, h: float) -> void:
 
 
 func _update_menu_highlight() -> void:
-	var idle := Color(0.62, 0.66, 0.72, 1)
-	var selected := Color(1, 1, 1, 1)
+	var idle := Color(0.12, 0.12, 0.11, 1)
+	var selected := Color(0.12, 0.12, 0.11, 1)
 	var in_menu := not GameState.mode_selected
 	var names: PackedStringArray
 	if _step == Step.DIFF:
-		_place_option(option1_bg, option1_label, 248.0, 58.0)
-		_place_option(option2_bg, option2_label, 318.0, 58.0)
-		_place_option(option3_bg, option3_label, 388.0, 58.0)
+		_place_option(option1_bg, option1_label, 268.0, 58.0)
+		_place_option(option2_bg, option2_label, 338.0, 58.0)
+		_place_option(option3_bg, option3_label, 408.0, 58.0)
 		names = PackedStringArray(["EASY", "NORMAL", "HARD"])
 	elif _step == Step.SIDE:
 		_place_option(option1_bg, option1_label, 268.0, 68.0)
@@ -588,7 +535,7 @@ func _update_menu_highlight() -> void:
 	else:
 		_place_option(option1_bg, option1_label, 268.0, 68.0)
 		_place_option(option2_bg, option2_label, 356.0, 68.0)
-		names = PackedStringArray(["VS CPU", "VS PLAYER"])
+		names = PackedStringArray(["PLAYER VS CPU", "PLAYER VS PLAYER"])
 	var bars := [option1_bg, option2_bg, option3_bg]
 	var labels := [option1_label, option2_label, option3_label]
 	for i in range(3):
@@ -598,8 +545,9 @@ func _update_menu_highlight() -> void:
 		if not on:
 			continue
 		var is_sel := cursor == i
-		labels[i].text = (">  %s" % names[i]) if is_sel else names[i]
+		labels[i].text = names[i]
 		labels[i].add_theme_color_override("font_color", selected if is_sel else idle)
+		bars[i].set("selected", is_sel)
 		bars[i].add_theme_stylebox_override("panel", _style_sel if is_sel else _style_idle)
 
 
@@ -608,8 +556,6 @@ func _update_devices_label() -> void:
 		return
 	if GameState.is_touch_ui():
 		var sound := "MUTED" if SFX.muted else "SOUND ON"
-		var cb := "ON" if GameState.colorblind_mode else "OFF"
-		devices_label.text = "COLORBLIND %s      %s" % [cb, sound]
+		devices_label.text = sound
 	else:
-		var cb := "ON" if GameState.colorblind_mode else "OFF"
-		devices_label.text = "P1: W / S      P2: UP / DOWN      C COLORBLIND %s      M MUTE" % cb
+		devices_label.text = "P1: W / S      P2: UP / DOWN      M MUTE"

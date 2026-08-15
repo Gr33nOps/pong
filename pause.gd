@@ -8,15 +8,12 @@ extends CanvasLayer
 @onready var volume_label = $Root/Card/volumeHint
 @onready var master_label = $Root/Card/masterHint
 @onready var difficulty_label = $Root/Card/difficultyHint
-@onready var colorblind_label = $Root/Card/colorblindHint
 @onready var sfx_fill = $Root/Card/SfxFill
 @onready var master_fill = $Root/Card/MasterFill
 @onready var sfx_knob = $Root/Card/SfxKnob
 @onready var master_knob = $Root/Card/MasterKnob
 @onready var master_pct = $Root/Card/masterPct
 @onready var sfx_pct = $Root/Card/sfxPct
-@onready var audio_header = $Root/Card/audioHeader
-@onready var game_header = $Root/Card/gameHeader
 @onready var pause_hint = $Root/Card/pauseHint
 
 var _cursor := 0
@@ -45,7 +42,7 @@ func _ensure_menu_label() -> void:
 	menu_label.name = "menuHint"
 	menu_label.position = Vector2(40, 162)
 	menu_label.size = Vector2(444, 26)
-	menu_label.add_theme_font_size_override("font_size", 16)
+	menu_label.add_theme_font_size_override("font_size", 20)
 	menu_label.text = "MAIN MENU"
 	$Root/Card.add_child(menu_label)
 	quit_label.visible = false
@@ -55,7 +52,6 @@ func _ids() -> Array[String]:
 	var ids: Array[String] = ["resume", "rematch", "menu", "master", "sfx"]
 	if GameState.mode == Constants.MODE_AI:
 		ids.append("difficulty")
-	ids.append("colorblind")
 	return ids
 
 
@@ -75,8 +71,6 @@ func _label_for(id: String) -> Label:
 			return volume_label
 		"difficulty":
 			return difficulty_label
-		"colorblind":
-			return colorblind_label
 	return resume_label
 
 
@@ -174,19 +168,18 @@ func _input(event: InputEvent) -> void:
 
 
 func _on_pause_click(local: Vector2) -> void:
-	var card: Control = $Root/Card
 	var ids := _ids()
 	var id := _row_at(local)
 	if id == "":
 		return
 	_cursor = ids.find(id)
 	_update_hints()
-	if id in ["resume", "rematch", "menu", "colorblind"]:
+	if id in ["resume", "rematch", "menu"]:
 		_select_option()
 	elif id == "master" or id == "sfx":
 		_set_volume(id, local.x)
 	elif id == "difficulty":
-		GameState.cycle_difficulty(-1 if local.x < card.size.x * 0.5 else 1)
+		GameState.advance_difficulty()
 		SFX.play("ui")
 		_update_hints()
 
@@ -265,10 +258,6 @@ func _select_option() -> void:
 			get_tree().reload_current_scene()
 		"quit":
 			get_tree().quit()
-		"colorblind":
-			SFX.play("ui", 1.2)
-			GameState.toggle_colorblind()
-			_update_hints()
 
 
 func _adjust_option(direction: int, amount: float = 1.0) -> void:
@@ -286,52 +275,50 @@ func _adjust_option(direction: int, amount: float = 1.0) -> void:
 			GameState.cycle_difficulty(direction)
 			SFX.play("ui")
 			_update_hints()
-		"colorblind":
-			if direction != 0:
-				SFX.play("ui", 1.2)
-				GameState.toggle_colorblind()
-				_update_hints()
 
 
 func _place_bar(fill: ColorRect, knob: ColorRect, value: float) -> void:
 	value = clampf(value, 0.0, 1.0)
 	fill.size.x = BAR_W * value
 	knob.position.x = BAR_X + (BAR_W - KNOB_W) * value
+	var track_name := "MasterTrack" if fill.name == "MasterFill" else "SfxTrack"
+	var track := fill.get_parent().get_node_or_null(track_name)
+	if track:
+		track.set("value", value)
 
 
 func _update_hints() -> void:
-	var idle := Color(0.82, 0.86, 0.9, 1)
-	var lit := Color(1, 1, 1, 1)
+	var idle := Color(0.12, 0.12, 0.11, 1)
+	var lit := Color(0.12, 0.12, 0.11, 1)
 	var ids := _ids()
 	_cursor = clampi(_cursor, 0, ids.size() - 1)
 	quit_label.visible = false
 	difficulty_label.visible = GameState.mode == Constants.MODE_AI
-	colorblind_label.position.y = 402.0 if difficulty_label.visible else 358.0
+	# The game uses one monochrome ink palette by design.
 	resume_label.text = "RESUME"
 	restart_label.text = "REMATCH"
 	menu_label.text = "MAIN MENU"
 	master_label.text = "MASTER"
 	volume_label.text = "SFX"
 	difficulty_label.text = "CPU DIFFICULTY    <  %s  >" % GameState.difficulty_label().to_upper()
-	colorblind_label.text = "COLORBLIND     <  %s  >" % ("ON" if GameState.colorblind_mode else "OFF")
 	if GameState.is_touch_ui():
 		pause_hint.text = "TAP A ROW     DRAG VOLUME     PAUSE OR BACK RESUME"
 	elif OS.has_feature("web"):
 		pause_hint.text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST\nSPACE/ENTER SELECT     ESC RESUME     M MUTE"
 	else:
 		pause_hint.text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST\nSPACE/ENTER SELECT     ESC RESUME     M MUTE     Q QUIT"
-	for id in ["resume", "rematch", "menu", "quit", "master", "sfx", "difficulty", "colorblind"]:
+	for id in ["resume", "rematch", "menu", "quit", "master", "sfx", "difficulty"]:
 		var lab := _label_for(id)
 		lab.add_theme_color_override("font_color", idle)
 	var selected: String = ids[_cursor]
 	_label_for(selected).add_theme_color_override("font_color", lit)
+	# Every navigable row, including both volume sliders, gets the same ink focus box.
+	cursor_bar.visible = selected in ids
 	cursor_bar.position.y = _label_for(selected).position.y - 6.0
 	_place_bar(master_fill, master_knob, SFX.master_volume)
 	_place_bar(sfx_fill, sfx_knob, SFX.sfx_volume)
 	master_pct.text = "%d%%" % int(round(SFX.master_volume * 100.0))
 	sfx_pct.text = "%d%%" % int(round(SFX.sfx_volume * 100.0))
-	var fill_color := Color(0.92, 0.94, 0.96, 1)
+	var fill_color := Color(0.12, 0.12, 0.11, 1)
 	master_fill.color = fill_color
 	sfx_fill.color = fill_color
-	audio_header.visible = true
-	game_header.visible = true

@@ -1,107 +1,80 @@
-[gd_scene load_steps=26 format=3 uid="uid://ddvgkqvwq14t"]
+[gd_scene format=3 uid="uid://ddvgkqvwq14t"]
 
 [ext_resource type="Script" uid="uid://dg57qf2651sc4" path="res://main.gd" id="1_lquwl"]
 [ext_resource type="Script" uid="uid://crs0yyu7700wy" path="res://ball.gd" id="3_1bvp3"]
-[ext_resource type="Texture2D" uid="uid://cot1a2d04gqau" path="res://circle-128.png" id="4_lquwl"]
+[ext_resource type="Texture2D" uid="uid://dqhu5gxxpiffk" path="res://art/ball-ink.png" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://duq3dvcqpx6wg" path="res://pause.gd" id="6_7mycd"]
 [ext_resource type="Script" uid="uid://b1dl8en1b48eu" path="res://game_over.gd" id="8_5vw27"]
 [ext_resource type="PackedScene" uid="uid://br10dqpa0e8yi" path="res://paddle.tscn" id="9_pdl"]
 [ext_resource type="Script" uid="uid://cb21hfgpmk3si" path="res://serve.gd" id="10_srv"]
 [ext_resource type="Script" uid="uid://c8dtoa7jlxb7o" path="res://ai.gd" id="11_ai"]
 [ext_resource type="Script" uid="uid://p4yexboe7g6v" path="res://trail.gd" id="12_trl"]
-[ext_resource type="Script" path="res://hud.gd" id="13_hud"]
-[ext_resource type="Shader" path="res://shaders/vignette.gdshader" id="14_vig"]
-[ext_resource type="Shader" path="res://shaders/scanlines.gdshader" id="15_scan"]
+[ext_resource type="Script" uid="uid://gtx76lwafp8u" path="res://hud.gd" id="13_hud"]
+[ext_resource type="Shader" uid="uid://duvsnfbaihm50" path="res://shaders/vignette.gdshader" id="14_vig"]
+[ext_resource type="Shader" uid="uid://h4ocxhr4m8sv" path="res://shaders/scanlines.gdshader" id="15_scan"]
+[ext_resource type="Texture2D" uid="uid://duxk6twlksldg" path="res://art/paper-court.png" id="16_paper"]
+[ext_resource type="Theme" path="res://ink_theme.tres" id="17_theme"]
+[ext_resource type="Texture2D" uid="uid://dssfcjigawfy2" path="res://art/center-line-ink.svg" id="18_center_line"]
+[ext_resource type="Script" uid="uid://dxkribkh4a2ce" path="res://ink_panel.gd" id="19_ink_panel"]
+[ext_resource type="Script" uid="uid://d1rmt1qm73xh" path="res://ink_slider.gd" id="20_ink_slider"]
+[ext_resource type="Script" uid="uid://ds4qksurk1ioy" path="res://ink_hud.gd" id="21_ink_hud"]
+[ext_resource type="Script" uid="uid://c0vj66swfvhbw" path="res://ink_button.gd" id="22_ink_button"]
+[ext_resource type="Script" uid="uid://ciympsxyd3cn" path="res://ink_selection.gd" id="23_ink_selection"]
+[ext_resource type="Script" uid="uid://ce6dwkskmfsio" path="res://ink_rails.gd" id="24_ink_rails"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ball"]
 radius = 21.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_serve"]
-bg_color = Color(0.02, 0.022, 0.03, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_banner"]
-bg_color = Color(0.02, 0.04, 0.08, 0.82)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 1, 1, 0.12)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause"]
-bg_color = Color(0.0, 0.0, 0.0, 0.78)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause_card"]
-bg_color = Color(0.04, 0.045, 0.055, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 1, 1, 0.28)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-shadow_color = Color(0, 0, 0, 0.35)
-shadow_size = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over"]
-bg_color = Color(0.0, 0.0, 0.0, 0.8)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over_card"]
-bg_color = Color(0.04, 0.045, 0.055, 0.97)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 1, 1, 0.28)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-shadow_color = Color(0, 0, 0, 0.35)
-shadow_size = 10
+bg_color = Color(1, 1, 1, 0.98)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_option"]
-bg_color = Color(1, 1, 1, 0.08)
+bg_color = Color(0.12, 0.12, 0.11, 0.06)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(1, 1, 1, 0.92)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+border_color = Color(0.12, 0.12, 0.11, 0.78)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_option2"]
-bg_color = Color(1, 1, 1, 0.03)
+bg_color = Color(0.12, 0.12, 0.11, 0.02)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(1, 1, 1, 0.2)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar"]
-bg_color = Color(0.06, 0.08, 0.11, 1)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
+border_color = Color(0.12, 0.12, 0.11, 0.24)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_serve_msg"]
-bg_color = Color(0.01, 0.016, 0.03, 0.82)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+bg_color = Color(1, 1, 1, 0.96)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause"]
+bg_color = Color(1, 1, 1, 0.94)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pause_card"]
+bg_color = Color(1, 1, 1, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.12, 0.12, 0.11, 0.42)
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar"]
+bg_color = Color(1, 1, 1, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over"]
+bg_color = Color(1, 1, 1, 0.94)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_over_card"]
+bg_color = Color(1, 1, 1, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.12, 0.12, 0.11, 0.42)
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 10
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vig"]
 shader = ExtResource("14_vig")
@@ -111,93 +84,93 @@ shader = ExtResource("15_scan")
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 3
-glow_enabled = false
 
-[node name="MAIN" type="Node2D"]
+[node name="MAIN" type="Node2D" unique_id=157493492]
 script = ExtResource("1_lquwl")
 
-[node name="Court" type="Node2D" parent="."]
+[node name="Court" type="Node2D" parent="." unique_id=2125044164]
 z_index = -10
 
-[node name="Background" type="ColorRect" parent="Court"]
+[node name="Background" type="TextureRect" parent="Court" unique_id=1384845107]
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
-color = Color(0.027, 0.04, 0.07, 1)
+texture = ExtResource("16_paper")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="LeftWash" type="ColorRect" parent="Court"]
+[node name="LeftWash" type="ColorRect" parent="Court" unique_id=2069678642]
 visible = false
 offset_right = 320.0
 offset_bottom = 648.0
 mouse_filter = 2
-color = Color(0, 1, 1, 0.018)
+color = Color(0.12, 0.12, 0.11, 0.018)
 
-[node name="RightWash" type="ColorRect" parent="Court"]
+[node name="RightWash" type="ColorRect" parent="Court" unique_id=630636070]
 visible = false
 offset_left = 832.0
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
-color = Color(1, 0, 0, 0.018)
+color = Color(0.12, 0.12, 0.11, 0.018)
 
-[node name="TopRail" type="ColorRect" parent="Court"]
+[node name="TopRail" type="ColorRect" parent="Court" unique_id=1656550174]
+visible = false
 offset_left = 20.0
 offset_top = 72.0
 offset_right = 1132.0
 offset_bottom = 74.0
 mouse_filter = 2
-color = Color(0.55, 0.65, 0.75, 0.18)
+color = Color(0.12, 0.12, 0.11, 0.24)
 
-[node name="BottomRail" type="ColorRect" parent="Court"]
+[node name="BottomRail" type="ColorRect" parent="Court" unique_id=1707700769]
+visible = false
 offset_left = 20.0
 offset_top = 640.0
 offset_right = 1132.0
 offset_bottom = 642.0
 mouse_filter = 2
-color = Color(0.55, 0.65, 0.75, 0.18)
+color = Color(0.12, 0.12, 0.11, 0.24)
 
-[node name="leftScore" type="Label" parent="."]
+[node name="leftScore" type="Label" parent="." unique_id=1325124433]
 visible = false
 offset_left = 180.0
 offset_top = 250.0
 offset_right = 520.0
 offset_bottom = 360.0
-theme_override_colors/font_color = Color(0, 1, 1, 0.1)
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 0.1)
 theme_override_font_sizes/font_size = 72
 text = "0"
 horizontal_alignment = 1
 
-[node name="rightScore" type="Label" parent="."]
+[node name="rightScore" type="Label" parent="." unique_id=352155001]
 visible = false
 offset_left = 632.0
 offset_top = 250.0
 offset_right = 972.0
 offset_bottom = 360.0
-theme_override_colors/font_color = Color(1, 0, 0, 0.1)
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 0.1)
 theme_override_font_sizes/font_size = 72
 text = "0"
 horizontal_alignment = 1
 
-[node name="rallyLabel" type="Label" parent="."]
+[node name="Divider" type="Line2D" parent="." unique_id=2023568146]
 visible = false
-offset_left = 376.0
-offset_top = 18.0
-offset_right = 776.0
-offset_bottom = 64.0
-mouse_filter = 2
-horizontal_alignment = 1
-theme_override_font_sizes/font_size = 28
-text = "RALLY 0"
-
-[node name="Divider" type="Line2D" parent="."]
-visible = false
-default_color = Color(1, 1, 1, 0.12)
-width = 2.0
-dashed = true
-dash_pattern = PackedFloat32Array(10, 14)
 points = PackedVector2Array(576, 82, 576, 634)
+width = 2.0
+default_color = Color(0.12, 0.12, 0.12, 0.22)
 
-[node name="PlayfieldClip" type="ColorRect" parent="."]
+[node name="CenterLineInk" type="Sprite2D" parent="." unique_id=1850403773]
+visible = false
+modulate = Color(1, 1, 1, 0.45)
+z_index = -2
+texture_filter = 1
+texture = ExtResource("18_center_line")
+
+[node name="InkRails" type="Node2D" parent="." unique_id=1345363215]
+script = ExtResource("24_ink_rails")
+
+[node name="PlayfieldClip" type="ColorRect" parent="." unique_id=550957173]
 clip_children = 1
 z_index = 1
 offset_top = 72.0
@@ -206,7 +179,7 @@ offset_bottom = 648.0
 mouse_filter = 2
 color = Color(0, 0, 0, 0)
 
-[node name="Trail" type="Line2D" parent="."]
+[node name="Trail" type="Line2D" parent="." unique_id=206678606]
 z_index = 1
 width = 8.0
 begin_cap_mode = 2
@@ -215,50 +188,51 @@ antialiased = true
 script = ExtResource("12_trl")
 ball_path = NodePath("../ball")
 
-[node name="ball" type="Area2D" parent="."]
+[node name="ball" type="Area2D" parent="." unique_id=2009295065]
 visible = false
 z_index = 2
 position = Vector2(576, 324)
 script = ExtResource("3_1bvp3")
 
-[node name="Sprite2D" type="Sprite2D" parent="ball"]
-scale = Vector2(0.328125, 0.328125)
+[node name="Sprite2D" type="Sprite2D" parent="ball" unique_id=1319064811]
+texture_filter = 1
+scale = Vector2(0.228261, 0.228261)
 texture = ExtResource("4_lquwl")
+region_enabled = true
+region_rect = Rect2(535, 525, 184, 184)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ball"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ball" unique_id=1632206879]
 shape = SubResource("CircleShape2D_ball")
 
-[node name="paddleLeft" parent="." instance=ExtResource("9_pdl")]
+[node name="paddleLeft" parent="." unique_id=1887766394 instance=ExtResource("9_pdl")]
 visible = false
 z_index = 1
 position = Vector2(26.5, 324)
-is_left = true
 
-[node name="paddleRight" parent="." instance=ExtResource("9_pdl")]
+[node name="paddleRight" parent="." unique_id=1263929264 instance=ExtResource("9_pdl")]
 visible = false
 z_index = 1
 position = Vector2(1125.5, 324)
 is_left = false
 
-[node name="AI" type="Node" parent="."]
+[node name="AI" type="Node" parent="." unique_id=424420770]
 script = ExtResource("11_ai")
 left_paddle_path = NodePath("../paddleLeft")
 right_paddle_path = NodePath("../paddleRight")
 ball_path = NodePath("../ball")
 
-[node name="ScoreFlash" type="ColorRect" parent="."]
+[node name="ScoreFlash" type="ColorRect" parent="." unique_id=1080731602]
+modulate = Color(1, 1, 1, 0)
 z_index = 8
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
-color = Color(1, 1, 1, 1)
-modulate = Color(1, 1, 1, 0)
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=939559447]
 layer = 8
 script = ExtResource("13_hud")
 
-[node name="Root" type="Control" parent="HUD"]
+[node name="Root" type="Control" parent="HUD" unique_id=947685309]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -266,85 +240,75 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme = ExtResource("17_theme")
 
-[node name="Band" type="ColorRect" parent="HUD/Root"]
+[node name="Band" type="ColorRect" parent="HUD/Root" unique_id=479251121]
 layout_mode = 0
 offset_right = 1152.0
 offset_bottom = 72.0
 mouse_filter = 2
-color = Color(0.015, 0.02, 0.03, 0.92)
+color = Color(1, 1, 1, 0.96)
 
-[node name="P1Name" type="Label" parent="HUD/Root"]
+[node name="InkFrame" type="Control" parent="HUD/Root" unique_id=204255814]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("21_ink_hud")
+
+[node name="P1Name" type="Label" parent="HUD/Root" unique_id=1302746172]
+visible = false
 layout_mode = 0
 offset_left = 48.0
 offset_top = 8.0
 offset_right = 240.0
 offset_bottom = 32.0
-theme_override_colors/font_color = Color(0, 1, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 20
 text = "YOU"
 
-[node name="P1Score" type="Label" parent="HUD/Root"]
+[node name="P1Score" type="Label" parent="HUD/Root" unique_id=1488548568]
 layout_mode = 0
 offset_left = 48.0
-offset_top = 28.0
+offset_top = 10.0
 offset_right = 180.0
-offset_bottom = 68.0
-theme_override_colors/font_color = Color(0, 1, 1, 1)
-theme_override_font_sizes/font_size = 28
+offset_bottom = 70.0
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 46
 text = "0"
 
-[node name="P2Name" type="Label" parent="HUD/Root"]
+[node name="P2Name" type="Label" parent="HUD/Root" unique_id=704255011]
+visible = false
 layout_mode = 0
 offset_left = 912.0
 offset_top = 8.0
-offset_right = 1104.0
+offset_right = 1040.0
 offset_bottom = 32.0
-theme_override_colors/font_color = Color(1, 0, 0, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 20
 text = "CPU"
 horizontal_alignment = 2
 
-[node name="P2Score" type="Label" parent="HUD/Root"]
+[node name="P2Score" type="Label" parent="HUD/Root" unique_id=819438937]
 layout_mode = 0
-offset_left = 972.0
-offset_top = 28.0
-offset_right = 1104.0
-offset_bottom = 68.0
-theme_override_colors/font_color = Color(1, 0, 0, 1)
-theme_override_font_sizes/font_size = 28
+offset_left = 960.0
+offset_top = 10.0
+offset_right = 1040.0
+offset_bottom = 70.0
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 46
 text = "0"
 horizontal_alignment = 2
 
-[node name="MatchLabel" type="Label" parent="HUD/Root"]
-layout_mode = 0
-offset_left = 326.0
-offset_top = 10.0
-offset_right = 826.0
-offset_bottom = 36.0
-theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
-theme_override_font_sizes/font_size = 14
-text = "FIRST TO 5"
-horizontal_alignment = 1
-
-[node name="RallyBadge" type="Label" parent="HUD/Root"]
-visible = false
-layout_mode = 0
-offset_left = 326.0
-offset_top = 36.0
-offset_right = 826.0
-offset_bottom = 64.0
-theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
-theme_override_font_sizes/font_size = 14
-text = "RALLY 0"
-horizontal_alignment = 1
-
-[node name="serveOverlay" type="CanvasLayer" parent="."]
-layer = 20
+[node name="serveOverlay" type="CanvasLayer" parent="." unique_id=761475755]
 process_mode = 3
+layer = 20
 script = ExtResource("10_srv")
 
-[node name="Root" type="Control" parent="serveOverlay"]
+[node name="Root" type="Control" parent="serveOverlay" unique_id=1019106034]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -352,8 +316,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme = ExtResource("17_theme")
 
-[node name="Dimmer" type="PanelContainer" parent="serveOverlay/Root"]
+[node name="Dimmer" type="PanelContainer" parent="serveOverlay/Root" unique_id=2035798033]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -363,67 +328,67 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_serve")
 
-[node name="title" type="Label" parent="serveOverlay/Root"]
+[node name="title" type="Label" parent="serveOverlay/Root" unique_id=1606241696]
 layout_mode = 0
 offset_left = 76.0
 offset_top = 118.0
 offset_right = 1076.0
 offset_bottom = 210.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 56
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 80
 text = "PONG"
 horizontal_alignment = 1
 
-[node name="subtitle" type="Label" parent="serveOverlay/Root"]
+[node name="subtitle" type="Label" parent="serveOverlay/Root" unique_id=2107147575]
 layout_mode = 0
 offset_left = 156.0
-offset_top = 200.0
+offset_top = 226.0
 offset_right = 996.0
-offset_bottom = 232.0
-theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
-theme_override_font_sizes/font_size = 14
+offset_bottom = 258.0
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 18
 text = "FIRST TO FIVE"
 horizontal_alignment = 1
 
-[node name="option1Bg" type="Panel" parent="serveOverlay/Root"]
+[node name="option1Bg" type="Panel" parent="serveOverlay/Root" unique_id=1821168892]
 layout_mode = 0
 offset_left = 336.0
 offset_top = 268.0
 offset_right = 816.0
 offset_bottom = 336.0
-mouse_filter = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_option")
+script = ExtResource("22_ink_button")
 
-[node name="option2Bg" type="Panel" parent="serveOverlay/Root"]
+[node name="option2Bg" type="Panel" parent="serveOverlay/Root" unique_id=1526083918]
 layout_mode = 0
 offset_left = 336.0
 offset_top = 356.0
 offset_right = 816.0
 offset_bottom = 424.0
-mouse_filter = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_option2")
+script = ExtResource("22_ink_button")
 
-[node name="option1" type="Label" parent="serveOverlay/Root"]
+[node name="option1" type="Label" parent="serveOverlay/Root" unique_id=2126487841]
 layout_mode = 0
 offset_left = 336.0
 offset_top = 286.0
 offset_right = 816.0
 offset_bottom = 320.0
-theme_override_font_sizes/font_size = 18
-text = "›  VS CPU"
+theme_override_font_sizes/font_size = 22
+text = "PLAYER VS CPU"
 horizontal_alignment = 1
 
-[node name="option2" type="Label" parent="serveOverlay/Root"]
+[node name="option2" type="Label" parent="serveOverlay/Root" unique_id=1966277435]
 layout_mode = 0
 offset_left = 336.0
 offset_top = 374.0
 offset_right = 816.0
 offset_bottom = 408.0
-theme_override_font_sizes/font_size = 18
-text = "VS PLAYER"
+theme_override_font_sizes/font_size = 22
+text = "PLAYER VS PLAYER"
 horizontal_alignment = 1
 
-[node name="serveBack" type="Panel" parent="serveOverlay/Root"]
+[node name="serveBack" type="Panel" parent="serveOverlay/Root" unique_id=505429007]
 visible = false
 layout_mode = 0
 offset_left = 316.0
@@ -432,46 +397,47 @@ offset_right = 836.0
 offset_bottom = 386.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_serve_msg")
+script = ExtResource("19_ink_panel")
 
-[node name="serveTitle" type="Label" parent="serveOverlay/Root"]
+[node name="serveTitle" type="Label" parent="serveOverlay/Root" unique_id=1337832267]
 visible = false
 layout_mode = 0
 offset_left = 76.0
 offset_top = 520.0
 offset_right = 1076.0
 offset_bottom = 560.0
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 24
 text = "YOUR SERVE"
 horizontal_alignment = 1
 
-[node name="hint" type="Label" parent="serveOverlay/Root"]
+[node name="hint" type="Label" parent="serveOverlay/Root" unique_id=283833382]
 layout_mode = 0
 offset_left = 80.0
 offset_top = 456.0
 offset_right = 1072.0
 offset_bottom = 492.0
-theme_override_colors/font_color = Color(0.88, 0.91, 0.95, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 18
 text = "W/S OR ARROWS  NAVIGATE     SPACE/ENTER  SELECT"
 horizontal_alignment = 1
 
-[node name="devices" type="Label" parent="serveOverlay/Root"]
+[node name="devices" type="Label" parent="serveOverlay/Root" unique_id=1426548831]
 layout_mode = 0
 offset_left = 76.0
 offset_top = 500.0
 offset_right = 1076.0
 offset_bottom = 536.0
-theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
-theme_override_font_sizes/font_size = 14
-text = "P1: W / S      P2: UP / DOWN      C COLORBLIND"
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 18
+text = "P1: W / S      P2: UP / DOWN      M MUTE"
 horizontal_alignment = 1
 
-[node name="pause" type="CanvasLayer" parent="."]
-layer = 30
+[node name="pause" type="CanvasLayer" parent="." unique_id=1003475515]
 process_mode = 3
+layer = 30
 script = ExtResource("6_7mycd")
 
-[node name="Root" type="Control" parent="pause"]
+[node name="Root" type="Control" parent="pause" unique_id=978208736]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -479,8 +445,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme = ExtResource("17_theme")
 
-[node name="Dimmer" type="PanelContainer" parent="pause/Root"]
+[node name="Dimmer" type="PanelContainer" parent="pause/Root" unique_id=829664456]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -490,14 +457,14 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pause")
 
-[node name="Card" type="Control" parent="pause/Root"]
-layout_mode = 0
+[node name="Card" type="Control" parent="pause/Root" unique_id=1073200966]
+anchors_preset = 0
 offset_left = 316.0
 offset_top = 64.0
 offset_right = 836.0
 offset_bottom = 584.0
 
-[node name="Bg" type="Panel" parent="pause/Root/Card"]
+[node name="Bg" type="Panel" parent="pause/Root/Card" unique_id=707905259]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -506,203 +473,182 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pause_card")
+script = ExtResource("19_ink_panel")
 
-[node name="Cursor" type="ColorRect" parent="pause/Root/Card"]
+[node name="Cursor" type="ColorRect" parent="pause/Root/Card" unique_id=1327548873]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 80.0
 offset_right = 500.0
 offset_bottom = 114.0
 mouse_filter = 2
-color = Color(1, 1, 1, 0.12)
+color = Color(1, 1, 1, 0)
+script = ExtResource("23_ink_selection")
 
-[node name="pauseLabel" type="Label" parent="pause/Root/Card"]
+[node name="pauseLabel" type="Label" parent="pause/Root/Card" unique_id=443248890]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 24.0
 offset_right = 500.0
 offset_bottom = 64.0
-theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 28
 text = "PAUSED"
 horizontal_alignment = 1
 
-[node name="resumeHint" type="Label" parent="pause/Root/Card"]
+[node name="resumeHint" type="Label" parent="pause/Root/Card" unique_id=1811378036]
 layout_mode = 0
 offset_left = 40.0
 offset_top = 86.0
 offset_right = 484.0
 offset_bottom = 112.0
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "RESUME"
 
-[node name="restartHint" type="Label" parent="pause/Root/Card"]
+[node name="restartHint" type="Label" parent="pause/Root/Card" unique_id=170822232]
 layout_mode = 0
 offset_left = 40.0
 offset_top = 124.0
 offset_right = 484.0
 offset_bottom = 150.0
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "RESTART"
 
-[node name="quitHint" type="Label" parent="pause/Root/Card"]
+[node name="quitHint" type="Label" parent="pause/Root/Card" unique_id=688819802]
 layout_mode = 0
 offset_left = 40.0
 offset_top = 162.0
 offset_right = 484.0
 offset_bottom = 188.0
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "QUIT"
 
-[node name="audioHeader" type="Label" parent="pause/Root/Card"]
+[node name="masterHint" type="Label" parent="pause/Root/Card" unique_id=399700549]
 layout_mode = 0
 offset_left = 40.0
 offset_top = 204.0
-offset_right = 484.0
-offset_bottom = 226.0
-theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
-theme_override_font_sizes/font_size = 12
-text = "AUDIO"
-
-[node name="masterHint" type="Label" parent="pause/Root/Card"]
-layout_mode = 0
-offset_left = 40.0
-offset_top = 234.0
 offset_right = 200.0
-offset_bottom = 260.0
-theme_override_font_sizes/font_size = 14
+offset_bottom = 230.0
+theme_override_font_sizes/font_size = 18
 text = "MASTER"
 
-[node name="masterPct" type="Label" parent="pause/Root/Card"]
+[node name="masterPct" type="Label" parent="pause/Root/Card" unique_id=452846943]
 layout_mode = 0
 offset_left = 408.0
-offset_top = 234.0
+offset_top = 204.0
 offset_right = 500.0
-offset_bottom = 260.0
-theme_override_font_sizes/font_size = 12
+offset_bottom = 230.0
+theme_override_font_sizes/font_size = 18
 text = "100%"
 horizontal_alignment = 2
 
-[node name="MasterTrack" type="Panel" parent="pause/Root/Card"]
+[node name="MasterTrack" type="Panel" parent="pause/Root/Card" unique_id=47531969]
 layout_mode = 0
 offset_left = 188.0
-offset_top = 242.0
+offset_top = 212.0
 offset_right = 392.0
-offset_bottom = 250.0
+offset_bottom = 236.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
+script = ExtResource("20_ink_slider")
 
-[node name="MasterFill" type="ColorRect" parent="pause/Root/Card"]
+[node name="MasterFill" type="ColorRect" parent="pause/Root/Card" unique_id=259224344]
+visible = false
 layout_mode = 0
 offset_left = 188.0
-offset_top = 242.0
+offset_top = 212.0
 offset_right = 392.0
-offset_bottom = 250.0
+offset_bottom = 220.0
 mouse_filter = 2
-color = Color(0.92, 0.94, 0.96, 1)
+color = Color(0.12, 0.12, 0.11, 1)
 
-[node name="MasterKnob" type="ColorRect" parent="pause/Root/Card"]
+[node name="MasterKnob" type="ColorRect" parent="pause/Root/Card" unique_id=1753851717]
+visible = false
 layout_mode = 0
 offset_left = 384.0
-offset_top = 238.0
+offset_top = 208.0
 offset_right = 392.0
-offset_bottom = 254.0
+offset_bottom = 224.0
 mouse_filter = 2
-color = Color(0.88, 0.95, 1, 1)
+color = Color(0.12, 0.12, 0.11, 1)
 
-[node name="volumeHint" type="Label" parent="pause/Root/Card"]
+[node name="volumeHint" type="Label" parent="pause/Root/Card" unique_id=1927468792]
 layout_mode = 0
 offset_left = 40.0
-offset_top = 278.0
+offset_top = 248.0
 offset_right = 200.0
-offset_bottom = 304.0
-theme_override_font_sizes/font_size = 14
+offset_bottom = 274.0
+theme_override_font_sizes/font_size = 18
 text = "SFX"
 
-[node name="sfxPct" type="Label" parent="pause/Root/Card"]
+[node name="sfxPct" type="Label" parent="pause/Root/Card" unique_id=1768863452]
 layout_mode = 0
 offset_left = 408.0
-offset_top = 278.0
+offset_top = 248.0
 offset_right = 500.0
-offset_bottom = 304.0
-theme_override_font_sizes/font_size = 12
+offset_bottom = 274.0
+theme_override_font_sizes/font_size = 18
 text = "100%"
 horizontal_alignment = 2
 
-[node name="SfxTrack" type="Panel" parent="pause/Root/Card"]
+[node name="SfxTrack" type="Panel" parent="pause/Root/Card" unique_id=9442088]
 layout_mode = 0
 offset_left = 188.0
-offset_top = 286.0
+offset_top = 256.0
 offset_right = 392.0
-offset_bottom = 294.0
+offset_bottom = 280.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_bar")
+script = ExtResource("20_ink_slider")
 
-[node name="SfxFill" type="ColorRect" parent="pause/Root/Card"]
+[node name="SfxFill" type="ColorRect" parent="pause/Root/Card" unique_id=1484381643]
+visible = false
 layout_mode = 0
 offset_left = 188.0
-offset_top = 286.0
+offset_top = 256.0
 offset_right = 392.0
-offset_bottom = 294.0
+offset_bottom = 264.0
 mouse_filter = 2
-color = Color(0.92, 0.94, 0.96, 1)
+color = Color(0.12, 0.12, 0.11, 1)
 
-[node name="SfxKnob" type="ColorRect" parent="pause/Root/Card"]
+[node name="SfxKnob" type="ColorRect" parent="pause/Root/Card" unique_id=322854491]
+visible = false
 layout_mode = 0
 offset_left = 384.0
-offset_top = 282.0
+offset_top = 252.0
 offset_right = 392.0
-offset_bottom = 298.0
+offset_bottom = 268.0
 mouse_filter = 2
-color = Color(0.88, 0.95, 1, 1)
+color = Color(0.12, 0.12, 0.11, 1)
 
-[node name="gameHeader" type="Label" parent="pause/Root/Card"]
+[node name="difficultyHint" type="Label" parent="pause/Root/Card" unique_id=1173106428]
 layout_mode = 0
 offset_left = 40.0
-offset_top = 324.0
+offset_top = 328.0
 offset_right = 484.0
-offset_bottom = 346.0
-theme_override_colors/font_color = Color(0.78, 0.82, 0.88, 1)
-theme_override_font_sizes/font_size = 12
-text = "GAME"
-
-[node name="difficultyHint" type="Label" parent="pause/Root/Card"]
-layout_mode = 0
-offset_left = 40.0
-offset_top = 358.0
-offset_right = 484.0
-offset_bottom = 384.0
-theme_override_font_sizes/font_size = 14
+offset_bottom = 354.0
+theme_override_font_sizes/font_size = 18
 text = "CPU DIFFICULTY    <  NORMAL  >"
 
-[node name="colorblindHint" type="Label" parent="pause/Root/Card"]
-layout_mode = 0
-offset_left = 40.0
-offset_top = 402.0
-offset_right = 484.0
-offset_bottom = 428.0
-theme_override_font_sizes/font_size = 14
-text = "HIGH CONTRAST     <  OFF  >"
-
-[node name="pauseHint" type="Label" parent="pause/Root/Card"]
+[node name="pauseHint" type="Label" parent="pause/Root/Card" unique_id=533182036]
 layout_mode = 0
 offset_left = 16.0
 offset_top = 448.0
 offset_right = 504.0
 offset_bottom = 508.0
-theme_override_colors/font_color = Color(0.8, 0.84, 0.9, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 16
 text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST
 SPACE/ENTER SELECT     ESC RESUME"
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="gameOver" type="CanvasLayer" parent="."]
-layer = 40
+[node name="gameOver" type="CanvasLayer" parent="." unique_id=1974776631]
 process_mode = 3
+layer = 40
 script = ExtResource("8_5vw27")
 
-[node name="Root" type="Control" parent="gameOver"]
+[node name="Root" type="Control" parent="gameOver" unique_id=919169052]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -710,8 +656,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme = ExtResource("17_theme")
 
-[node name="Dimmer" type="PanelContainer" parent="gameOver/Root"]
+[node name="Dimmer" type="PanelContainer" parent="gameOver/Root" unique_id=1034689672]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -721,14 +668,14 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_over")
 
-[node name="Card" type="Control" parent="gameOver/Root"]
-layout_mode = 0
+[node name="Card" type="Control" parent="gameOver/Root" unique_id=934582490]
+anchors_preset = 0
 offset_left = 286.0
 offset_top = 110.0
 offset_right = 866.0
 offset_bottom = 538.0
 
-[node name="Bg" type="Panel" parent="gameOver/Root/Card"]
+[node name="Bg" type="Panel" parent="gameOver/Root/Card" unique_id=6627924]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -737,76 +684,96 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_over_card")
+script = ExtResource("19_ink_panel")
 
-[node name="gameover" type="Label" parent="gameOver/Root/Card"]
+[node name="RematchButton" type="Panel" parent="gameOver/Root/Card" unique_id=575040562]
+layout_mode = 0
+offset_left = 146.0
+offset_top = 300.0
+offset_right = 434.0
+offset_bottom = 344.0
+mouse_filter = 2
+script = ExtResource("22_ink_button")
+
+[node name="MenuButton" type="Panel" parent="gameOver/Root/Card" unique_id=1074330874]
+layout_mode = 0
+offset_left = 146.0
+offset_top = 346.0
+offset_right = 434.0
+offset_bottom = 390.0
+mouse_filter = 2
+script = ExtResource("22_ink_button")
+
+[node name="gameover" type="Label" parent="gameOver/Root/Card" unique_id=1491656122]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 36.0
 offset_right = 560.0
 offset_bottom = 64.0
-theme_override_colors/font_color = Color(0.7, 0.75, 0.82, 0.85)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 18
 text = "MATCH OVER"
 horizontal_alignment = 1
 
-[node name="blue" type="Label" parent="gameOver/Root/Card"]
+[node name="blue" type="Label" parent="gameOver/Root/Card" unique_id=351044891]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 92.0
 offset_right = 560.0
 offset_bottom = 150.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 32
 text = "YOU WIN"
 horizontal_alignment = 1
 
-[node name="red" type="Label" parent="gameOver/Root/Card"]
+[node name="red" type="Label" parent="gameOver/Root/Card" unique_id=1112508187]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 92.0
 offset_right = 560.0
 offset_bottom = 150.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 24
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 32
 text = "CPU WINS"
 horizontal_alignment = 1
 
-[node name="finalScore" type="Label" parent="gameOver/Root/Card"]
+[node name="finalScore" type="Label" parent="gameOver/Root/Card" unique_id=727478377]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 170.0
 offset_right = 560.0
 offset_bottom = 230.0
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 36
 text = "0  -  0"
 horizontal_alignment = 1
 
-[node name="rallyRecord" type="Label" parent="gameOver/Root/Card"]
+[node name="rallyRecord" type="Label" parent="gameOver/Root/Card" unique_id=266777444]
 layout_mode = 0
 offset_left = 20.0
 offset_top = 250.0
 offset_right = 560.0
 offset_bottom = 280.0
-theme_override_colors/font_color = Color(0.82, 0.86, 0.9, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 18
 text = "BEST RALLY  0"
 horizontal_alignment = 1
 
-[node name="restartHint" type="Label" parent="gameOver/Root/Card"]
+[node name="restartHint" type="Label" parent="gameOver/Root/Card" unique_id=867274301]
 layout_mode = 0
 offset_left = 20.0
-offset_top = 340.0
+offset_top = 308.0
 offset_right = 560.0
-offset_bottom = 380.0
-theme_override_colors/font_color = Color(0.9, 0.93, 0.98, 1)
-theme_override_font_sizes/font_size = 14
+offset_bottom = 348.0
+theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
+theme_override_font_sizes/font_size = 18
 text = "SPACE / ENTER REMATCH"
 horizontal_alignment = 1
 
-[node name="PostFX" type="CanvasLayer" parent="."]
+[node name="PostFX" type="CanvasLayer" parent="." unique_id=1169101032]
 layer = 5
 
-[node name="Vignette" type="ColorRect" parent="PostFX"]
+[node name="Vignette" type="ColorRect" parent="PostFX" unique_id=372047312]
+visible = false
 material = SubResource("ShaderMaterial_vig")
 anchors_preset = 15
 anchor_right = 1.0
@@ -814,9 +781,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(1, 1, 1, 1)
 
-[node name="Scanlines" type="ColorRect" parent="PostFX"]
+[node name="Scanlines" type="ColorRect" parent="PostFX" unique_id=252537262]
+visible = false
 material = SubResource("ShaderMaterial_scan")
 anchors_preset = 15
 anchor_right = 1.0
@@ -824,7 +791,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(1, 1, 1, 1)
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1404282726]
 environment = SubResource("Environment_main")

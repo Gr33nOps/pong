@@ -19,6 +19,7 @@ var _reaction_elapsed := 0.0
 
 
 func _ready() -> void:
+	process_priority = -20
 	center_y = get_viewport().get_visible_rect().size.y * 0.5
 	_serve_target = center_y
 	GameState.ai_difficulty_changed.connect(_on_difficulty_changed)
@@ -66,6 +67,7 @@ func _physics_process(delta: float) -> void:
 
 func _move_toward(paddle, target_y: float, delta: float) -> void:
 	var paddle_y: float = paddle.position.y
+	paddle.previous_y = paddle_y
 	var move := clampf(target_y - paddle_y, -speed * delta, speed * delta)
 	var top: float = paddle.top_limit
 	var bottom: float = paddle.bottom_limit
