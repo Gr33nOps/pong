@@ -61,10 +61,20 @@ jobs:
           mkdir -p /tmp/pong/web
           godot --headless --verbose --path . --export-release "Web" /tmp/pong/web/index.html
 
+      - name: Export Android sideload APK
+        run: |
+          # Use Godot's built-in APK template; Play Store/Gradle signing is intentionally not configured.
+          sed -i 's#gradle_build/use_gradle_build=true#gradle_build/use_gradle_build=false#' export_presets.cfg
+          sed -i 's#keystore/debug_user="androiddebugkey"#keystore/debug_user=""#' export_presets.cfg
+          sed -i 's#keystore/debug_password="android"#keystore/debug_password=""#' export_presets.cfg
+          mkdir -p /tmp/pong/android
+          godot --headless --verbose --path . --export-debug "Android" /tmp/pong/android/pong.apk
+
       - name: Package release archives
         run: |
           cd /tmp/pong/windows && zip -q -r "$GITHUB_WORKSPACE/pong-windows.zip" .
           cd /tmp/pong/web && zip -q -r "$GITHUB_WORKSPACE/pong-web.zip" .
+          cp /tmp/pong/android/pong.apk "$GITHUB_WORKSPACE/pong-android-sideload.apk"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -73,3 +83,4 @@ jobs:
           files: |
             pong-windows.zip
             pong-web.zip
+            pong-android-sideload.apk
