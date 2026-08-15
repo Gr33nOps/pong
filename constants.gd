@@ -10,7 +10,7 @@ const COLOR_P2_ALT = Color(0.12, 0.12, 0.11, 1)  # Monochrome fallback
 const WINNER_SCORE = 5
 const MODE_AI = 1
 const MODE_2P = 2
-const GAME_VERSION := "1.1.10"
+const GAME_VERSION := "1.1.11"
 
 # Ball physics — arcade Pong (front-face hits only)
 const BALL_RADIUS = 21.0

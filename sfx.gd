@@ -1,5 +1,11 @@
 extends Node
-# Procedurally generated retro sound effects (no audio assets required).
+# Short, dry CC0 recordings chosen to feel like ink-on-paper taps and ticks.
+
+const PADDLE_HIT: AudioStream = preload("res://audio/paddle-hit.ogg")
+const WALL_HIT: AudioStream = preload("res://audio/wall-hit.ogg")
+const UI_CLICK: AudioStream = preload("res://audio/ui-click.ogg")
+const UI_ROLLOVER: AudioStream = preload("res://audio/ui-rollover.ogg")
+const UI_CONFIRM: AudioStream = preload("res://audio/ui-confirm.ogg")
 
 var master_volume: float = 1.0
 var sfx_volume: float = 1.0
@@ -15,14 +21,14 @@ func _ready() -> void:
 	_save_timer.timeout.connect(_save_settings)
 	add_child(_save_timer)
 	_load_settings()
-	add_sound("paddle", 660.0, 0.06, 0.7)
-	add_sound("wall", 330.0, 0.05, 0.5)
-	add_sound("score", 520.0, 0.16, 0.55)
-	add_sound("score_low", 280.0, 0.22, 0.5)
-	add_sound("win", 880.0, 0.28, 0.55)
-	add_sound("win_low", 440.0, 0.4, 0.5)
-	add_sound("ui", 740.0, 0.035, 0.35)
-	add_sound("confirm", 880.0, 0.07, 0.45)
+	add_sound("paddle", PADDLE_HIT, 0.62)
+	add_sound("wall", WALL_HIT, 0.46)
+	add_sound("score", WALL_HIT, 0.42)
+	add_sound("score_low", WALL_HIT, 0.34)
+	add_sound("win", UI_CONFIRM, 0.48)
+	add_sound("win_low", UI_CONFIRM, 0.38)
+	add_sound("ui", UI_ROLLOVER, 0.28)
+	add_sound("confirm", UI_CLICK, 0.38)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -57,12 +63,14 @@ func _set_all_volumes() -> void:
 	var db := -80.0 if linear <= 0.0001 else linear_to_db(linear)
 	for child in get_children():
 		if child is AudioStreamPlayer:
-			child.volume_db = db
+			var base_volume: float = child.get_meta("base_volume", 1.0)
+			child.volume_db = db + (linear_to_db(base_volume) if base_volume > 0.0001 else -80.0)
 
 
-func add_sound(sound_name: String, frequency: float, duration: float, volume: float) -> void:
+func add_sound(sound_name: String, stream: AudioStream, volume: float) -> void:
 	var player := AudioStreamPlayer.new()
-	player.stream = _make_tone(frequency, duration, volume)
+	player.stream = stream
+	player.set_meta("base_volume", clampf(volume, 0.0, 1.0))
 	player.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(player)
 	player.name = sound_name
@@ -116,19 +124,3 @@ func set_sfx_volume(vol: float) -> void:
 		muted = false
 	_set_all_volumes()
 	_queue_save()
-
-
-func _make_tone(frequency: float, duration: float, volume: float) -> AudioStreamWAV:
-	var sample_count := int(duration * Constants.SAMPLE_RATE)
-	var data := PackedByteArray()
-	data.resize(sample_count * 2)
-	for i in sample_count:
-		var t := float(i) / Constants.SAMPLE_RATE
-		var envelope := 1.0 - t / duration
-		var value := sin(TAU * frequency * t) * volume * envelope
-		data.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
-	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.mix_rate = Constants.SAMPLE_RATE
-	stream.data = data
-	return stream
