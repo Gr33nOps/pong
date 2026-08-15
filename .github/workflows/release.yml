@@ -61,16 +61,10 @@ jobs:
           mkdir -p /tmp/pong/web
           godot --headless --verbose --path . --export-release "Web" /tmp/pong/web/index.html
 
-      - name: Export Android sideload APK
-        run: |
-          mkdir -p /tmp/pong/android
-          godot --headless --verbose --path . --export-debug "Android" /tmp/pong/android/pong.apk
-
       - name: Package release archives
         run: |
           cd /tmp/pong/windows && zip -q -r "$GITHUB_WORKSPACE/pong-windows.zip" .
           cd /tmp/pong/web && zip -q -r "$GITHUB_WORKSPACE/pong-web.zip" .
-          cp /tmp/pong/android/pong.apk "$GITHUB_WORKSPACE/pong-android-debug.apk"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -79,4 +73,3 @@ jobs:
           files: |
             pong-windows.zip
             pong-web.zip
-            pong-android-debug.apk
