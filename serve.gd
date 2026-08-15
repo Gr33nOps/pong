@@ -29,12 +29,19 @@ var back_label: Label
 var _pointer_down := false
 var _pointer_start := Vector2.ZERO
 var _pointer_dragged := false
+var _touch_starts: Dictionary = {}
+var _touch_dragged: Dictionary = {}
+var _menu_eyebrow: Label
+var _menu_version: Label
+var _menu_rule_left: ColorRect
+var _menu_rule_right: ColorRect
 const TAP_SLACK := 28.0
 
 
 func _ready() -> void:
 	visible = false
 	layer = 20
+	Constants.configure_touch_root(root)
 	root.modulate = Color(1, 1, 1, 0)
 	GameState.serving_changed.connect(_on_serving_changed)
 	GameState.game_over.connect(_on_game_over)
@@ -51,6 +58,7 @@ func _ready() -> void:
 	option2_bg.gui_input.connect(_on_option_gui.bind(1))
 	_make_option3()
 	_update_devices_label()
+	_make_menu_chrome()
 	GameState.back_pressed.connect(_on_back_pressed)
 	serve_title.mouse_filter = Control.MOUSE_FILTER_STOP
 	hint_label.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -59,6 +67,42 @@ func _ready() -> void:
 	_make_back_label()
 	devices_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	devices_label.gui_input.connect(_on_devices_gui)
+
+
+func _make_menu_chrome() -> void:
+	_menu_eyebrow = Label.new()
+	_menu_eyebrow.position = Vector2(76.0, 88.0)
+	_menu_eyebrow.size = Vector2(1000.0, 24.0)
+	_menu_eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_menu_eyebrow.add_theme_font_size_override("font_size", 11)
+	_menu_eyebrow.add_theme_color_override("font_color", Color(0.45, 0.82, 0.86, 0.8))
+	_menu_eyebrow.text = "GR33NOPS  //  ARCADE 01"
+	_menu_eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_menu_eyebrow)
+
+	_menu_version = Label.new()
+	_menu_version.position = Vector2(76.0, 594.0)
+	_menu_version.size = Vector2(1000.0, 22.0)
+	_menu_version.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_menu_version.add_theme_font_size_override("font_size", 10)
+	_menu_version.add_theme_color_override("font_color", Color(0.42, 0.46, 0.54, 0.8))
+	_menu_version.text = "PONG  v%s" % Constants.GAME_VERSION
+	_menu_version.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_menu_version)
+
+	_menu_rule_left = ColorRect.new()
+	_menu_rule_left.position = Vector2(248.0, 165.0)
+	_menu_rule_left.size = Vector2(184.0, 1.0)
+	_menu_rule_left.color = Color(0.12, 0.75, 0.8, 0.35)
+	_menu_rule_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_menu_rule_left)
+
+	_menu_rule_right = ColorRect.new()
+	_menu_rule_right.position = Vector2(720.0, 165.0)
+	_menu_rule_right.size = Vector2(184.0, 1.0)
+	_menu_rule_right.color = Color(0.9, 0.18, 0.2, 0.35)
+	_menu_rule_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_menu_rule_right)
 
 
 func _make_option3() -> void:
@@ -268,7 +312,9 @@ func _on_serve_gui(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_launch_player_serve()
 	elif event is InputEventScreenTouch and event.pressed:
-		_launch_player_serve()
+		if _is_valid_serve_pointer(event.position):
+			GameState.note_input("touch")
+			_launch_player_serve()
 
 
 func _go_back() -> void:
@@ -304,48 +350,67 @@ func _launch_player_serve() -> void:
 
 func _input(event: InputEvent) -> void:
 	if GameState.paused or GameState.is_game_over or not GameState.serving or not GameState.mode_selected:
-		_pointer_down = false
-		_pointer_dragged = false
+		_clear_pointer_state()
 		return
 	if GameState.is_cpu_serving() or not _serve_ready:
 		return
-	var pos := Vector2.ZERO
-	var is_press := false
-	var is_release := false
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		pos = event.position
-		is_press = event.pressed
-		is_release = not event.pressed
+		GameState.note_input("mouse")
+		if event.pressed:
+			if _is_valid_serve_pointer(event.position):
+				_pointer_down = true
+				_pointer_dragged = false
+				_pointer_start = event.position
+		else:
+			if _pointer_down and not _pointer_dragged:
+				_launch_player_serve()
+			_pointer_down = false
+			_pointer_dragged = false
+		return
 	elif event is InputEventScreenTouch:
-		pos = event.position
-		is_press = event.pressed
-		is_release = not event.pressed
+		GameState.note_input("touch")
+		if event.pressed:
+			if _is_valid_serve_pointer(event.position):
+				_touch_starts[event.index] = event.position
+				_touch_dragged[event.index] = false
+		else:
+			if _touch_starts.has(event.index) and not bool(_touch_dragged.get(event.index, false)):
+				_launch_player_serve()
+			_touch_starts.erase(event.index)
+			_touch_dragged.erase(event.index)
+		return
 	elif event is InputEventMouseMotion and _pointer_down:
 		if event.position.distance_to(_pointer_start) > TAP_SLACK:
 			_pointer_dragged = true
 		return
-	elif event is InputEventScreenDrag and _pointer_down:
-		if event.position.distance_to(_pointer_start) > TAP_SLACK:
-			_pointer_dragged = true
+	elif event is InputEventScreenDrag and _touch_starts.has(event.index):
+		if event.position.distance_to(_touch_starts[event.index]) > TAP_SLACK:
+			_touch_dragged[event.index] = true
 		return
-	else:
-		return
-	if pos.y < Constants.HUD_HEIGHT:
-		return
-	if is_press:
-		_pointer_down = true
-		_pointer_dragged = false
-		_pointer_start = pos
-	elif is_release and _pointer_down:
-		_pointer_down = false
-		if not _pointer_dragged:
-			_launch_player_serve()
+
+
+func _is_valid_serve_pointer(pos: Vector2) -> bool:
+	if pos.y < Constants.HUD_HEIGHT or GameState.is_cpu_serving():
+		return false
+	var server_is_left := GameState.server_is_left()
+	if GameState.mode == Constants.MODE_AI and server_is_left != GameState.player_is_left:
+		return false
+	if GameState.mode == Constants.MODE_2P:
+		return (pos.x < get_viewport().get_visible_rect().size.x * 0.5) == server_is_left
+	return true
+
+
+func _clear_pointer_state() -> void:
+	_pointer_down = false
+	_pointer_dragged = false
+	_touch_starts.clear()
+	_touch_dragged.clear()
 
 
 func _on_serving_changed(serving: bool) -> void:
 	_ai_serve_timer = 0.0
 	_serve_ready = false
-	_pointer_down = false
+	_clear_pointer_state()
 	if serving:
 		visible = true
 		_refresh()
@@ -416,6 +481,11 @@ func _refresh() -> void:
 	subtitle_label.visible = in_menu
 	panel.visible = in_menu
 	devices_label.visible = in_menu
+	if _menu_eyebrow:
+		_menu_eyebrow.visible = in_menu
+		_menu_version.visible = in_menu
+		_menu_rule_left.visible = in_menu
+		_menu_rule_right.visible = in_menu
 	if back_label:
 		back_label.visible = in_menu and _step != Step.MODE
 	serve_title.visible = not in_menu
@@ -475,7 +545,8 @@ func _refresh() -> void:
 		else:
 			serve_title.text = "P2 SERVE"
 			if GameState.is_touch_ui():
-				hint_label.text = "DRAG RIGHT HALF TO AIM   TAP TO SERVE"
+				var half := "LEFT" if GameState.server_is_left() else "RIGHT"
+				hint_label.text = "DRAG %s HALF TO AIM   TAP TO SERVE" % half
 			else:
 				hint_label.text = "UP/DOWN Aim  ·  SPACE/CLICK Serve  ·  ESC Pause"
 		serve_title.add_theme_color_override("font_color", Color(1, 1, 1, 1))

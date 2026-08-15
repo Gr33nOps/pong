@@ -15,6 +15,7 @@ var pause_label: Label
 
 func _ready() -> void:
 	layer = 8
+	Constants.configure_touch_root($Root)
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.mode_changed.connect(_on_mode_changed)
 	GameState.serving_changed.connect(_on_serving_changed)
@@ -30,20 +31,28 @@ func _ready() -> void:
 
 func _make_pause_button() -> void:
 	pause_hit = Panel.new()
-	pause_hit.position = Vector2(476.0, 520.0)
-	pause_hit.size = Vector2(200.0, 40.0)
+	pause_hit.position = Vector2(456.0, 516.0)
+	pause_hit.size = Vector2(240.0, 44.0)
 	pause_hit.mouse_filter = Control.MOUSE_FILTER_STOP
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0)
-	style.border_color = Color(0, 0, 0, 0)
+	style.bg_color = Color(0.03, 0.05, 0.08, 0.82)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.35, 0.45, 0.55, 0.42)
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
 	pause_hit.add_theme_stylebox_override("panel", style)
 	pause_label = Label.new()
-	pause_label.position = Vector2(476.0, 524.0)
-	pause_label.size = Vector2(200.0, 32.0)
+	pause_label.position = Vector2(456.0, 522.0)
+	pause_label.size = Vector2(240.0, 28.0)
 	pause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pause_label.text = "PAUSE"
-	pause_label.add_theme_font_size_override("font_size", 12)
-	pause_label.add_theme_color_override("font_color", Color(0.7, 0.74, 0.8, 0.85))
+	pause_label.add_theme_font_size_override("font_size", 13)
+	pause_label.add_theme_color_override("font_color", Color(0.82, 0.88, 0.94, 0.92))
 	pause_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	$Root.add_child(pause_hit)
 	$Root.add_child(pause_label)

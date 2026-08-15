@@ -3,7 +3,8 @@ name: Build & Deploy Web
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -12,15 +13,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-main
   cancel-in-progress: true
 
 jobs:
-  build-web:
+  build-check:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,18 +37,30 @@ jobs:
         run: |
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --import
 
+      - name: Static checks
+        run: git diff --check
+
+      - name: Run smoke tests
+        run: /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --script tests/smoke.gd
+
       - name: Export Web build
         run: |
-          mkdir -p pong/web
-          /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Web"
+          mkdir -p /tmp/pong-web
+          /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Web" /tmp/pong-web/index.html
+
+      - name: Export Windows smoke build
+        run: |
+          mkdir -p /tmp/pong-windows
+          /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Windows Desktop" /tmp/pong-windows/pong.exe
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: pong/web
+          path: /tmp/pong-web
 
   deploy-pages:
-    needs: build-web
+    needs: build-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

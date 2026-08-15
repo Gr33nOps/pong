@@ -19,10 +19,14 @@ extends Node2D
 
 var playfield_size := Vector2.ZERO
 var _rotate_hint: CanvasLayer = null
+var _pointer_paddles: Dictionary = {}
+var _last_landscape := true
+var _orientation_paused := false
 
 
 func _ready() -> void:
 	ScreenShake.reset()
+	_last_landscape = get_viewport_rect().size.x >= get_viewport_rect().size.y
 	_update_playfield_size()
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.serving_changed.connect(_on_serving_changed)
@@ -31,6 +35,7 @@ func _ready() -> void:
 	GameState.mode_changed.connect(_on_mode_changed)
 	GameState.point_scored.connect(_on_point_scored)
 	GameState.rematch_started.connect(_on_rematch_started)
+	GameState.paused_changed.connect(_on_paused_changed)
 	ball.rally_changed.connect(_on_rally_changed)
 	hud.bind_ball(ball)
 	GameState.reset_game()
@@ -78,33 +83,80 @@ func _update_rotate_hint() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		GameState.note_input("keyboard")
+	elif event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		GameState.note_input("controller")
 	if GameState.paused or GameState.is_game_over or not GameState.mode_selected:
+		_release_all_pointers()
 		return
-	var pos := Vector2.INF
+	if GameState.serving and GameState.is_cpu_serving():
+		_release_all_pointers()
+		return
 	if event is InputEventScreenTouch:
-		if event.pressed:
-			pos = event.position
-		else:
-			return
+		GameState.note_input("touch")
+		_handle_pointer_touch(event.index, event.position, event.pressed)
 	elif event is InputEventScreenDrag:
-		pos = event.position
+		GameState.note_input("touch")
+		_handle_pointer_motion(event.index, event.position)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		GameState.note_input("mouse")
+		_handle_pointer_touch(-1, event.position, event.pressed)
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		pos = event.position
-	if pos != Vector2.INF:
-		_steer_from_pointer(pos)
+		GameState.note_input("mouse")
+		_handle_pointer_motion(-1, event.position)
 
 
-func _steer_from_pointer(pos: Vector2) -> void:
+func _paddle_for_pointer(pos: Vector2) -> Area2D:
 	if pos.y < Constants.HUD_HEIGHT:
-		return
+		return null
+	if GameState.serving:
+		var server_is_left := GameState.server_is_left()
+		if GameState.mode == Constants.MODE_AI and server_is_left != GameState.player_is_left:
+			return null
+		if GameState.mode == Constants.MODE_2P and ((pos.x < playfield_size.x * 0.5) != server_is_left):
+			return null
+		return paddle_left if server_is_left else paddle_right
 	if GameState.mode == Constants.MODE_AI:
-		var paddle = paddle_left if GameState.player_is_left else paddle_right
-		paddle.position.y = clampf(pos.y, paddle.top_limit, paddle.bottom_limit)
-		return
-	if pos.x < playfield_size.x * 0.5:
-		paddle_left.position.y = clampf(pos.y, paddle_left.top_limit, paddle_left.bottom_limit)
+		return paddle_left if GameState.player_is_left else paddle_right
+	return paddle_left if pos.x < playfield_size.x * 0.5 else paddle_right
+
+
+func _handle_pointer_touch(pointer_id: int, pos: Vector2, pressed: bool) -> void:
+	if pressed:
+		var paddle := _paddle_for_pointer(pos)
+		if paddle != null and paddle.begin_pointer(pointer_id, pos.y):
+			_pointer_paddles[pointer_id] = paddle
 	else:
-		paddle_right.position.y = clampf(pos.y, paddle_right.top_limit, paddle_right.bottom_limit)
+		_release_pointer(pointer_id)
+
+
+func _handle_pointer_motion(pointer_id: int, pos: Vector2) -> void:
+	var paddle: Area2D = _pointer_paddles.get(pointer_id)
+	if paddle != null and is_instance_valid(paddle):
+		paddle.set_pointer_target(pos.y, pointer_id)
+
+
+func _release_pointer(pointer_id: int) -> void:
+	var paddle: Area2D = _pointer_paddles.get(pointer_id)
+	if paddle != null and is_instance_valid(paddle):
+		paddle.release_pointer(pointer_id)
+	_pointer_paddles.erase(pointer_id)
+
+
+func _release_all_pointers() -> void:
+	for pointer_id in _pointer_paddles.keys():
+		_release_pointer(pointer_id)
+
+
+func _on_paused_changed(paused: bool) -> void:
+	if paused:
+		_release_all_pointers()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_release_all_pointers()
 
 
 func _on_mode_changed(_mode: int) -> void:
@@ -197,11 +249,23 @@ func _serve_aim() -> float:
 	var server = paddle_left if GameState.serve_toward_right else paddle_right
 	var mid := (playfield_size.y + Constants.HUD_HEIGHT) * 0.5
 	var center_offset: float = (server.position.y - mid) / maxf(server.half_height(), 1.0)
-	return clampf(server.get_move_input() * 0.85 + center_offset * 0.4, -1.0, 1.0)
+	var paddle_input: float = server.last_vy / maxf(server.speed, 1.0) if server.has_pointer_target() else server.get_move_input()
+	return clampf(paddle_input * 0.85 + center_offset * 0.4, -1.0, 1.0)
 
 
 func _update_playfield_size() -> void:
 	playfield_size = get_viewport_rect().size
+	var landscape := playfield_size.x >= playfield_size.y
+	if landscape != _last_landscape and GameState.mode_selected and not GameState.is_game_over:
+		_release_all_pointers()
+		if not landscape:
+			_orientation_paused = not GameState.paused
+			if _orientation_paused:
+				GameState.toggle_pause()
+		elif _orientation_paused and GameState.paused:
+			_orientation_paused = false
+			GameState.toggle_pause()
+	_last_landscape = landscape
 	ball._playfield_size = playfield_size
 	var half_w := Constants.PADDLE_WIDTH * 0.5
 	paddle_left.position.x = Constants.PADDLE_MARGIN + half_w

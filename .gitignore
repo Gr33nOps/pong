@@ -6,4 +6,6 @@
 *.exe
 *.pck
 *.tmp
-/pong/
+/pong/*
+!/pong/
+!/pong/.gdignore

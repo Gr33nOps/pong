@@ -21,6 +21,9 @@ extends CanvasLayer
 
 var _cursor := 0
 var _fade_tween: Tween = null
+var _held_repeat_elapsed := 0.0
+var _dragging_id := ""
+var _drag_pointer := -1
 var menu_label: Label
 const BAR_X := 188.0
 const BAR_W := 204.0
@@ -30,6 +33,7 @@ const KNOB_W := 8.0
 func _ready() -> void:
 	visible = false
 	layer = 30
+	Constants.configure_touch_root(root)
 	root.modulate = Color(1, 1, 1, 0)
 	_ensure_menu_label()
 	GameState.paused_changed.connect(_on_paused_changed)
@@ -110,7 +114,12 @@ func _process(_delta: float) -> void:
 	if id == "master" or id == "sfx":
 		var held := _held_dir()
 		if held != 0:
-			_adjust_option(held)
+			_held_repeat_elapsed += _delta
+			if _held_repeat_elapsed >= 0.06:
+				_adjust_option(held, _delta)
+				_held_repeat_elapsed = 0.0
+		else:
+			_held_repeat_elapsed = 0.0
 	else:
 		var tapped := 0
 		if Input.is_action_just_pressed("ui_left"):
@@ -137,31 +146,78 @@ func _input(event: InputEvent) -> void:
 			get_tree().quit()
 			return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		GameState.note_input("mouse")
+		_drag_pointer = -1
 		_on_pause_click($Root/Card.get_local_mouse_position())
+		_dragging_id = _row_at($Root/Card.get_local_mouse_position())
+		_set_drag_value($Root/Card.get_local_mouse_position())
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_dragging_id = ""
+		_drag_pointer = -1
+	elif event is InputEventMouseMotion and _drag_pointer == -1 and _dragging_id != "":
+		_set_drag_value($Root/Card.get_local_mouse_position())
 	elif event is InputEventScreenTouch and event.pressed:
+		GameState.note_input("touch")
 		var canvas: Transform2D = $Root/Card.get_global_transform_with_canvas()
-		_on_pause_click(canvas.affine_inverse() * event.position)
+		var local: Vector2 = canvas.affine_inverse() * event.position
+		_drag_pointer = event.index
+		_on_pause_click(local)
+		_dragging_id = _row_at(local)
+		_set_drag_value(local)
+	elif event is InputEventScreenTouch and not event.pressed:
+		if _drag_pointer == event.index:
+			_dragging_id = ""
+			_drag_pointer = -1
+	elif event is InputEventScreenDrag and _drag_pointer == event.index:
+		var canvas: Transform2D = $Root/Card.get_global_transform_with_canvas()
+		_set_drag_value(canvas.affine_inverse() * event.position)
 
 
 func _on_pause_click(local: Vector2) -> void:
 	var card: Control = $Root/Card
 	var ids := _ids()
-	for i in ids.size():
-		var lab := _label_for(ids[i])
-		var rect := Rect2(lab.position, Vector2(card.size.x - 40.0, 40.0))
-		if rect.has_point(local):
-			_cursor = i
-			_update_hints()
-			if ids[i] in ["resume", "rematch", "menu", "colorblind"]:
-				_select_option()
-			elif ids[i] == "master" or ids[i] == "sfx":
-				var t := clampf((local.x - BAR_X) / BAR_W, 0.0, 1.0)
-				if ids[i] == "master":
-					SFX.set_master_volume(t)
-				else:
-					SFX.set_sfx_volume(t)
-				_update_hints()
-			break
+	var id := _row_at(local)
+	if id == "":
+		return
+	_cursor = ids.find(id)
+	_update_hints()
+	if id in ["resume", "rematch", "menu", "colorblind"]:
+		_select_option()
+	elif id == "master" or id == "sfx":
+		_set_volume(id, local.x)
+	elif id == "difficulty":
+		GameState.cycle_difficulty(-1 if local.x < card.size.x * 0.5 else 1)
+		SFX.play("ui")
+		_update_hints()
+
+
+func _row_at(local: Vector2) -> String:
+	var card: Control = $Root/Card
+	var best_id := ""
+	var best_distance := INF
+	var hit_height := 72.0 if GameState.is_touch_ui() else 48.0
+	for id in _ids():
+		var lab := _label_for(id)
+		var center_y := lab.position.y + lab.size.y * 0.5
+		var distance := absf(local.y - center_y)
+		if local.x >= 20.0 and local.x <= card.size.x - 20.0 and distance <= hit_height * 0.5 and distance < best_distance:
+			best_distance = distance
+			best_id = id
+	return best_id
+
+
+func _set_volume(id: String, x: float) -> void:
+	var t := clampf((x - BAR_X) / BAR_W, 0.0, 1.0)
+	if id == "master":
+		SFX.set_master_volume(t)
+	else:
+		SFX.set_sfx_volume(t)
+	_update_hints()
+
+
+func _set_drag_value(local: Vector2) -> void:
+	if _dragging_id == "master" or _dragging_id == "sfx":
+		_set_volume(_dragging_id, local.x)
 
 
 func _on_paused_changed(paused: bool) -> void:
@@ -215,16 +271,16 @@ func _select_option() -> void:
 			_update_hints()
 
 
-func _adjust_option(direction: int) -> void:
+func _adjust_option(direction: int, amount: float = 1.0) -> void:
 	var ids := _ids()
 	if _cursor < 0 or _cursor >= ids.size():
 		return
 	match ids[_cursor]:
 		"master":
-			SFX.set_master_volume(SFX.master_volume + 0.02 * direction)
+			SFX.set_master_volume(SFX.master_volume + 0.7 * amount * direction)
 			_update_hints()
 		"sfx":
-			SFX.set_sfx_volume(SFX.sfx_volume + 0.02 * direction)
+			SFX.set_sfx_volume(SFX.sfx_volume + 0.7 * amount * direction)
 			_update_hints()
 		"difficulty":
 			GameState.cycle_difficulty(direction)
