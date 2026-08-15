@@ -65,6 +65,8 @@ jobs:
         run: |
           # Use Godot's built-in APK template; Play Store/Gradle signing is intentionally not configured.
           sed -i 's#gradle_build/use_gradle_build=true#gradle_build/use_gradle_build=false#' export_presets.cfg
+          sed -i 's#gradle_build/min_sdk="29"#gradle_build/min_sdk=""#' export_presets.cfg
+          sed -i 's#gradle_build/target_sdk="36"#gradle_build/target_sdk=""#' export_presets.cfg
           sed -i 's#keystore/debug_user="androiddebugkey"#keystore/debug_user=""#' export_presets.cfg
           sed -i 's#keystore/debug_password="android"#keystore/debug_password=""#' export_presets.cfg
           mkdir -p /tmp/pong/android
