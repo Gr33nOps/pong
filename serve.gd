@@ -3,6 +3,7 @@ extends CanvasLayer
 
 @onready var root = $Root
 @onready var title_label = $Root/title
+@onready var title_logo: TextureRect = $Root/titleLogo
 @onready var subtitle_label = $Root/subtitle
 @onready var option1_label = $Root/option1
 @onready var option2_label = $Root/option2
@@ -425,7 +426,8 @@ func _on_player_released(_player: int) -> void:
 
 func _refresh() -> void:
 	var in_menu := not GameState.mode_selected
-	title_label.visible = in_menu
+	title_label.visible = false
+	title_logo.visible = in_menu
 	subtitle_label.visible = in_menu
 	panel.visible = in_menu
 	devices_label.visible = in_menu
@@ -436,13 +438,13 @@ func _refresh() -> void:
 	hint_label.modulate.a = 1.0
 	if in_menu:
 		cursor = mini(cursor, _option_count() - 1)
-		hint_label.position = Vector2(80, 476 if _step == Step.DIFF else 456)
+		hint_label.position = Vector2(80, 500 if _step == Step.DIFF else 480)
 		hint_label.size = Vector2(992, 36)
-		devices_label.position.y = 520.0 if _step == Step.DIFF else 500.0
+		devices_label.position.y = 544.0 if _step == Step.DIFF else 524.0
 		hint_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 		match _step:
 			Step.DIFF:
-				subtitle_label.position.y = 218.0
+				subtitle_label.position.y = 264.0
 				subtitle_label.text = "CPU DIFFICULTY"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP A DIFFICULTY"
@@ -450,7 +452,7 @@ func _refresh() -> void:
 					hint_label.text = "W/S NAVIGATE   SPACE/ENTER SELECT   ESC BACK"
 				_update_devices_label()
 			Step.SIDE:
-				subtitle_label.position.y = 226.0
+				subtitle_label.position.y = 264.0
 				subtitle_label.text = "YOUR SIDE" if GameState.mode == Constants.MODE_AI else "P1 SIDE"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP LEFT OR RIGHT"
@@ -465,7 +467,7 @@ func _refresh() -> void:
 					else:
 						devices_label.text = "P1: W / S ON YOUR SIDE      P2: ARROWS ON THE OTHER"
 			_:
-				subtitle_label.position.y = 226.0
+				subtitle_label.position.y = 264.0
 				subtitle_label.text = "FIRST TO FIVE"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP A MODE"
@@ -524,17 +526,17 @@ func _update_menu_highlight() -> void:
 	var in_menu := not GameState.mode_selected
 	var names: PackedStringArray
 	if _step == Step.DIFF:
-		_place_option(option1_bg, option1_label, 268.0, 58.0)
-		_place_option(option2_bg, option2_label, 338.0, 58.0)
-		_place_option(option3_bg, option3_label, 408.0, 58.0)
+		_place_option(option1_bg, option1_label, 296.0, 58.0)
+		_place_option(option2_bg, option2_label, 366.0, 58.0)
+		_place_option(option3_bg, option3_label, 436.0, 58.0)
 		names = PackedStringArray(["EASY", "NORMAL", "HARD"])
 	elif _step == Step.SIDE:
-		_place_option(option1_bg, option1_label, 268.0, 68.0)
-		_place_option(option2_bg, option2_label, 356.0, 68.0)
+		_place_option(option1_bg, option1_label, 296.0, 68.0)
+		_place_option(option2_bg, option2_label, 384.0, 68.0)
 		names = PackedStringArray(["LEFT", "RIGHT"])
 	else:
-		_place_option(option1_bg, option1_label, 268.0, 68.0)
-		_place_option(option2_bg, option2_label, 356.0, 68.0)
+		_place_option(option1_bg, option1_label, 296.0, 68.0)
+		_place_option(option2_bg, option2_label, 384.0, 68.0)
 		names = PackedStringArray(["PLAYER VS CPU", "PLAYER VS PLAYER"])
 	var bars := [option1_bg, option2_bg, option3_bg]
 	var labels := [option1_label, option2_label, option3_label]
