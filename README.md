@@ -1,5 +1,4 @@
 <p align="center">
-  <img src="logo.png" alt="PONG logo" width="220">
 </p>
 
 # PONG
