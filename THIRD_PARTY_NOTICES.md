@@ -14,6 +14,8 @@ PONG is built with the Godot Engine, which is distributed under the MIT license.
 
 ## Sound effects
 
-`audio/paddle-hit.ogg` and `audio/wall-hit.ogg` are CC0 recordings from the OpenGameArt “Ping Pong Sounds” pack: <https://opengameart.org/content/ping-pong-sounds>.
+`audio/paddle-hit.ogg` is the user-provided “49053354 - Kerplunk” recording (source file `49053354-kerplunk-307458.mp3`).
+
+`audio/wall-hit.ogg` is the user-provided “Freesound Community - Stick Hitting a Dreadlock (Small Thud)” recording (source file `freesound_community-stick-hitting-a-dreadlock-small-thud-83297.mp3`).
 
 `audio/ui-click.ogg`, `audio/ui-rollover.ogg`, and `audio/ui-confirm.ogg` are CC0 sounds from Kenney’s UI Audio collection: <https://kenney.nl/assets/ui-audio>.
