@@ -28,7 +28,7 @@ var ai_difficulty := Constants.DIFFICULTY_NORMAL
 var serve_toward_right := true
 var between_points := false
 var player_is_left := true
-var _last_input_was_touch := false
+var _last_input_modality := "keyboard"
 
 
 func _ready() -> void:
@@ -49,11 +49,15 @@ func _notification(what: int) -> void:
 
 
 func is_touch_ui() -> bool:
-	return OS.has_feature("mobile") or _last_input_was_touch
+	return OS.has_feature("mobile") or _last_input_modality == "touch"
+
+
+func is_controller_ui() -> bool:
+	return _last_input_modality == "controller" or not Input.get_connected_joypads().is_empty()
 
 
 func note_input(modality: String) -> void:
-	_last_input_was_touch = modality == "touch"
+	_last_input_modality = modality
 
 
 func server_is_left() -> bool:

@@ -60,13 +60,24 @@ func _make_menu_hint() -> void:
 	menu_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	menu_hint.add_theme_font_size_override("font_size", 18)
 	menu_hint.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
-	menu_hint.text = "TAP FOR MENU" if GameState.is_touch_ui() else "ESC MENU"
+	_update_control_hints()
 	menu_hint.mouse_filter = Control.MOUSE_FILTER_STOP
 	menu_hint.gui_input.connect(_on_hint_gui.bind("menu"))
 	card.add_child(menu_hint)
-	restart_hint.text = "TAP TO REMATCH" if GameState.is_touch_ui() else "SPACE / ENTER REMATCH"
 	restart_hint.position.y = 308.0
 	menu_hint.position.y = 354.0
+
+
+func _update_control_hints() -> void:
+	if GameState.is_touch_ui():
+		menu_hint.text = "TAP FOR MENU"
+		restart_hint.text = "TAP TO REMATCH"
+	elif GameState.is_controller_ui():
+		menu_hint.text = "B MENU"
+		restart_hint.text = "A REMATCH"
+	else:
+		menu_hint.text = "ESC MENU"
+		restart_hint.text = "SPACE / ENTER REMATCH"
 
 
 func _on_hint_gui(event: InputEvent, action: String) -> void:
@@ -141,6 +152,7 @@ func _on_rematch_started() -> void:
 
 func _on_game_over(winner: String) -> void:
 	visible = true
+	_update_control_hints()
 	_set_cursor(0)
 	red_win_label.visible = winner == "red"
 	blue_win_label.visible = winner == "blue"

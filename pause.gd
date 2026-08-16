@@ -33,6 +33,11 @@ func _ready() -> void:
 	Constants.configure_touch_root(root)
 	root.modulate = Color(1, 1, 1, 0)
 	_ensure_menu_label()
+	master_label.visible = false
+	master_pct.visible = false
+	master_fill.visible = false
+	master_knob.visible = false
+	$Root/Card/MasterTrack.visible = false
 	GameState.paused_changed.connect(_on_paused_changed)
 	_update_hints()
 
@@ -49,7 +54,7 @@ func _ensure_menu_label() -> void:
 
 
 func _ids() -> Array[String]:
-	var ids: Array[String] = ["resume", "rematch", "menu", "master", "sfx"]
+	var ids: Array[String] = ["resume", "rematch", "menu", "sfx"]
 	if GameState.mode == Constants.MODE_AI:
 		ids.append("difficulty")
 	return ids
@@ -105,7 +110,7 @@ func _process(_delta: float) -> void:
 		_select_option()
 
 	var id: String = ids[_cursor]
-	if id == "master" or id == "sfx":
+	if id == "sfx":
 		var held := _held_dir()
 		if held != 0:
 			_held_repeat_elapsed += _delta
@@ -176,7 +181,7 @@ func _on_pause_click(local: Vector2) -> void:
 	_update_hints()
 	if id in ["resume", "rematch", "menu"]:
 		_select_option()
-	elif id == "master" or id == "sfx":
+	elif id == "sfx":
 		_set_volume(id, local.x)
 	elif id == "difficulty":
 		GameState.advance_difficulty()
@@ -201,15 +206,12 @@ func _row_at(local: Vector2) -> String:
 
 func _set_volume(id: String, x: float) -> void:
 	var t := clampf((x - BAR_X) / BAR_W, 0.0, 1.0)
-	if id == "master":
-		SFX.set_master_volume(t)
-	else:
-		SFX.set_sfx_volume(t)
+	SFX.set_sfx_volume(t)
 	_update_hints()
 
 
 func _set_drag_value(local: Vector2) -> void:
-	if _dragging_id == "master" or _dragging_id == "sfx":
+	if _dragging_id == "sfx":
 		_set_volume(_dragging_id, local.x)
 
 
@@ -265,11 +267,8 @@ func _adjust_option(direction: int, amount: float = 1.0) -> void:
 	if _cursor < 0 or _cursor >= ids.size():
 		return
 	match ids[_cursor]:
-		"master":
-			SFX.set_master_volume(SFX.master_volume + 0.7 * amount * direction)
-			_update_hints()
 		"sfx":
-			SFX.set_sfx_volume(SFX.sfx_volume + 0.7 * amount * direction)
+			SFX.set_sfx_volume(SFX.sfx_volume + 3.0 * amount * direction)
 			_update_hints()
 		"difficulty":
 			GameState.cycle_difficulty(direction)
@@ -298,11 +297,12 @@ func _update_hints() -> void:
 	resume_label.text = "RESUME"
 	restart_label.text = "REMATCH"
 	menu_label.text = "MAIN MENU"
-	master_label.text = "MASTER"
 	volume_label.text = "SFX"
 	difficulty_label.text = "CPU DIFFICULTY    <  %s  >" % GameState.difficulty_label().to_upper()
 	if GameState.is_touch_ui():
 		pause_hint.text = "TAP A ROW     DRAG VOLUME     PAUSE OR BACK RESUME"
+	elif GameState.is_controller_ui():
+		pause_hint.text = "LEFT STICK NAVIGATE     LEFT/RIGHT ADJUST\nA SELECT     START RESUME     B BACK"
 	elif OS.has_feature("web"):
 		pause_hint.text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST\nSPACE/ENTER SELECT     ESC RESUME     M MUTE"
 	else:
@@ -315,10 +315,6 @@ func _update_hints() -> void:
 	# Every navigable row, including both volume sliders, gets the same ink focus box.
 	cursor_bar.visible = selected in ids
 	cursor_bar.position.y = _label_for(selected).position.y - 6.0
-	_place_bar(master_fill, master_knob, SFX.master_volume)
 	_place_bar(sfx_fill, sfx_knob, SFX.sfx_volume)
-	master_pct.text = "%d%%" % int(round(SFX.master_volume * 100.0))
 	sfx_pct.text = "%d%%" % int(round(SFX.sfx_volume * 100.0))
-	var fill_color := Color(0.12, 0.12, 0.11, 1)
-	master_fill.color = fill_color
-	sfx_fill.color = fill_color
+	sfx_fill.color = Color(0.12, 0.12, 0.11, 1)

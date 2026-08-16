@@ -10,7 +10,6 @@ const PLAYER_1 := 1
 const PLAYER_2 := 2
 var _devices := {PLAYER_1: -1, PLAYER_2: -1}
 var _stick_dir := {}
-var _stick_repeat_at := {}
 
 var _confirm_frame := -1
 var _pause_frame := -1
@@ -24,7 +23,6 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var now := Time.get_ticks_msec() * 0.001
 	for device_value in _devices.values():
 		var device := int(device_value)
 		if device < 0:
@@ -35,12 +33,6 @@ func _process(_delta: float) -> void:
 			_stick_dir[device] = direction
 			if direction != 0:
 				_emit_navigation(direction)
-				_stick_repeat_at[device] = now + Constants.GAMEPAD_NAV_INITIAL_REPEAT
-			else:
-				_stick_repeat_at.erase(device)
-		elif direction != 0 and now >= float(_stick_repeat_at.get(device, now + Constants.GAMEPAD_NAV_INITIAL_REPEAT)):
-			_emit_navigation(direction)
-			_stick_repeat_at[device] = now + Constants.GAMEPAD_NAV_REPEAT
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -140,4 +132,3 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 			_devices[player] = -1
 			player_released.emit(player)
 	_stick_dir.erase(device)
-	_stick_repeat_at.erase(device)

@@ -446,6 +446,8 @@ func _refresh() -> void:
 				subtitle_label.text = "CPU DIFFICULTY"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP A DIFFICULTY"
+				elif GameState.is_controller_ui():
+					hint_label.text = "LEFT STICK NAVIGATE   A SELECT   B BACK"
 				else:
 					hint_label.text = "W/S NAVIGATE   SPACE/ENTER SELECT   ESC BACK"
 				_update_devices_label()
@@ -454,6 +456,8 @@ func _refresh() -> void:
 				subtitle_label.text = "YOUR SIDE" if GameState.mode == Constants.MODE_AI else "P1 SIDE"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP LEFT OR RIGHT"
+				elif GameState.is_controller_ui():
+					hint_label.text = "LEFT STICK CHOOSE SIDE   A SELECT   B BACK"
 					if GameState.mode == Constants.MODE_AI:
 						devices_label.text = "DRAG YOUR SIDE TO MOVE      CPU PLAYS THE OTHER"
 					else:
@@ -469,6 +473,8 @@ func _refresh() -> void:
 				subtitle_label.text = "FIRST TO FIVE"
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP A MODE"
+				elif GameState.is_controller_ui():
+					hint_label.text = "LEFT STICK NAVIGATE   A SELECT"
 				else:
 					hint_label.text = "W/S NAVIGATE   SPACE/ENTER SELECT"
 				_update_devices_label()
@@ -482,11 +488,13 @@ func _refresh() -> void:
 		hint_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 		if GameState.is_cpu_serving():
 			serve_title.text = "CPU SERVE"
-			hint_label.text = "PAUSE AT BOTTOM" if GameState.is_touch_ui() else "ESC PAUSE"
+			hint_label.text = "PAUSE AT BOTTOM" if GameState.is_touch_ui() else ("START PAUSE" if GameState.is_controller_ui() else "ESC PAUSE")
 		elif GameState.is_p1_serving():
 			serve_title.text = "YOUR SERVE" if GameState.mode == Constants.MODE_AI else "P1 SERVE"
 			if GameState.is_touch_ui():
 				hint_label.text = "DRAG TO AIM   TAP TO SERVE"
+			elif GameState.is_controller_ui():
+				hint_label.text = "LEFT STICK AIM   A SERVE   START PAUSE"
 			else:
 				hint_label.text = "W/S or ARROWS Aim  ·  SPACE/CLICK Serve  ·  ESC Pause"
 		else:
@@ -494,6 +502,8 @@ func _refresh() -> void:
 			if GameState.is_touch_ui():
 				var half := "LEFT" if GameState.server_is_left() else "RIGHT"
 				hint_label.text = "DRAG %s HALF TO AIM   TAP TO SERVE" % half
+			elif GameState.is_controller_ui():
+				hint_label.text = "LEFT STICK AIM   A SERVE   START PAUSE"
 			else:
 				hint_label.text = "UP/DOWN Aim  ·  SPACE/CLICK Serve  ·  ESC Pause"
 		serve_title.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
