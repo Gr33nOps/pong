@@ -4,6 +4,10 @@ on:
   push:
     tags: ["v*"]
 
+env:
+  GODOT_VERSION: 4.7.1
+  EXPORT_NAME: pong
+
 permissions:
   contents: write
 
