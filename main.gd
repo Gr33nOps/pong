@@ -99,9 +99,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventScreenTouch:
 		GameState.note_input("touch")
+		_refresh_touch_roots()
 		_handle_pointer_touch(event.index, event.position, event.pressed)
 	elif event is InputEventScreenDrag:
 		GameState.note_input("touch")
+		_refresh_touch_roots()
 		_handle_pointer_motion(event.index, event.position)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		GameState.note_input("mouse")
@@ -109,6 +111,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		GameState.note_input("mouse")
 		_handle_pointer_motion(-1, event.position)
+
+
+func _refresh_touch_roots() -> void:
+	# Re-apply the existing touch scale after browser/tablet resizes and
+	# orientation changes; the overlays use the same 1152x648 reference space.
+	for overlay_path in ["HUD/Root", "serveOverlay/Root", "pause/Root", "gameOver/Root"]:
+		var root := get_node_or_null(overlay_path) as Control
+		if root:
+			Constants.configure_touch_root(root)
 
 
 func _paddle_for_pointer(pos: Vector2) -> Area2D:
@@ -302,6 +313,7 @@ func _update_playfield_size() -> void:
 	playfield_clip.size = Vector2(playfield_size.x, playfield_size.y - Constants.HUD_HEIGHT)
 	if $AI:
 		$AI.center_y = (playfield_size.y + Constants.HUD_HEIGHT) * 0.5
+	_refresh_touch_roots()
 	_update_rotate_hint()
 
 

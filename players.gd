@@ -39,7 +39,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton:
 		_assign(event.device)
 		if event.pressed and _is_assigned(event.device):
-			if event.button_index == JOY_BUTTON_A or event.button_index == JOY_BUTTON_START:
+			# Keep confirm and pause separate. START is advertised as pause;
+			# treating it as SELECT too could launch a serve and pause the match
+			# in the same frame on controller play.
+			if event.button_index == JOY_BUTTON_A:
 				_confirm_frame = Engine.get_process_frames()
 			if event.button_index == JOY_BUTTON_START or event.button_index == JOY_BUTTON_BACK:
 				_pause_frame = Engine.get_process_frames()

@@ -119,12 +119,13 @@ func _hit_front_face(previous: Vector2, paddle: Area2D) -> bool:
 	t = clampf(t, 0.0, 1.0)
 	var contact_y: float = previous.y + (position.y - previous.y) * t
 	var paddle_previous_y := float(paddle.get("previous_y"))
-	var swept_min := minf(paddle_previous_y, paddle.position.y)
-	var swept_max := maxf(paddle_previous_y, paddle.position.y)
+	# Interpolate the paddle center to the exact moment the ball crosses its face.
+	# Using the swept min/max as the impact reference flattened moving-paddle hits
+	# toward the centre, making edge shots feel inconsistent while the paddle moved.
+	var impact_center := lerpf(paddle_previous_y, paddle.position.y, t)
 	var y_limit := half_h + Constants.BALL_RADIUS + Constants.PADDLE_COLLISION_PAD
-	if contact_y < swept_min - y_limit or contact_y > swept_max + y_limit:
+	if absf(contact_y - impact_center) > y_limit:
 		return false
-	var impact_center := clampf(contact_y, swept_min, swept_max)
 	contact_y = clampf(contact_y, impact_center - half_h, impact_center + half_h)
 
 	_reflect(paddle, is_left, contact_x, contact_y, half_h, impact_center)

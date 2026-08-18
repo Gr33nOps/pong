@@ -565,7 +565,8 @@ func _update_devices_label() -> void:
 	if _step == Step.SIDE:
 		return
 	if GameState.is_touch_ui():
-		var sound := "MUTED" if SFX.muted else "SOUND ON"
+		var silent := SFX.muted or SFX.sfx_volume <= 0.001 or SFX.master_volume <= 0.001
+		var sound := "MUTED" if silent else "SOUND ON"
 		devices_label.text = sound
 	else:
 		devices_label.text = "P1: W / S      P2: UP / DOWN      M MUTE"
