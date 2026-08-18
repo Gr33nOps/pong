@@ -1,5 +1,5 @@
 extends Node
-# Short, dry CC0 recordings chosen to feel like ink-on-paper taps and ticks.
+# Short, dry original sound designs shaped around paper, ink, wood, pencil, and brush textures.
 
 const PADDLE_HIT: AudioStream = preload("res://audio/paddle-hit.ogg")
 const WALL_HIT: AudioStream = preload("res://audio/wall-hit.ogg")
