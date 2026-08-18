@@ -40,7 +40,11 @@ func _process(delta: float) -> void:
 		var code := socket.get_close_code()
 		_reset_connection("CONNECTION CLOSED (%d)" % code)
 	elif state == STATE_CONNECTING and Time.get_ticks_msec() / 1000.0 - _connect_started > _connection_timeout:
-		_reset_connection("COULDN'T CONNECT — SERVER MAY BE WAKING UP")
+		var local_server := server_url.begins_with("ws://127.0.0.1") or server_url.begins_with("ws://localhost")
+		if local_server:
+			_reset_connection("LOCAL SERVER NOT RUNNING — START server/server_main.tscn")
+		else:
+			_reset_connection("COULDN'T CONNECT — SERVER MAY BE WAKING UP")
 
 
 func connect_to_server(url: String = "") -> void:
@@ -58,7 +62,9 @@ func connect_to_server(url: String = "") -> void:
 		_reset_connection("COULDN'T START CONNECTION")
 		return
 	_connect_started = Time.get_ticks_msec() / 1000.0
-	_set_state(STATE_CONNECTING, "CONNECTING TO ONLINE SERVER...\nFREE SERVER MAY TAKE A MOMENT TO WAKE UP")
+	_connection_timeout = 8.0 if server_url.begins_with("ws://127.0.0.1") or server_url.begins_with("ws://localhost") else 20.0
+	var wake_message := "START server/server_main.tscn FOR LOCAL PLAY" if _connection_timeout < 10.0 else "FREE SERVER MAY TAKE A MOMENT TO WAKE UP"
+	_set_state(STATE_CONNECTING, "CONNECTING TO ONLINE SERVER...\n" + wake_message)
 
 
 func disconnect_from_server() -> void:

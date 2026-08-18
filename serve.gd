@@ -33,7 +33,7 @@ var _pointer_dragged := false
 var _touch_starts: Dictionary = {}
 var _touch_dragged: Dictionary = {}
 var online_overlay: Control
-var online_card: Panel
+var online_card: Control
 var online_title: Label
 var online_status: Label
 var online_code: Label
@@ -639,24 +639,9 @@ func _make_online_overlay() -> void:
 	online_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	online_overlay.visible = false
 	root.add_child(online_overlay)
-	var wash := ColorRect.new()
-	wash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	wash.color = Color(1.0, 1.0, 1.0, 0.96)
-	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	online_overlay.add_child(wash)
-	online_card = Panel.new()
-	online_card.position = Vector2(276.0, 78.0)
-	online_card.size = Vector2(600.0, 494.0)
-	var card_style := StyleBoxFlat.new()
-	card_style.bg_color = Color(1.0, 1.0, 1.0, 0.99)
-	card_style.border_width_left = 1
-	card_style.border_width_top = 1
-	card_style.border_width_right = 1
-	card_style.border_width_bottom = 1
-	card_style.border_color = Color(0.12, 0.12, 0.11, 0.42)
-	card_style.shadow_color = Color(0.0, 0.0, 0.0, 0.22)
-	card_style.shadow_size = 8
-	online_card.add_theme_stylebox_override("panel", card_style)
+	online_card = Control.new()
+	online_card.position = Vector2(276.0, 64.0)
+	online_card.size = Vector2(600.0, 520.0)
 	online_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	online_overlay.add_child(online_card)
 	online_title = _make_online_label("ONLINE PLAY", Vector2(40.0, 28.0), Vector2(520.0, 42.0), 30)
@@ -677,26 +662,33 @@ func _make_online_overlay() -> void:
 	online_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_input.add_theme_font_size_override("font_size", 24)
 	online_input.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
+	online_input.add_theme_color_override("font_placeholder_color", Color(0.35, 0.35, 0.34, 1))
 	online_input.add_theme_color_override("caret_color", Color(0.12, 0.12, 0.11, 1))
+	var input_style := StyleBoxFlat.new()
+	input_style.bg_color = Color(1.0, 1.0, 1.0, 0.96)
+	input_style.border_width_left = 1
+	input_style.border_width_top = 1
+	input_style.border_width_right = 1
+	input_style.border_width_bottom = 1
+	input_style.border_color = Color(0.08, 0.08, 0.075, 0.58)
+	input_style.corner_radius_top_left = 0
+	input_style.corner_radius_top_right = 0
+	input_style.corner_radius_bottom_right = 0
+	input_style.corner_radius_bottom_left = 0
+	online_input.add_theme_stylebox_override("normal", input_style)
+	online_input.add_theme_stylebox_override("focus", input_style)
 	online_input.text_submitted.connect(_on_online_text_submitted)
 	online_card.add_child(online_input)
 	for i in range(3):
 		var bg := Panel.new()
-		bg.position = Vector2(80.0, 222.0 + i * 64.0)
-		bg.size = Vector2(440.0, 52.0)
+		bg.set_script(preload("res://ink_button.gd"))
+		bg.position = Vector2(80.0, 222.0 + i * 70.0)
+		bg.size = Vector2(440.0, 58.0)
 		bg.mouse_filter = Control.MOUSE_FILTER_STOP
 		bg.gui_input.connect(_on_online_option_gui.bind(i))
-		var idle := StyleBoxFlat.new()
-		idle.bg_color = Color(0.12, 0.12, 0.11, 0.02)
-		idle.border_width_left = 1
-		idle.border_width_top = 1
-		idle.border_width_right = 1
-		idle.border_width_bottom = 1
-		idle.border_color = Color(0.12, 0.12, 0.11, 0.24)
-		bg.add_theme_stylebox_override("panel", idle)
 		online_card.add_child(bg)
 		online_option_bgs.append(bg)
-		var label := _make_online_label("", Vector2(80.0, 230.0 + i * 64.0), Vector2(440.0, 34.0), 21)
+		var label := _make_online_label("", Vector2(80.0, 234.0 + i * 70.0), Vector2(440.0, 34.0), 21)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		online_card.add_child(label)
@@ -953,14 +945,7 @@ func _update_online_view() -> void:
 		online_option_labels[i].text = names[i]
 		var selected := i == _online_cursor
 		online_option_labels[i].add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.12, 0.12, 0.11, 0.06 if selected else 0.02)
-		style.border_width_left = 2 if selected else 1
-		style.border_width_top = 2 if selected else 1
-		style.border_width_right = 2 if selected else 1
-		style.border_width_bottom = 2 if selected else 1
-		style.border_color = Color(0.12, 0.12, 0.11, 0.78 if selected else 0.24)
-		online_option_bgs[i].add_theme_stylebox_override("panel", style)
+		online_option_bgs[i].set("selected", selected)
 	if _online_view == OnlineView.OPTIONS and NetworkManager.state == NetworkManager.STATE_CONNECTING:
 		online_status.text = "CONNECTING...\nFREE SERVER MAY TAKE A MOMENT TO WAKE UP"
 	if _online_view == OnlineView.WAITING and online_code.text.is_empty():
