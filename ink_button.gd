@@ -1,5 +1,5 @@
 extends Panel
-## Paper button with a slightly uneven ink outline.
+## Transparent paper control with a rough hand-drawn navigation underline.
 
 @export var selected := false:
 	set(next):
@@ -9,7 +9,7 @@ extends Panel
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var paper := StyleBoxFlat.new()
-	paper.bg_color = Color(1, 1, 1, 0.96)
+	paper.bg_color = Color(1, 1, 1, 0.0)
 	paper.border_width_left = 0
 	paper.border_width_top = 0
 	paper.border_width_right = 0
@@ -22,16 +22,26 @@ func _ready() -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if size.x < 12.0 or size.y < 12.0:
+	if size.x < 24.0 or size.y < 12.0:
 		return
-	var ink := Color(0.08, 0.08, 0.075, 0.95 if selected else 0.58)
-	var faint := Color(0.08, 0.08, 0.075, 0.32)
-	var border_width := 2.1 if selected else 1.4
-	var p := PackedVector2Array([
-		Vector2(2, 3), Vector2(size.x * 0.28, 1), Vector2(size.x * 0.66, 2.5),
-		Vector2(size.x - 2, 1.5), Vector2(size.x - 1, size.y - 3),
-		Vector2(size.x * 0.68, size.y - 1), Vector2(size.x * 0.28, size.y - 2.5), Vector2(1, size.y - 1), Vector2(2, 3)
+	var ink := Color(0.08, 0.08, 0.075, 0.92 if selected else 0.34)
+	var faint := Color(0.08, 0.08, 0.075, 0.18 if selected else 0.10)
+	var y := size.y - (9.0 if selected else 8.0)
+	var left := 30.0
+	var right := size.x - 30.0
+	var underline := PackedVector2Array([
+		Vector2(left, y + 1.0),
+		Vector2(size.x * 0.24, y - 0.4),
+		Vector2(size.x * 0.48, y + 0.8),
+		Vector2(size.x * 0.73, y - 0.8),
+		Vector2(right, y)
 	])
-	draw_polyline(p, ink, border_width, true)
-	draw_line(Vector2(8, size.y - 7), Vector2(size.x - 10, size.y - 8), faint, 1.0, true)
-	draw_line(Vector2(14, size.y - 5), Vector2(size.x * 0.45, size.y - 6), faint, 0.7, true)
+	draw_polyline(underline, ink, 2.2 if selected else 1.05, true)
+	if selected:
+		var second := PackedVector2Array([
+			Vector2(left + 10.0, y + 4.0),
+			Vector2(size.x * 0.35, y + 3.0),
+			Vector2(size.x * 0.66, y + 3.8),
+			Vector2(right - 8.0, y + 3.1)
+		])
+		draw_polyline(second, faint, 0.85, true)
