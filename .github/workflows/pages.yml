@@ -13,7 +13,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-main
+  # Isolate each branch or pull request so dependency-update checks cannot
+  # cancel a main-branch deployment.
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
