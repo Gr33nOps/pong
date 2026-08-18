@@ -24,7 +24,6 @@ The game uses a monochrome paper-and-ink presentation with tactile, lightweight 
 
 *In-match paper court with aimed serve messaging, score HUD, ink paddles, and the ball in play.*
 
-[Watch the six-second gameplay clip](readme_media/gameplay.mp4)
 
 ## Features
 
