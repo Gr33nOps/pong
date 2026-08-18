@@ -32,6 +32,7 @@ Players="*res://players.gd"
 ScreenShake="*res://screen_shake.gd"
 ParticleEffects="*res://particle_effects.gd"
 ArcadeUI="*res://arcade_ui.gd"
+NetworkManager="*res://network_manager.gd"
 
 [display]
 

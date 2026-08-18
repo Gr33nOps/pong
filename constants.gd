@@ -10,7 +10,9 @@ const COLOR_P2_ALT = Color(0.12, 0.12, 0.11, 1)  # Monochrome fallback
 const WINNER_SCORE = 5
 const MODE_AI = 1
 const MODE_2P = 2
-const GAME_VERSION := "1.1.13"
+const MODE_ONLINE = 3
+const ONLINE_SERVER_URL := "ws://127.0.0.1:9080"
+const GAME_VERSION := "1.2.0"
 
 # Ball physics — arcade Pong (front-face hits only)
 const BALL_RADIUS = 21.0
@@ -91,6 +93,7 @@ const DIFFICULTY_EASY := 0.55
 const DIFFICULTY_NORMAL := 0.82
 const DIFFICULTY_HARD := 1.0
 const KEY_MUTED = "muted"
+const KEY_ONLINE_SERVER_URL = "online_server_url"
 
 
 func read_config() -> ConfigFile:
@@ -105,6 +108,14 @@ func write_config(config: ConfigFile) -> void:
 	var err := config.save(SETTINGS_FILE)
 	if err != OK:
 		push_warning("Could not save settings (%s)." % err)
+
+
+func get_online_server_url() -> String:
+	var environment_url := OS.get_environment("PONG_SERVER_URL").strip_edges()
+	if not environment_url.is_empty():
+		return environment_url
+	var config := read_config()
+	return str(config.get_value("online", KEY_ONLINE_SERVER_URL, ONLINE_SERVER_URL)).strip_edges()
 
 
 func configure_touch_root(root: Control) -> void:

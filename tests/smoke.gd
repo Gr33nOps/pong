@@ -14,6 +14,10 @@ func _run() -> void:
 	_check(constants.PADDLE_SPEED > 0.0, "paddle speed is positive")
 
 	game_state.reset_game()
+	game_state.select_mode(constants.MODE_AI)
+	game_state.select_side(true)
+	_check(game_state.mode == constants.MODE_AI and game_state.mode_selected, "AI mode still starts")
+	game_state.reset_game()
 	game_state.select_mode(constants.MODE_2P)
 	game_state.select_side(true)
 	_check(game_state.mode_selected, "mode and side selection completes")
@@ -23,6 +27,16 @@ func _run() -> void:
 	game_state.between_points = false
 	game_state.add_point("right")
 	_check(game_state.right_score == 1 and game_state.serve_toward_right, "right score updates and serve changes direction")
+	game_state.reset_game()
+	game_state.select_mode(constants.MODE_2P)
+	game_state.select_side(true)
+	for _i in constants.WINNER_SCORE - 1:
+		game_state.add_point("left")
+		game_state.between_points = false
+	_check(not game_state.is_game_over, "first-to-five remains unfinished before final point")
+	game_state.add_point("left")
+	_check(game_state.is_game_over and game_state.left_score == constants.WINNER_SCORE, "first-to-five ends on the final point")
+	game_state.reset_game()
 	var legacy_settings := ConfigFile.new()
 	legacy_settings.set_value("game", constants.KEY_AI_DIFFICULTY, 0.55)
 	_check(is_equal_approx(game_state._read_difficulty(legacy_settings), constants.DIFFICULTY_EASY), "legacy difficulty settings migrate to easy")
