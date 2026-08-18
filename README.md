@@ -12,6 +12,20 @@ A classic Pong remake built with **Godot 4.7** — aimed serves, rally heat, and
 - **Windows:** grab `pong-windows.zip` from the [Releases](https://github.com/Gr33nOps/pong/releases) page, unzip, and run `pong.exe`.
 - **Android:** export an APK locally and install it for testing (enable "Install unknown apps" for your browser/file manager first).
 
+## Visual preview
+
+The game uses a monochrome paper-and-ink presentation with tactile, lightweight sound design and responsive arcade controls.
+
+![PONG start menu](readme_media/menu.png)
+
+*Start menu with Player vs CPU and Player vs Player modes.*
+
+![PONG gameplay](readme_media/gameplay.png)
+
+*In-match paper court with aimed serve messaging, score HUD, ink paddles, and the ball in play.*
+
+[Watch the six-second gameplay clip](readme_media/gameplay.mp4)
+
 ## Features
 
 - Player vs AI and Player vs Player (pick on the start screen)
