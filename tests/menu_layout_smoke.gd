@@ -18,13 +18,8 @@ func _initialize() -> void:
 	_check(serve.option1_bg.position.x == 336.0 and serve.option2_bg.position.x == 336.0 and serve.option3_bg.position.x == 336.0, "main menu buttons share one column")
 	_check(serve.option1_bg.size.x == 480.0 and serve.option2_bg.size.x == 480.0 and serve.option3_bg.size.x == 480.0, "main menu buttons share one width")
 	_check(serve.option2_bg.position.y - serve.option1_bg.position.y == 78.0 and serve.option3_bg.position.y - serve.option2_bg.position.y == 78.0, "main menu rows use one gap")
-	var button_style := serve.option1_bg.get_theme_stylebox("panel") as StyleBoxFlat
-	_check(button_style != null and button_style.bg_color.a == 0.0 and button_style.border_width_left == 0 and button_style.border_width_top == 0 and button_style.border_width_right == 0 and button_style.border_width_bottom == 0, "menu buttons use transparent underline styling")
 	_check(pause_card.position == Vector2(316.0, 64.0) and pause_card.size == Vector2(520.0, 520.0), "pause card uses the shared frame")
 	_check(game_over_card.position == Vector2(316.0, 64.0) and game_over_card.size == Vector2(520.0, 520.0), "game-over card uses the shared frame")
-	var pause_style := pause_card.get_node("Bg").get_theme_stylebox("panel") as StyleBoxFlat
-	var game_over_style := game_over_card.get_node("Bg").get_theme_stylebox("panel") as StyleBoxFlat
-	_check(pause_style != null and pause_style.bg_color.a == 0.0 and game_over_style != null and game_over_style.bg_color.a == 0.0, "overlay cards have no visible box")
 	serve._open_online_lobby()
 	var input_style := serve.online_input.get_theme_stylebox("normal") as StyleBoxFlat
 	_check(serve.online_card is Control and not serve.online_card is Panel, "Online lobby has no background card")

@@ -1,5 +1,5 @@
 extends ColorRect
-## Active navigation mark: a hand-drawn underline instead of a selection box.
+## Active pause-row mark: ink underline and a hand-drawn pointer instead of a gray fill bar.
 
 func _ready() -> void:
 	color = Color(1, 1, 1, 0)
@@ -7,23 +7,12 @@ func _ready() -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if size.x < 24.0 or size.y < 10.0:
-		return
-	var ink := Color(0.08, 0.08, 0.075, 0.9)
-	var faint := Color(0.08, 0.08, 0.075, 0.18)
-	var y := size.y - 7.0
-	var line := PackedVector2Array([
-		Vector2(26.0, y + 1.0),
-		Vector2(size.x * 0.24, y - 0.6),
-		Vector2(size.x * 0.5, y + 0.7),
-		Vector2(size.x * 0.76, y - 0.7),
-		Vector2(size.x - 26.0, y)
+	var ink := Color(0.08, 0.08, 0.075, 0.82)
+	var faint := Color(0.08, 0.08, 0.075, 0.28)
+	var p := PackedVector2Array([
+		Vector2(3, 2), Vector2(size.x * 0.32, 1), Vector2(size.x * 0.7, 2.5),
+		Vector2(size.x - 3, 1.5), Vector2(size.x - 2, size.y - 3),
+		Vector2(size.x * 0.7, size.y - 1), Vector2(size.x * 0.32, size.y - 2), Vector2(3, size.y - 1), Vector2(3, 2)
 	])
-	draw_polyline(line, ink, 2.0, true)
-	var echo := PackedVector2Array([
-		Vector2(36.0, y + 4.0),
-		Vector2(size.x * 0.38, y + 3.0),
-		Vector2(size.x * 0.68, y + 3.6),
-		Vector2(size.x - 36.0, y + 3.0)
-	])
-	draw_polyline(echo, faint, 0.8, true)
+	draw_polyline(p, ink, 1.8, true)
+	draw_line(Vector2(12, size.y - 6), Vector2(size.x - 12, size.y - 7), faint, 0.8, true)
