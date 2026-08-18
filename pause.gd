@@ -300,13 +300,13 @@ func _update_hints() -> void:
 	volume_label.text = "SFX"
 	difficulty_label.text = "CPU DIFFICULTY    <  %s  >" % GameState.difficulty_label().to_upper()
 	if GameState.is_touch_ui():
-		pause_hint.text = "TAP A ROW     DRAG VOLUME     PAUSE OR BACK RESUME"
+		pause_hint.text = "TAP ROW     DRAG SFX"
 	elif GameState.is_controller_ui():
-		pause_hint.text = "LEFT STICK NAVIGATE     LEFT/RIGHT ADJUST\nA SELECT     START RESUME     B BACK"
+		pause_hint.text = "STICK MOVE     LEFT/RIGHT CHANGE\nA SELECT     B RESUME"
 	elif OS.has_feature("web"):
-		pause_hint.text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST\nSPACE/ENTER SELECT     ESC RESUME     M MUTE"
+		pause_hint.text = "UP/DOWN MOVE     LEFT/RIGHT CHANGE\nSPACE SELECT     ESC RESUME     M MUTE"
 	else:
-		pause_hint.text = "UP/DOWN NAVIGATE     LEFT/RIGHT ADJUST\nSPACE/ENTER SELECT     ESC RESUME     M MUTE     Q QUIT"
+		pause_hint.text = "UP/DOWN MOVE     LEFT/RIGHT CHANGE\nSPACE SELECT     ESC RESUME     M MUTE     Q QUIT"
 	for id in ["resume", "rematch", "menu", "quit", "master", "sfx", "difficulty"]:
 		var lab := _label_for(id)
 		lab.add_theme_color_override("font_color", idle)

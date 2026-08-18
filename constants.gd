@@ -14,7 +14,7 @@ const MODE_ONLINE = 3
 const ONLINE_SERVER_URL := "ws://127.0.0.1:9080"
 const GAME_VERSION := "1.2.0"
 
-# Ball physics — arcade Pong (front-face hits only)
+# Ball physics: arcade Pong (front-face hits only)
 const BALL_RADIUS = 21.0
 const START_SPEED = 600.0
 const MAX_SPEED = 1020.0
@@ -39,7 +39,7 @@ const PADDLE_POINTER_SNAP_SPEED = PADDLE_SPEED
 const PADDLE_SHRINK_START = 5
 const PADDLE_MIN_SCALE = 0.7
 
-# Gamepad — scaled deadzone removes stick drift without making the first part
+# Gamepad: scaled deadzone removes stick drift without making the first part
 # of the paddle travel feel sluggish.
 const GAMEPAD_DEADZONE := 0.18
 const GAMEPAD_RESPONSE_EXPONENT := 1.15

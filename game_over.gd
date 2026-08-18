@@ -56,7 +56,7 @@ func _activate_cursor() -> void:
 func _make_menu_hint() -> void:
 	menu_hint = Label.new()
 	menu_hint.position = Vector2(20, 380)
-	menu_hint.size = Vector2(540, 36)
+	menu_hint.size = Vector2(480, 36)
 	menu_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	menu_hint.add_theme_font_size_override("font_size", 18)
 	menu_hint.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
@@ -70,14 +70,14 @@ func _make_menu_hint() -> void:
 
 func _update_control_hints() -> void:
 	if GameState.is_touch_ui():
-		menu_hint.text = "TAP FOR MENU"
-		restart_hint.text = "TAP TO REMATCH"
+		menu_hint.text = "TAP MENU"
+		restart_hint.text = "TAP REMATCH"
 	elif GameState.is_controller_ui():
 		menu_hint.text = "B MENU"
 		restart_hint.text = "A REMATCH"
 	else:
 		menu_hint.text = "ESC MENU"
-		restart_hint.text = "SPACE / ENTER REMATCH"
+		restart_hint.text = "SPACE REMATCH"
 
 
 func _on_hint_gui(event: InputEvent, action: String) -> void:
@@ -159,14 +159,21 @@ func _on_game_over(winner: String) -> void:
 	red_win_label.visible = winner == "red"
 	blue_win_label.visible = winner == "blue"
 	_apply_winner_colors(false)
-	final_score.text = "%d  -  %d" % [GameState.left_score, GameState.right_score]
-	rally_label.text = "RALLY %d     BEST %d" % [GameState.last_rally, GameState.longest_rally]
+	final_score.text = "%d - %d" % [GameState.left_score, GameState.right_score]
+	rally_label.text = "RALLY %d   BEST %d" % [GameState.last_rally, GameState.longest_rally]
 	SFX.play_win()
 	_fade_in()
 
 
 func _apply_winner_colors(_enabled: bool) -> void:
-	if GameState.mode == Constants.MODE_AI:
+	if GameState.mode == Constants.MODE_ONLINE:
+		if GameState.player_is_left:
+			blue_win_label.text = "YOU WIN"
+			red_win_label.text = "OPPONENT WINS"
+		else:
+			blue_win_label.text = "OPPONENT WINS"
+			red_win_label.text = "YOU WIN"
+	elif GameState.mode == Constants.MODE_AI:
 		if GameState.player_is_left:
 			blue_win_label.text = "YOU WIN"
 			red_win_label.text = "CPU WINS"
@@ -187,7 +194,7 @@ func _fade_in() -> void:
 	if _fade_tween:
 		_fade_tween.kill()
 	var winner_label = red_win_label if red_win_label.visible else blue_win_label
-	winner_label.pivot_offset = Vector2(280, 40)
+	winner_label.pivot_offset = Vector2(240, 40)
 	winner_label.scale = Vector2(0.6, 0.6)
 	_fade_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_fade_tween.set_parallel(true)

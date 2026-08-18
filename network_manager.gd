@@ -42,9 +42,9 @@ func _process(delta: float) -> void:
 	elif state == STATE_CONNECTING and Time.get_ticks_msec() / 1000.0 - _connect_started > _connection_timeout:
 		var local_server := server_url.begins_with("ws://127.0.0.1") or server_url.begins_with("ws://localhost")
 		if local_server:
-			_reset_connection("LOCAL SERVER NOT RUNNING — START server/server_main.tscn")
+			_reset_connection("LOCAL SERVER NOT RUNNING. START server/server_main.tscn")
 		else:
-			_reset_connection("COULDN'T CONNECT — SERVER MAY BE WAKING UP")
+			_reset_connection("COULDN'T CONNECT. SERVER MAY BE WAKING UP")
 
 
 func connect_to_server(url: String = "") -> void:

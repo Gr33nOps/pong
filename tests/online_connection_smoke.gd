@@ -23,7 +23,7 @@ func _process(delta: float) -> bool:
 		quit(0)
 		return false
 	if elapsed > 10.0:
-		print("PONG online connection smoke: timed out — %s" % manager.status_message)
+		print("PONG online connection smoke: timed out. %s" % manager.status_message)
 		quit(1)
 		return false
 	return true

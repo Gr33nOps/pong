@@ -103,7 +103,7 @@ func _make_back_label() -> void:
 	back_label = Label.new()
 	back_label.position = Vector2(36.0, 20.0)
 	back_label.size = Vector2(160.0, 40.0)
-	back_label.text = "<  BACK"
+	back_label.text = "< BACK"
 	back_label.add_theme_font_size_override("font_size", 18)
 	back_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 	back_label.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -505,38 +505,38 @@ func _refresh() -> void:
 				subtitle_label.position.y = 218.0
 				subtitle_label.text = "CPU DIFFICULTY"
 				if GameState.is_touch_ui():
-					hint_label.text = "TAP A DIFFICULTY"
+					hint_label.text = "TAP TO CHOOSE"
 				elif GameState.is_controller_ui():
-					hint_label.text = "LEFT STICK NAVIGATE   A SELECT   B BACK"
+					hint_label.text = "STICK MOVE   A SELECT   B BACK"
 				else:
-					hint_label.text = "W/S NAVIGATE   SPACE/ENTER SELECT   ESC BACK"
+					hint_label.text = "UP/DOWN MOVE   SPACE SELECT   ESC BACK"
 				_update_devices_label()
 			Step.SIDE:
 				subtitle_label.position.y = 226.0
 				subtitle_label.text = "YOUR SIDE" if GameState.mode == Constants.MODE_AI else "P1 SIDE"
 				if GameState.is_touch_ui():
-					hint_label.text = "TAP LEFT OR RIGHT"
+					hint_label.text = "TAP A SIDE"
 				elif GameState.is_controller_ui():
-					hint_label.text = "LEFT STICK CHOOSE SIDE   A SELECT   B BACK"
+					hint_label.text = "STICK CHOOSE   A SELECT   B BACK"
 					if GameState.mode == Constants.MODE_AI:
-						devices_label.text = "DRAG YOUR SIDE TO MOVE      CPU PLAYS THE OTHER"
+						devices_label.text = "DRAG SIDE   CPU OTHER"
 					else:
-						devices_label.text = "LEFT HALF P1      RIGHT HALF P2"
+						devices_label.text = "LEFT P1   RIGHT P2"
 				else:
-					hint_label.text = "W/S OR LEFT/RIGHT   SPACE/ENTER SELECT   ESC BACK"
+					hint_label.text = "LEFT/RIGHT MOVE   SPACE SELECT   ESC BACK"
 					if GameState.mode == Constants.MODE_AI:
-						devices_label.text = "YOU: W/S OR ARROWS      CPU PLAYS THE OTHER SIDE"
+						devices_label.text = "YOU W/S   CPU OTHER"
 					else:
-						devices_label.text = "P1: W / S ON YOUR SIDE      P2: ARROWS ON THE OTHER"
+						devices_label.text = "P1 W/S   P2 ARROWS"
 			_:
 				subtitle_label.position.y = 226.0
 				subtitle_label.text = "FIRST TO FIVE"
 				if GameState.is_touch_ui():
-					hint_label.text = "TAP A MODE"
+					hint_label.text = "TAP TO CHOOSE"
 				elif GameState.is_controller_ui():
-					hint_label.text = "LEFT STICK NAVIGATE   A SELECT"
+					hint_label.text = "STICK MOVE   A SELECT"
 				else:
-					hint_label.text = "W/S NAVIGATE   SPACE/ENTER SELECT"
+					hint_label.text = "UP/DOWN MOVE   SPACE SELECT"
 				_update_devices_label()
 		_update_menu_highlight()
 	else:
@@ -556,7 +556,7 @@ func _refresh() -> void:
 			elif GameState.is_controller_ui():
 				hint_label.text = "LEFT STICK AIM   A SERVE   START PAUSE"
 			else:
-				hint_label.text = "W/S or ARROWS Aim  ·  SPACE/CLICK Serve  ·  ESC Pause"
+				hint_label.text = "W/S OR ARROWS AIM   SPACE SERVE   ESC PAUSE"
 		else:
 			serve_title.text = "P2 SERVE"
 			if GameState.is_touch_ui():
@@ -565,7 +565,7 @@ func _refresh() -> void:
 			elif GameState.is_controller_ui():
 				hint_label.text = "LEFT STICK AIM   A SERVE   START PAUSE"
 			else:
-				hint_label.text = "UP/DOWN Aim  ·  SPACE/CLICK Serve  ·  ESC Pause"
+				hint_label.text = "UP/DOWN AIM   SPACE SERVE   ESC PAUSE"
 		serve_title.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 	hint_label.visible = true
 
@@ -630,7 +630,7 @@ func _update_devices_label() -> void:
 		var sound := "MUTED" if silent else "SOUND ON"
 		devices_label.text = sound
 	else:
-		devices_label.text = "P1: W / S      P2: UP / DOWN      M MUTE"
+		devices_label.text = "P1 W/S   P2 UP/DOWN   M MUTE"
 
 
 func _make_online_overlay() -> void:
@@ -640,18 +640,18 @@ func _make_online_overlay() -> void:
 	online_overlay.visible = false
 	root.add_child(online_overlay)
 	online_card = Control.new()
-	online_card.position = Vector2(276.0, 64.0)
-	online_card.size = Vector2(600.0, 520.0)
+	online_card.position = Vector2(316.0, 64.0)
+	online_card.size = Vector2(520.0, 520.0)
 	online_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	online_overlay.add_child(online_card)
-	online_title = _make_online_label("ONLINE PLAY", Vector2(40.0, 28.0), Vector2(520.0, 42.0), 30)
+	online_title = _make_online_label("ONLINE", Vector2(0.0, 28.0), Vector2(520.0, 42.0), 30)
 	online_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_title)
-	online_status = _make_online_label("CONNECTING...", Vector2(40.0, 80.0), Vector2(520.0, 66.0), 18)
+	online_status = _make_online_label("CONNECTING...", Vector2(0.0, 80.0), Vector2(520.0, 66.0), 18)
 	online_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	online_card.add_child(online_status)
-	online_code = _make_online_label("", Vector2(40.0, 138.0), Vector2(520.0, 62.0), 38)
+	online_code = _make_online_label("", Vector2(0.0, 138.0), Vector2(520.0, 62.0), 38)
 	online_code.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_code)
 	online_input = LineEdit.new()
@@ -665,12 +665,15 @@ func _make_online_overlay() -> void:
 	online_input.add_theme_color_override("font_placeholder_color", Color(0.35, 0.35, 0.34, 1))
 	online_input.add_theme_color_override("caret_color", Color(0.12, 0.12, 0.11, 1))
 	var input_style := StyleBoxFlat.new()
-	input_style.bg_color = Color(1.0, 1.0, 1.0, 0.96)
-	input_style.border_width_left = 1
-	input_style.border_width_top = 1
-	input_style.border_width_right = 1
-	input_style.border_width_bottom = 1
-	input_style.border_color = Color(0.08, 0.08, 0.075, 0.58)
+	input_style.bg_color = Color(1.0, 1.0, 1.0, 0.0)
+	input_style.border_width_left = 0
+	input_style.border_width_top = 0
+	input_style.border_width_right = 0
+	input_style.border_width_bottom = 0
+	input_style.content_margin_left = 0.0
+	input_style.content_margin_right = 0.0
+	input_style.content_margin_top = 0.0
+	input_style.content_margin_bottom = 0.0
 	input_style.corner_radius_top_left = 0
 	input_style.corner_radius_top_right = 0
 	input_style.corner_radius_bottom_right = 0
@@ -682,18 +685,18 @@ func _make_online_overlay() -> void:
 	for i in range(3):
 		var bg := Panel.new()
 		bg.set_script(preload("res://ink_button.gd"))
-		bg.position = Vector2(80.0, 222.0 + i * 70.0)
-		bg.size = Vector2(440.0, 58.0)
+		bg.position = Vector2(20.0, 222.0 + i * 70.0)
+		bg.size = Vector2(480.0, 58.0)
 		bg.mouse_filter = Control.MOUSE_FILTER_STOP
 		bg.gui_input.connect(_on_online_option_gui.bind(i))
 		online_card.add_child(bg)
 		online_option_bgs.append(bg)
-		var label := _make_online_label("", Vector2(80.0, 234.0 + i * 70.0), Vector2(440.0, 34.0), 21)
+		var label := _make_online_label("", Vector2(20.0, 234.0 + i * 70.0), Vector2(480.0, 34.0), 21)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		online_card.add_child(label)
 		online_option_labels.append(label)
-	online_hint = _make_online_label("ESC/B BACK", Vector2(40.0, 438.0), Vector2(520.0, 30.0), 16)
+	online_hint = _make_online_label("ESC/B BACK", Vector2(0.0, 438.0), Vector2(520.0, 30.0), 16)
 	online_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_hint)
 
@@ -773,7 +776,7 @@ func _confirm_online() -> void:
 						_pending_online_action = "create"
 						NetworkManager.create_room()
 					else:
-						_show_online_error("STILL CONNECTING — TRY AGAIN IN A MOMENT")
+						_show_online_error("STILL CONNECTING. TRY AGAIN.")
 				1:
 					SFX.play("confirm")
 					_online_view = OnlineView.JOIN
@@ -809,7 +812,7 @@ func _submit_online_join() -> void:
 		_show_online_error("ENTER THE SIX-CHARACTER ROOM CODE")
 		return
 	if not NetworkManager.connection_is_open():
-		_show_online_error("STILL CONNECTING — TRY AGAIN IN A MOMENT")
+		_show_online_error("STILL CONNECTING. TRY AGAIN.")
 		return
 	SFX.play("confirm")
 	_pending_online_action = "join"
@@ -881,7 +884,7 @@ func _on_online_opponent_changed(connected: bool) -> void:
 	if _step != Step.ONLINE:
 		return
 	if connected:
-		online_status.text = "OPPONENT CONNECTED — STARTING MATCH"
+		online_status.text = "OPPONENT CONNECTED"
 	else:
 		online_status.text = "OPPONENT DISCONNECTED"
 	_update_online_view()
@@ -919,7 +922,7 @@ func _update_online_view() -> void:
 	online_input.visible = _online_view == OnlineView.JOIN
 	online_code.visible = _online_view == OnlineView.WAITING
 	online_input.position.y = 148.0
-	online_title.text = "ONLINE PLAY"
+	online_title.text = "ONLINE"
 	online_hint.text = "ESC/B BACK"
 	var names := PackedStringArray()
 	match _online_view:
@@ -928,7 +931,7 @@ func _update_online_view() -> void:
 			online_code.text = ""
 		OnlineView.JOIN:
 			names = PackedStringArray(["JOIN ROOM", "BACK"])
-			online_hint.text = "TYPE A CODE   ENTER TO JOIN   ESC/B BACK"
+			online_hint.text = "TYPE CODE   ENTER JOIN   ESC/B BACK"
 		OnlineView.WAITING:
 			names = PackedStringArray(["LEAVE ROOM"])
 			online_title.text = "ROOM %s" % NetworkManager.room_code
@@ -947,7 +950,7 @@ func _update_online_view() -> void:
 		online_option_labels[i].add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 		online_option_bgs[i].set("selected", selected)
 	if _online_view == OnlineView.OPTIONS and NetworkManager.state == NetworkManager.STATE_CONNECTING:
-		online_status.text = "CONNECTING...\nFREE SERVER MAY TAKE A MOMENT TO WAKE UP"
+		online_status.text = "CONNECTING...\nSERVER MAY TAKE A MOMENT"
 	if _online_view == OnlineView.WAITING and online_code.text.is_empty():
 		online_status.text = "CREATING ROOM..."
 
