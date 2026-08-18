@@ -11,7 +11,7 @@ const WINNER_SCORE = 5
 const MODE_AI = 1
 const MODE_2P = 2
 const MODE_ONLINE = 3
-const ONLINE_SERVER_URL := "ws://127.0.0.1:9080"
+const ONLINE_SERVER_URL := "wss://pong-3l48.onrender.com"
 const GAME_VERSION := "1.2.0"
 
 # Ball physics: arcade Pong (front-face hits only)
