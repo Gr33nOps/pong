@@ -16,7 +16,8 @@ extends CanvasLayer
 @onready var _style_sel: StyleBox = $Root/option1Bg.get_theme_stylebox("panel")
 @onready var _style_idle: StyleBox = $Root/option2Bg.get_theme_stylebox("panel")
 
-enum Step { MODE, DIFF, SIDE }
+enum Step { MODE, DIFF, SIDE, ONLINE }
+enum OnlineView { OPTIONS, JOIN, WAITING, ERROR }
 
 var cursor := 0
 var _step := Step.MODE
@@ -31,6 +32,19 @@ var _pointer_start := Vector2.ZERO
 var _pointer_dragged := false
 var _touch_starts: Dictionary = {}
 var _touch_dragged: Dictionary = {}
+var online_overlay: Control
+var online_card: Panel
+var online_title: Label
+var online_status: Label
+var online_code: Label
+var online_input: LineEdit
+var online_hint: Label
+var online_option_bgs: Array[Panel] = []
+var online_option_labels: Array[Label] = []
+var _online_view := OnlineView.OPTIONS
+var _online_cursor := 0
+var _pending_online_action := ""
+var _online_countdown_active := false
 const TAP_SLACK := 28.0
 
 
@@ -52,6 +66,12 @@ func _ready() -> void:
 	option1_bg.gui_input.connect(_on_option_gui.bind(0))
 	option2_bg.gui_input.connect(_on_option_gui.bind(1))
 	_make_option3()
+	_make_online_overlay()
+	NetworkManager.connection_changed.connect(_on_online_connection_changed)
+	NetworkManager.room_changed.connect(_on_online_room_changed)
+	NetworkManager.opponent_changed.connect(_on_online_opponent_changed)
+	NetworkManager.match_ready.connect(_on_online_match_ready)
+	NetworkManager.online_error.connect(_on_online_error)
 	_update_devices_label()
 	GameState.back_pressed.connect(_on_back_pressed)
 	serve_title.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -126,12 +146,18 @@ func _handle_menu_input() -> void:
 	if _step != Step.MODE and (Input.is_action_just_pressed("ui_cancel") or Players.is_pause_just_pressed()):
 		_go_back()
 		return
+	if _step == Step.ONLINE:
+		_handle_online_input()
+		return
 	if _step == Step.MODE:
 		if Input.is_action_just_pressed("mode_1"):
 			_confirm_mode(Constants.MODE_AI)
 			return
 		if Input.is_action_just_pressed("mode_2"):
 			_confirm_mode(Constants.MODE_2P)
+			return
+		if Input.is_action_just_pressed("mode_3"):
+			_open_online_lobby()
 			return
 	var nav := 0
 	if Input.is_action_just_pressed("up") or Input.is_action_just_pressed("ui_up"):
@@ -168,7 +194,11 @@ func _adjust_dir() -> int:
 
 
 func _option_count() -> int:
-	return 3 if _step == Step.DIFF else 2
+	if _step == Step.MODE or _step == Step.DIFF:
+		return 3
+	if _step == Step.ONLINE:
+		return _online_option_count()
+	return 2
 
 
 func _diff_cursor() -> int:
@@ -185,8 +215,13 @@ func _confirm_menu() -> void:
 			_confirm_side()
 		Step.DIFF:
 			_confirm_diff()
+		Step.ONLINE:
+			_confirm_online()
 		_:
-			_confirm_mode(Constants.MODE_AI if cursor == 0 else Constants.MODE_2P)
+			if cursor == 2:
+				_open_online_lobby()
+			else:
+				_confirm_mode(Constants.MODE_AI if cursor == 0 else Constants.MODE_2P)
 
 
 func _confirm_mode(mode: int) -> void:
@@ -267,6 +302,9 @@ func _on_serve_gui(event: InputEvent) -> void:
 
 func _go_back() -> void:
 	SFX.play("nav")
+	if _step == Step.ONLINE:
+		_close_online_lobby()
+		return
 	if _step == Step.SIDE and GameState.mode == Constants.MODE_AI:
 		_step = Step.DIFF
 		cursor = _diff_cursor()
@@ -388,6 +426,7 @@ func _fade_out() -> void:
 
 func _on_fade_out_done() -> void:
 	visible = false
+	online_overlay.visible = false
 	serve_title.visible = false
 	serve_back.visible = false
 
@@ -431,14 +470,26 @@ func _refresh() -> void:
 	devices_label.visible = in_menu
 	if back_label:
 		back_label.visible = in_menu and _step != Step.MODE
+	if _step == Step.ONLINE:
+		title_label.visible = false
+		subtitle_label.visible = false
+		panel.visible = false
+		devices_label.visible = false
+		serve_title.visible = false
+		hint_label.visible = false
+		_hide_options()
+		online_overlay.visible = in_menu
+		_update_online_view()
+		return
 	serve_title.visible = not in_menu
 	serve_back.visible = false
 	hint_label.modulate.a = 1.0
 	if in_menu:
 		cursor = mini(cursor, _option_count() - 1)
-		hint_label.position = Vector2(80, 476 if _step == Step.DIFF else 456)
+		var three_row_menu := _step == Step.DIFF or _step == Step.MODE
+		hint_label.position = Vector2(80, 476 if _step == Step.DIFF else (526 if three_row_menu else 456))
 		hint_label.size = Vector2(992, 36)
-		devices_label.position.y = 520.0 if _step == Step.DIFF else 500.0
+		devices_label.position.y = 520.0 if _step == Step.DIFF else (566.0 if three_row_menu else 500.0)
 		hint_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
 		match _step:
 			Step.DIFF:
@@ -543,9 +594,10 @@ func _update_menu_highlight() -> void:
 		_place_option(option2_bg, option2_label, 356.0, 68.0)
 		names = PackedStringArray(["LEFT", "RIGHT"])
 	else:
-		_place_option(option1_bg, option1_label, 268.0, 68.0)
-		_place_option(option2_bg, option2_label, 356.0, 68.0)
-		names = PackedStringArray(["PLAYER VS CPU", "PLAYER VS PLAYER"])
+		_place_option(option1_bg, option1_label, 248.0, 62.0)
+		_place_option(option2_bg, option2_label, 326.0, 62.0)
+		_place_option(option3_bg, option3_label, 404.0, 62.0)
+		names = PackedStringArray(["PLAYER VS CPU", "PLAYER VS PLAYER", "ONLINE"])
 	var bars := [option1_bg, option2_bg, option3_bg]
 	var labels := [option1_label, option2_label, option3_label]
 	for i in range(3):
@@ -570,3 +622,342 @@ func _update_devices_label() -> void:
 		devices_label.text = sound
 	else:
 		devices_label.text = "P1: W / S      P2: UP / DOWN      M MUTE"
+
+
+func _make_online_overlay() -> void:
+	online_overlay = Control.new()
+	online_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	online_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	online_overlay.visible = false
+	root.add_child(online_overlay)
+	var wash := ColorRect.new()
+	wash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	wash.color = Color(1.0, 1.0, 1.0, 0.96)
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	online_overlay.add_child(wash)
+	online_card = Panel.new()
+	online_card.position = Vector2(276.0, 78.0)
+	online_card.size = Vector2(600.0, 494.0)
+	var card_style := StyleBoxFlat.new()
+	card_style.bg_color = Color(1.0, 1.0, 1.0, 0.99)
+	card_style.border_width_left = 1
+	card_style.border_width_top = 1
+	card_style.border_width_right = 1
+	card_style.border_width_bottom = 1
+	card_style.border_color = Color(0.12, 0.12, 0.11, 0.42)
+	card_style.shadow_color = Color(0.0, 0.0, 0.0, 0.22)
+	card_style.shadow_size = 8
+	online_card.add_theme_stylebox_override("panel", card_style)
+	online_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	online_overlay.add_child(online_card)
+	online_title = _make_online_label("ONLINE PLAY", Vector2(40.0, 28.0), Vector2(520.0, 42.0), 30)
+	online_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	online_card.add_child(online_title)
+	online_status = _make_online_label("CONNECTING...", Vector2(40.0, 80.0), Vector2(520.0, 66.0), 18)
+	online_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	online_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	online_card.add_child(online_status)
+	online_code = _make_online_label("", Vector2(40.0, 138.0), Vector2(520.0, 62.0), 38)
+	online_code.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	online_card.add_child(online_code)
+	online_input = LineEdit.new()
+	online_input.position = Vector2(120.0, 148.0)
+	online_input.size = Vector2(360.0, 52.0)
+	online_input.max_length = 6
+	online_input.placeholder_text = "6-CHARACTER CODE"
+	online_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	online_input.add_theme_font_size_override("font_size", 24)
+	online_input.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
+	online_input.add_theme_color_override("caret_color", Color(0.12, 0.12, 0.11, 1))
+	online_input.text_submitted.connect(_on_online_text_submitted)
+	online_card.add_child(online_input)
+	for i in range(3):
+		var bg := Panel.new()
+		bg.position = Vector2(80.0, 222.0 + i * 64.0)
+		bg.size = Vector2(440.0, 52.0)
+		bg.mouse_filter = Control.MOUSE_FILTER_STOP
+		bg.gui_input.connect(_on_online_option_gui.bind(i))
+		var idle := StyleBoxFlat.new()
+		idle.bg_color = Color(0.12, 0.12, 0.11, 0.02)
+		idle.border_width_left = 1
+		idle.border_width_top = 1
+		idle.border_width_right = 1
+		idle.border_width_bottom = 1
+		idle.border_color = Color(0.12, 0.12, 0.11, 0.24)
+		bg.add_theme_stylebox_override("panel", idle)
+		online_card.add_child(bg)
+		online_option_bgs.append(bg)
+		var label := _make_online_label("", Vector2(80.0, 230.0 + i * 64.0), Vector2(440.0, 34.0), 21)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		online_card.add_child(label)
+		online_option_labels.append(label)
+	online_hint = _make_online_label("ESC/B BACK", Vector2(40.0, 438.0), Vector2(520.0, 30.0), 16)
+	online_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	online_card.add_child(online_hint)
+
+
+func _make_online_label(text_value: String, label_position: Vector2, label_size: Vector2, font_size: int) -> Label:
+	var label := Label.new()
+	label.text = text_value
+	label.position = label_position
+	label.size = label_size
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
+	return label
+
+
+func _open_online_lobby() -> void:
+	SFX.play("confirm")
+	_step = Step.ONLINE
+	_online_view = OnlineView.OPTIONS
+	_online_cursor = 0
+	_pending_online_action = ""
+	GameState.select_mode(Constants.MODE_ONLINE)
+	NetworkManager.connect_to_server()
+	_refresh()
+
+
+func _close_online_lobby() -> void:
+	if NetworkManager.state != NetworkManager.STATE_DISCONNECTED:
+		NetworkManager.disconnect_from_server()
+	_step = Step.MODE
+	cursor = 2
+	_online_view = OnlineView.OPTIONS
+	_online_cursor = 0
+	_pending_online_action = ""
+	online_overlay.visible = false
+	_refresh()
+
+
+func _online_option_count() -> int:
+	match _online_view:
+		OnlineView.OPTIONS:
+			return 3
+		OnlineView.JOIN:
+			return 2
+		OnlineView.WAITING:
+			return 1
+		OnlineView.ERROR:
+			return 2
+	return 0
+
+
+func _handle_online_input() -> void:
+	var count := _online_option_count()
+	if count <= 0:
+		return
+	var nav := 0
+	if Input.is_action_just_pressed("up") or Input.is_action_just_pressed("ui_up") or Players.is_nav_up_just_pressed():
+		nav = -1
+	elif Input.is_action_just_pressed("down") or Input.is_action_just_pressed("ui_down") or Players.is_nav_down_just_pressed():
+		nav = 1
+	if nav != 0:
+		_online_cursor = (_online_cursor + nav + count) % count
+		SFX.play("nav")
+		_update_online_view()
+	if Input.is_action_just_pressed("ui_cancel") or Players.is_pause_just_pressed():
+		_go_back()
+	elif Input.is_action_just_pressed("stop") or Input.is_action_just_pressed("ui_accept") or Players.is_confirm_just_pressed():
+		_confirm_online()
+
+
+func _confirm_online() -> void:
+	match _online_view:
+		OnlineView.OPTIONS:
+			match _online_cursor:
+				0:
+					if NetworkManager.connection_is_open():
+						SFX.play("confirm")
+						_pending_online_action = "create"
+						NetworkManager.create_room()
+					else:
+						_show_online_error("STILL CONNECTING — TRY AGAIN IN A MOMENT")
+				1:
+					SFX.play("confirm")
+					_online_view = OnlineView.JOIN
+					_online_cursor = 0
+					online_input.text = ""
+					online_input.grab_focus()
+					_update_online_view()
+				_:
+					_close_online_lobby()
+		OnlineView.JOIN:
+			if _online_cursor == 0:
+				_submit_online_join()
+			else:
+				_open_online_options()
+		OnlineView.WAITING:
+			SFX.play("nav")
+			NetworkManager.leave_room()
+			_open_online_options()
+		OnlineView.ERROR:
+			if _online_cursor == 0:
+				SFX.play("confirm")
+				_online_view = OnlineView.OPTIONS
+				_online_cursor = 0
+				NetworkManager.connect_to_server()
+				_update_online_view()
+			else:
+				_close_online_lobby()
+
+
+func _submit_online_join() -> void:
+	var code := online_input.text.strip_edges().to_upper()
+	if code.length() != 6:
+		_show_online_error("ENTER THE SIX-CHARACTER ROOM CODE")
+		return
+	if not NetworkManager.connection_is_open():
+		_show_online_error("STILL CONNECTING — TRY AGAIN IN A MOMENT")
+		return
+	SFX.play("confirm")
+	_pending_online_action = "join"
+	NetworkManager.join_room(code)
+	online_input.release_focus()
+
+
+func _on_online_text_submitted(_text: String) -> void:
+	_online_cursor = 0
+	_submit_online_join()
+
+
+func _on_online_option_gui(event: InputEvent, index: int) -> void:
+	if _step != Step.ONLINE or index >= _online_option_count():
+		return
+	var activated := false
+	if event is InputEventMouseMotion:
+		if _online_cursor != index:
+			_online_cursor = index
+			_update_online_view()
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_online_cursor = index
+		activated = true
+	elif event is InputEventScreenTouch and event.pressed:
+		_online_cursor = index
+		activated = true
+	if activated:
+		_update_online_view()
+		_confirm_online()
+
+
+func _open_online_options() -> void:
+	_online_view = OnlineView.OPTIONS
+	_online_cursor = 0
+	online_input.release_focus()
+	_update_online_view()
+
+
+func _show_online_error(message: String) -> void:
+	SFX.play("nav")
+	_online_view = OnlineView.ERROR
+	_online_cursor = 0
+	online_status.text = message
+	online_input.release_focus()
+	_update_online_view()
+
+
+func _on_online_connection_changed(state: int, message: String) -> void:
+	if _step != Step.ONLINE:
+		return
+	online_status.text = message
+	if state == NetworkManager.STATE_DISCONNECTED and _online_view == OnlineView.WAITING:
+		_show_online_error(message)
+	else:
+		_update_online_view()
+
+
+func _on_online_room_changed(code: String, _side: String, status: String) -> void:
+	if _step != Step.ONLINE:
+		return
+	_online_view = OnlineView.WAITING
+	_online_cursor = 0
+	online_code.text = code
+	online_status.text = status
+	_update_online_view()
+
+
+func _on_online_opponent_changed(connected: bool) -> void:
+	if _step != Step.ONLINE:
+		return
+	if connected:
+		online_status.text = "OPPONENT CONNECTED — STARTING MATCH"
+	else:
+		online_status.text = "OPPONENT DISCONNECTED"
+	_update_online_view()
+
+
+func _on_online_match_ready() -> void:
+	if _step != Step.ONLINE or _online_countdown_active:
+		return
+	_online_countdown_active = true
+	_run_online_countdown()
+
+
+func _run_online_countdown() -> void:
+	_online_view = OnlineView.WAITING
+	online_title.text = "MATCH READY"
+	online_code.text = ""
+	online_hint.text = "PLEASE WAIT"
+	for count in [3, 2, 1]:
+		online_status.text = str(count)
+		_update_online_view()
+		await get_tree().create_timer(0.8, true).timeout
+	online_status.text = "GO"
+	_update_online_view()
+	await get_tree().create_timer(0.45, true).timeout
+	_online_countdown_active = false
+	_update_online_view()
+
+
+func _update_online_view() -> void:
+	if online_overlay == null:
+		return
+	var count := _online_option_count()
+	_online_cursor = clampi(_online_cursor, 0, maxi(count - 1, 0))
+	online_input.visible = _online_view == OnlineView.JOIN
+	online_code.visible = _online_view == OnlineView.WAITING
+	online_input.position.y = 148.0
+	online_title.text = "ONLINE PLAY"
+	online_hint.text = "ESC/B BACK"
+	var names := PackedStringArray()
+	match _online_view:
+		OnlineView.OPTIONS:
+			names = PackedStringArray(["CREATE ROOM", "JOIN ROOM", "BACK"])
+			online_code.text = ""
+		OnlineView.JOIN:
+			names = PackedStringArray(["JOIN ROOM", "BACK"])
+			online_hint.text = "TYPE A CODE   ENTER TO JOIN   ESC/B BACK"
+		OnlineView.WAITING:
+			names = PackedStringArray(["LEAVE ROOM"])
+			online_title.text = "ROOM %s" % NetworkManager.room_code
+			online_hint.text = "WAITING FOR OPPONENT"
+		OnlineView.ERROR:
+			names = PackedStringArray(["RETRY", "BACK"])
+			online_code.text = ""
+	for i in range(online_option_bgs.size()):
+		var on := i < names.size()
+		online_option_bgs[i].visible = on
+		online_option_labels[i].visible = on
+		if not on:
+			continue
+		online_option_labels[i].text = names[i]
+		var selected := i == _online_cursor
+		online_option_labels[i].add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.12, 0.12, 0.11, 0.06 if selected else 0.02)
+		style.border_width_left = 2 if selected else 1
+		style.border_width_top = 2 if selected else 1
+		style.border_width_right = 2 if selected else 1
+		style.border_width_bottom = 2 if selected else 1
+		style.border_color = Color(0.12, 0.12, 0.11, 0.78 if selected else 0.24)
+		online_option_bgs[i].add_theme_stylebox_override("panel", style)
+	if _online_view == OnlineView.OPTIONS and NetworkManager.state == NetworkManager.STATE_CONNECTING:
+		online_status.text = "CONNECTING...\nFREE SERVER MAY TAKE A MOMENT TO WAKE UP"
+	if _online_view == OnlineView.WAITING and online_code.text.is_empty():
+		online_status.text = "CREATING ROOM..."
+
+
+func _on_online_error(message: String) -> void:
+	if _step != Step.ONLINE:
+		return
+	_show_online_error(message)
