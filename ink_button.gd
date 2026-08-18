@@ -1,5 +1,5 @@
 extends Panel
-## Transparent paper control with a rough hand-drawn navigation underline.
+## Transparent paper control with a short, rough hand-drawn navigation underline.
 
 @export var selected := false:
 	set(next):
@@ -22,26 +22,26 @@ func _ready() -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if size.x < 24.0 or size.y < 12.0:
+	if not selected or size.x < 24.0 or size.y < 12.0:
 		return
-	var ink := Color(0.08, 0.08, 0.075, 0.92 if selected else 0.34)
-	var faint := Color(0.08, 0.08, 0.075, 0.18 if selected else 0.10)
-	var y := size.y - (9.0 if selected else 8.0)
-	var left := 30.0
-	var right := size.x - 30.0
+	var ink := Color(0.08, 0.08, 0.075, 0.94)
+	var faint := Color(0.08, 0.08, 0.075, 0.22)
+	var y := size.y - 9.0
+	var line_width := clampf(size.x * 0.42, 110.0, 190.0)
+	var left := (size.x - line_width) * 0.5
+	var right := left + line_width
 	var underline := PackedVector2Array([
 		Vector2(left, y + 1.0),
-		Vector2(size.x * 0.24, y - 0.4),
-		Vector2(size.x * 0.48, y + 0.8),
-		Vector2(size.x * 0.73, y - 0.8),
+		Vector2(left + line_width * 0.24, y - 0.5),
+		Vector2(left + line_width * 0.52, y + 0.8),
+		Vector2(left + line_width * 0.76, y - 0.8),
 		Vector2(right, y)
 	])
-	draw_polyline(underline, ink, 2.2 if selected else 1.05, true)
-	if selected:
-		var second := PackedVector2Array([
-			Vector2(left + 10.0, y + 4.0),
-			Vector2(size.x * 0.35, y + 3.0),
-			Vector2(size.x * 0.66, y + 3.8),
-			Vector2(right - 8.0, y + 3.1)
-		])
-		draw_polyline(second, faint, 0.85, true)
+	draw_polyline(underline, ink, 2.8, true)
+	var second := PackedVector2Array([
+		Vector2(left + 8.0, y + 4.0),
+		Vector2(left + line_width * 0.34, y + 3.0),
+		Vector2(left + line_width * 0.67, y + 3.8),
+		Vector2(right - 8.0, y + 3.1)
+	])
+	draw_polyline(second, faint, 1.0, true)
