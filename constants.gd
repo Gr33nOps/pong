@@ -113,6 +113,7 @@ func configure_touch_root(root: Control) -> void:
 	if state != null and state.has_method("is_touch_ui"):
 		touch_ui = state.is_touch_ui()
 	if not touch_ui:
+		root.scale = Vector2.ONE
 		return
 	root.pivot_offset = Vector2(576.0, 324.0)
 	# Compact landscape phones already use the full reference height; scaling the

@@ -21,17 +21,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Download Godot 4.7.1 (Linux)
+      - name: Download and verify Godot 4.7.1
+        env:
+          GODOT_SHA512: 4ccdab7a48eeccbe8819a2fc1f6262f8d72065d98601bcb3743fcbd7ebd39f373758a788ee3293a05ec5b2c48538266c437404312e372225cd2df273945a2de9
+          TEMPLATES_SHA512: afcc83d8d3d298038f19c58744a0d660fa75dd4baa33cb55d1011bb2565a2a8c2381728924564cb909e37c205a23f21b521b23bd057993afd43ae4da0b2f9d47
         run: |
-          curl -sL -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/4.7.1-stable"
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            "$base/Godot_v4.7.1-stable_linux.x86_64.zip" -o /tmp/godot.zip
+          printf '%s  %s\n' "$GODOT_SHA512" /tmp/godot.zip | sha512sum --check --status
           unzip -q /tmp/godot.zip -d /tmp/godot
-          echo "$PWD" >> $GITHUB_PATH
-          mkdir -p ~/.local/share/godot/export_templates
-          curl -sL -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_export_templates.tpz
+
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            "$base/Godot_v4.7.1-stable_export_templates.tpz" -o /tmp/templates.tpz
+          printf '%s  %s\n' "$TEMPLATES_SHA512" /tmp/templates.tpz | sha512sum --check --status
           unzip -q /tmp/templates.tpz -d /tmp/templates
-          mv /tmp/templates/templates ~/.local/share/godot/export_templates/4.7.1.stable
+          mkdir -p ~/.local/share/godot/export_templates/4.7.1.stable
+          mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.7.1.stable/
 
       - name: Import resources
         run: |
@@ -45,16 +54,18 @@ jobs:
 
       - name: Export Web build
         run: |
+          set -euo pipefail
           mkdir -p /tmp/pong-web
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Web" /tmp/pong-web/index.html
 
       - name: Export Windows smoke build
         run: |
+          set -euo pipefail
           mkdir -p /tmp/pong-windows
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Windows Desktop" /tmp/pong-windows/pong.exe
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: /tmp/pong-web
 
@@ -68,4 +79,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

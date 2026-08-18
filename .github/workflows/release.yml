@@ -4,10 +4,6 @@ on:
   push:
     tags: ["v*"]
 
-env:
-  GODOT_VERSION: 4.7.1
-  EXPORT_NAME: pong
-
 permissions:
   contents: write
 
@@ -23,10 +19,11 @@ jobs:
       image: barichello/godot-ci:4.7.1
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Move export templates into place
         run: |
+          set -euo pipefail
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.config/godot
           if [ "$HOME" != "/root" ] && [ -d /root/.config/godot ]; then
             cp -a /root/.config/godot/. ~/.config/godot/
@@ -37,6 +34,7 @@ jobs:
 
       - name: Set release version
         run: |
+          set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           sed -i -E "s/^config\/version=.*/config\/version=\"$VERSION\"/" project.godot
@@ -53,16 +51,19 @@ jobs:
 
       - name: Export Windows Desktop
         run: |
+          set -euo pipefail
           mkdir -p /tmp/pong/windows
           godot --headless --verbose --path . --export-release "Windows Desktop" /tmp/pong/windows/pong.exe
 
       - name: Export Web
         run: |
+          set -euo pipefail
           mkdir -p /tmp/pong/web
           godot --headless --verbose --path . --export-release "Web" /tmp/pong/web/index.html
 
       - name: Export Android sideload APK
         run: |
+          set -euo pipefail
           # Use Godot's built-in APK template; Play Store/Gradle signing is intentionally not configured.
           sed -i 's#gradle_build/use_gradle_build=true#gradle_build/use_gradle_build=false#' export_presets.cfg
           sed -i 's#gradle_build/min_sdk="29"#gradle_build/min_sdk=""#' export_presets.cfg
@@ -74,12 +75,13 @@ jobs:
 
       - name: Package release archives
         run: |
+          set -euo pipefail
           cd /tmp/pong/windows && zip -q -r "$GITHUB_WORKSPACE/pong-windows.zip" .
           cd /tmp/pong/web && zip -q -r "$GITHUB_WORKSPACE/pong-web.zip" .
           cp /tmp/pong/android/pong.apk "$GITHUB_WORKSPACE/pong-android-sideload.apk"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           generate_release_notes: true
           files: |
