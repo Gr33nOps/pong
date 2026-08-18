@@ -14,7 +14,7 @@ const GAME_VERSION := "1.1.13"
 
 # Ball physics — arcade Pong (front-face hits only)
 const BALL_RADIUS = 21.0
-const START_SPEED = 480.0
+const START_SPEED = 600.0
 const MAX_SPEED = 1020.0
 const BALL_COLLISION_STEP = 4.0
 const MAX_BALL_SUBSTEPS = 64

@@ -145,7 +145,7 @@ func _handle_menu_input() -> void:
 	if nav != 0:
 		var count := _option_count()
 		cursor = (cursor + nav + count) % count
-		SFX.play("ui")
+		SFX.play("nav")
 		_update_menu_highlight()
 	var adj := _adjust_dir()
 	if adj != 0 and _step != Step.MODE:
@@ -153,7 +153,7 @@ func _handle_menu_input() -> void:
 		var next := (cursor + adj + count) % count
 		if next != cursor:
 			cursor = next
-			SFX.play("ui")
+			SFX.play("nav")
 			_update_menu_highlight()
 	if Input.is_action_just_pressed("stop") or Input.is_action_just_pressed("ui_accept") or Players.is_confirm_just_pressed():
 		_confirm_menu()
@@ -266,7 +266,7 @@ func _on_serve_gui(event: InputEvent) -> void:
 
 
 func _go_back() -> void:
-	SFX.play("ui")
+	SFX.play("nav")
 	if _step == Step.SIDE and GameState.mode == Constants.MODE_AI:
 		_step = Step.DIFF
 		cursor = _diff_cursor()

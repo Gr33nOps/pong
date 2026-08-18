@@ -103,7 +103,7 @@ func _process(_delta: float) -> void:
 		nav = 1
 	if nav != 0:
 		_cursor = (_cursor + nav + ids.size()) % ids.size()
-		SFX.play("ui")
+		SFX.play("nav")
 		_update_hints()
 
 	if Input.is_action_just_pressed("stop") or Input.is_action_just_pressed("ui_accept") or Players.is_confirm_just_pressed():
@@ -185,7 +185,7 @@ func _on_pause_click(local: Vector2) -> void:
 		_set_volume(id, local.x)
 	elif id == "difficulty":
 		GameState.advance_difficulty()
-		SFX.play("ui")
+		SFX.play("nav")
 		_update_hints()
 
 
@@ -272,7 +272,7 @@ func _adjust_option(direction: int, amount: float = 1.0) -> void:
 			_update_hints()
 		"difficulty":
 			GameState.cycle_difficulty(direction)
-			SFX.play("ui")
+			SFX.play("nav")
 			_update_hints()
 
 

@@ -3,7 +3,9 @@ extends Node
 
 const PADDLE_HIT: AudioStream = preload("res://audio/paddle-hit.ogg")
 const WALL_HIT: AudioStream = preload("res://audio/wall-hit.ogg")
+const POINT_MISS: AudioStream = preload("res://audio/point-miss.ogg")
 const UI_CLICK: AudioStream = preload("res://audio/ui-click.ogg")
+const UI_NAV: AudioStream = preload("res://audio/ui-nav.ogg")
 const UI_ROLLOVER: AudioStream = preload("res://audio/ui-rollover.ogg")
 const UI_CONFIRM: AudioStream = preload("res://audio/ui-confirm.ogg")
 
@@ -22,13 +24,13 @@ func _ready() -> void:
 	add_child(_save_timer)
 	_load_settings()
 	add_sound("paddle", PADDLE_HIT, 0.62)
-	add_sound("wall", WALL_HIT, 0.46)
-	add_sound("score", WALL_HIT, 0.42)
-	add_sound("score_low", WALL_HIT, 0.34)
-	add_sound("win", UI_CONFIRM, 0.48)
-	add_sound("win_low", UI_CONFIRM, 0.38)
-	add_sound("ui", UI_ROLLOVER, 0.28)
-	add_sound("confirm", UI_CLICK, 0.38)
+	add_sound("wall", WALL_HIT, 0.28)
+	add_sound("point", POINT_MISS, 0.38)
+	add_sound("win", UI_CONFIRM, 0.42)
+	add_sound("win_low", UI_CONFIRM, 0.32)
+	add_sound("ui", UI_CLICK, 0.28)
+	add_sound("nav", UI_NAV, 0.22)
+	add_sound("confirm", UI_CONFIRM, 0.36)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -93,8 +95,7 @@ func stop_all() -> void:
 
 
 func play_score() -> void:
-	play("score_low", 0.9)
-	play("score", 1.05)
+	play("point", 1.0)
 
 
 func play_win() -> void:
