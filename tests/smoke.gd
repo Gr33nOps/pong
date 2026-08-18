@@ -37,6 +37,12 @@ func _run() -> void:
 	game_state.add_point("left")
 	_check(game_state.is_game_over and game_state.left_score == constants.WINNER_SCORE, "first-to-five ends on the final point")
 	game_state.reset_game()
+	game_state.begin_online_match("right")
+	_check(game_state.mode == constants.MODE_ONLINE and not game_state.player_is_left and game_state.mode_selected, "Online side assignment starts a match")
+	game_state.apply_online_snapshot({"scores": {"left": 1, "right": 0}, "serving": true, "between_points": true, "serve_toward_right": false, "game_over": false, "last_point": "left"})
+	_check(game_state.left_score == 1 and game_state.between_points and not game_state.serve_toward_right, "Online snapshots update score and serve state")
+	game_state.reset_game()
+	game_state.player_is_left = true
 	var legacy_settings := ConfigFile.new()
 	legacy_settings.set_value("game", constants.KEY_AI_DIFFICULTY, 0.55)
 	_check(is_equal_approx(game_state._read_difficulty(legacy_settings), constants.DIFFICULTY_EASY), "legacy difficulty settings migrate to easy")

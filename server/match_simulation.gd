@@ -82,7 +82,7 @@ func set_input(side: String, axis: float, target_y: float) -> void:
 
 
 func serve(side: String, aim: float) -> bool:
-	if game_over or not serving or _serve_cooldown > 0.0:
+	if game_over or not serving or between_points or _serve_cooldown > 0.0:
 		return false
 	var expected_side := "left" if serve_toward_right else "right"
 	if side != expected_side:
@@ -240,6 +240,7 @@ func _score(side: String) -> void:
 	else:
 		between_points = true
 		serving = true
+		_serve_cooldown = SCORE_HOLD
 		ball_position = Vector2(576.0, _court_center_y())
 
 

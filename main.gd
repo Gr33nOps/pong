@@ -37,6 +37,8 @@ func _ready() -> void:
 	GameState.point_scored.connect(_on_point_scored)
 	GameState.rematch_started.connect(_on_rematch_started)
 	GameState.paused_changed.connect(_on_paused_changed)
+	NetworkManager.snapshot_received.connect(_on_online_snapshot)
+	NetworkManager.rematch_started.connect(_on_online_rematch_started)
 	ball.rally_changed.connect(_on_rally_changed)
 	hud.bind_ball(ball)
 	GameState.reset_game()
@@ -134,6 +136,8 @@ func _paddle_for_pointer(pos: Vector2) -> Area2D:
 		return paddle_left if server_is_left else paddle_right
 	if GameState.mode == Constants.MODE_AI:
 		return paddle_left if GameState.player_is_left else paddle_right
+	if GameState.mode == Constants.MODE_ONLINE:
+		return paddle_left if GameState.player_is_left else paddle_right
 	return paddle_left if pos.x < playfield_size.x * 0.5 else paddle_right
 
 
@@ -200,6 +204,10 @@ func _set_match_visible(on: bool) -> void:
 	ball.visible = on
 	paddle_left.visible = on
 	paddle_right.visible = on
+	var online := GameState.mode == Constants.MODE_ONLINE
+	ball.set_physics_process(on and not online)
+	paddle_left.set_physics_process(on and not online)
+	paddle_right.set_physics_process(on and not online)
 	# The ball stays clean and still; the old motion trail is intentionally disabled.
 	trail.visible = false
 	if not on:
@@ -217,6 +225,9 @@ func _physics_process(_delta: float) -> void:
 		paddle_right.visible = false
 		trail.visible = false
 		trail.clear_points()
+		return
+	if GameState.mode == Constants.MODE_ONLINE:
+		_send_online_input()
 		return
 	if GameState.serving:
 		_place_serve_ball()
@@ -236,6 +247,8 @@ func _score_goal(side: String, impact: Vector2, color: Color) -> void:
 
 
 func _on_point_scored(_side: String) -> void:
+	if GameState.mode == Constants.MODE_ONLINE:
+		return
 	ball.visible = false
 	trail.visible = false
 	trail.clear_points()
@@ -329,6 +342,8 @@ func _on_colorblind_changed(_enabled: bool) -> void:
 
 
 func _on_serving_changed(serving: bool) -> void:
+	if GameState.mode == Constants.MODE_ONLINE:
+		return
 	if serving:
 		ball.velocity = Vector2.ZERO
 		ball.rally_hits = 0
@@ -353,3 +368,37 @@ func _on_game_over(_winner: String) -> void:
 	ScreenShake.reset()
 	trail.clear_points()
 	ball.velocity = Vector2.ZERO
+
+
+func _send_online_input() -> void:
+	if not NetworkManager.connection_is_open() or NetworkManager.state != NetworkManager.STATE_PLAYING:
+		return
+	var paddle = paddle_left if GameState.player_is_left else paddle_right
+	var axis := float(paddle.get_move_input())
+	var target_y: float = float(paddle._pointer_target_y) if paddle.has_pointer_target() else -1.0
+	NetworkManager.send_input(axis, target_y)
+
+
+func _on_online_snapshot(snapshot: Dictionary) -> void:
+	if GameState.mode != Constants.MODE_ONLINE:
+		return
+	GameState.apply_online_snapshot(snapshot)
+	var paddles = snapshot.get("paddles", {})
+	if paddles is Dictionary:
+		if paddles.has("left"):
+			paddle_left.position.y = float(paddles.get("left"))
+		if paddles.has("right"):
+			paddle_right.position.y = float(paddles.get("right"))
+	var ball_data = snapshot.get("ball", {})
+	if ball_data is Dictionary:
+		ball.position = Vector2(float(ball_data.get("x", ball.position.x)), float(ball_data.get("y", ball.position.y)))
+		ball.velocity = Vector2(float(ball_data.get("vx", ball.velocity.x)), float(ball_data.get("vy", ball.velocity.y)))
+		ball.rally_hits = int(snapshot.get("rally_hits", ball.rally_hits))
+		ball.visible = GameState.mode_selected and not GameState.is_game_over
+	paddle_left.visible = GameState.mode_selected and not GameState.is_game_over
+	paddle_right.visible = GameState.mode_selected and not GameState.is_game_over
+	center_line_ink.visible = ball.velocity != Vector2.ZERO and not GameState.is_game_over
+
+
+func _on_online_rematch_started() -> void:
+	GameState.online_rematch_started()

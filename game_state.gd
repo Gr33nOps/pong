@@ -28,7 +28,9 @@ var ai_difficulty := Constants.DIFFICULTY_NORMAL
 var serve_toward_right := true
 var between_points := false
 var player_is_left := true
+var online_player_side := "left"
 var _last_input_modality := "keyboard"
+var _online_last_point := ""
 
 
 func _ready() -> void:
@@ -186,6 +188,77 @@ func select_side(is_left: bool) -> void:
 	serving_changed.emit(serving)
 
 
+func begin_online_match(side: String) -> void:
+	mode = Constants.MODE_ONLINE
+	online_player_side = "right" if side == "right" else "left"
+	player_is_left = online_player_side == "left"
+	mode_selected = true
+	left_score = 0
+	right_score = 0
+	is_game_over = false
+	paused = false
+	serving = true
+	between_points = false
+	serve_toward_right = true
+	_online_last_point = ""
+	score_changed.emit(left_score, right_score)
+	mode_changed.emit(mode)
+	paused_changed.emit(paused)
+	_sync_tree_pause()
+	serving_changed.emit(serving)
+
+
+func apply_online_snapshot(snapshot: Dictionary) -> void:
+	if mode != Constants.MODE_ONLINE:
+		return
+	var scores = snapshot.get("scores", {})
+	var next_left := int(scores.get("left", left_score)) if scores is Dictionary else left_score
+	var next_right := int(scores.get("right", right_score)) if scores is Dictionary else right_score
+	var score_changed_now := next_left != left_score or next_right != right_score
+	left_score = next_left
+	right_score = next_right
+	serve_toward_right = bool(snapshot.get("serve_toward_right", serve_toward_right))
+	var next_serving := bool(snapshot.get("serving", serving))
+	between_points = bool(snapshot.get("between_points", between_points))
+	var point := str(snapshot.get("last_point", ""))
+	if score_changed_now:
+		score_changed.emit(left_score, right_score)
+	if point.is_empty():
+		_online_last_point = ""
+	elif point != _online_last_point:
+		_online_last_point = point
+		point_scored.emit(point)
+	if serving != next_serving:
+		serving = next_serving
+		serving_changed.emit(serving)
+	var next_game_over := bool(snapshot.get("game_over", false))
+	if next_game_over and not is_game_over:
+		is_game_over = true
+		_sync_tree_pause()
+		game_over.emit("blue" if left_score >= Constants.WINNER_SCORE else "red")
+	elif not next_game_over and is_game_over:
+		is_game_over = false
+		_sync_tree_pause()
+
+
+func online_rematch_started() -> void:
+	if mode != Constants.MODE_ONLINE:
+		return
+	left_score = 0
+	right_score = 0
+	is_game_over = false
+	paused = false
+	serving = true
+	between_points = false
+	serve_toward_right = true
+	_online_last_point = ""
+	score_changed.emit(left_score, right_score)
+	paused_changed.emit(paused)
+	_sync_tree_pause()
+	rematch_started.emit()
+	serving_changed.emit(serving)
+
+
 func is_cpu_serving() -> bool:
 	if mode != Constants.MODE_AI:
 		return false
@@ -197,6 +270,9 @@ func is_p1_serving() -> bool:
 
 
 func rematch() -> void:
+	if mode == Constants.MODE_ONLINE:
+		NetworkManager.request_rematch()
+		return
 	left_score = 0
 	right_score = 0
 	is_game_over = false

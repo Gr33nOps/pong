@@ -135,6 +135,8 @@ func _do_rematch() -> void:
 
 func _do_menu() -> void:
 	SFX.play("confirm")
+	if GameState.mode == Constants.MODE_ONLINE:
+		NetworkManager.disconnect_from_server()
 	get_tree().reload_current_scene()
 
 

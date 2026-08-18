@@ -4,6 +4,7 @@ signal connection_changed(state: int, message: String)
 signal room_changed(code: String, side: String, status: String)
 signal opponent_changed(connected: bool)
 signal match_ready
+signal rematch_started
 signal snapshot_received(snapshot: Dictionary)
 signal online_error(message: String)
 
@@ -148,6 +149,8 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		"opponent_disconnected":
 			opponent_changed.emit(false)
 			_set_state(STATE_IN_ROOM, "OPPONENT DISCONNECTED")
+		"rematch_started":
+			rematch_started.emit()
 		"error":
 			_emit_error(str(message.get("message", "ONLINE ERROR")))
 		"left_room":

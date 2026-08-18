@@ -135,6 +135,8 @@ func _process(delta: float) -> void:
 	if GameState.paused or not GameState.serving or GameState.is_game_over:
 		return
 	if GameState.mode_selected:
+		if _online_countdown_active:
+			return
 		_handle_serve_input(delta)
 		if _serve_ready:
 			hint_label.modulate.a = 1.0
@@ -331,6 +333,9 @@ func _launch_player_serve() -> void:
 	if not _serve_ready or not GameState.serving or GameState.is_cpu_serving():
 		return
 	SFX.play("confirm", 1.15)
+	if GameState.mode == Constants.MODE_ONLINE:
+		NetworkManager.request_serve(_online_serve_aim())
+		return
 	GameState.set_serving(false)
 
 
@@ -402,7 +407,8 @@ func _on_serving_changed(serving: bool) -> void:
 		_refresh()
 		_fade_in()
 		if GameState.mode_selected:
-			await get_tree().create_timer(0.22, true).timeout
+			var serve_delay := 0.45 if GameState.mode == Constants.MODE_ONLINE else 0.22
+			await get_tree().create_timer(serve_delay, true).timeout
 			if is_instance_valid(self) and GameState.serving:
 				_serve_ready = true
 	else:
@@ -440,7 +446,8 @@ func _on_rematch_started() -> void:
 	_refresh()
 	_fade_in()
 	_serve_ready = false
-	await get_tree().create_timer(0.22, true).timeout
+	var serve_delay := 0.45 if GameState.mode == Constants.MODE_ONLINE else 0.22
+	await get_tree().create_timer(serve_delay, true).timeout
 	if is_instance_valid(self) and GameState.serving:
 		_serve_ready = true
 
@@ -470,7 +477,7 @@ func _refresh() -> void:
 	devices_label.visible = in_menu
 	if back_label:
 		back_label.visible = in_menu and _step != Step.MODE
-	if _step == Step.ONLINE:
+	if _step == Step.ONLINE and (not GameState.mode_selected or _online_countdown_active):
 		title_label.visible = false
 		subtitle_label.visible = false
 		panel.visible = false
@@ -481,6 +488,8 @@ func _refresh() -> void:
 		online_overlay.visible = in_menu
 		_update_online_view()
 		return
+	if _step == Step.ONLINE:
+		online_overlay.visible = false
 	serve_title.visible = not in_menu
 	serve_back.visible = false
 	hint_label.modulate.a = 1.0
@@ -890,6 +899,7 @@ func _on_online_match_ready() -> void:
 	if _step != Step.ONLINE or _online_countdown_active:
 		return
 	_online_countdown_active = true
+	GameState.begin_online_match(NetworkManager.player_side)
 	_run_online_countdown()
 
 
@@ -961,3 +971,11 @@ func _on_online_error(message: String) -> void:
 	if _step != Step.ONLINE:
 		return
 	_show_online_error(message)
+
+
+func _online_serve_aim() -> float:
+	var paddle = get_parent().get_node("paddleLeft") if GameState.player_is_left else get_parent().get_node("paddleRight")
+	var mid := (get_viewport().get_visible_rect().size.y + Constants.HUD_HEIGHT) * 0.5
+	var center_offset: float = (paddle.position.y - mid) / maxf(paddle.half_height(), 1.0)
+	var paddle_input: float = paddle.last_vy / maxf(paddle.speed, 1.0) if paddle.has_pointer_target() else paddle.get_move_input()
+	return clampf(paddle_input * 0.85 + center_offset * 0.4, -1.0, 1.0)
