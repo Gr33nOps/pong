@@ -685,18 +685,18 @@ func _make_online_overlay() -> void:
 	for i in range(3):
 		var bg := Panel.new()
 		bg.set_script(preload("res://ink_button.gd"))
-		bg.position = Vector2(20.0, 222.0 + i * 70.0)
+		bg.position = Vector2(20.0, 204.0 + i * 70.0)
 		bg.size = Vector2(480.0, 58.0)
 		bg.mouse_filter = Control.MOUSE_FILTER_STOP
 		bg.gui_input.connect(_on_online_option_gui.bind(i))
 		online_card.add_child(bg)
 		online_option_bgs.append(bg)
-		var label := _make_online_label("", Vector2(20.0, 234.0 + i * 70.0), Vector2(480.0, 34.0), 21)
+		var label := _make_online_label("", Vector2(20.0, 216.0 + i * 70.0), Vector2(480.0, 34.0), 21)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		online_card.add_child(label)
 		online_option_labels.append(label)
-	online_hint = _make_online_label("ESC/B BACK", Vector2(0.0, 456.0), Vector2(520.0, 30.0), 16)
+	online_hint = _make_online_label("ESC/B BACK", Vector2(0.0, 432.0), Vector2(520.0, 30.0), 16)
 	online_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_hint)
 

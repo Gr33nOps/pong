@@ -633,9 +633,9 @@ text = "CPU DIFFICULTY    <  NORMAL  >"
 [node name="pauseHint" type="Label" parent="pause/Root/Card" unique_id=533182036]
 layout_mode = 0
 offset_left = 16.0
-offset_top = 448.0
+offset_top = 416.0
 offset_right = 504.0
-offset_bottom = 508.0
+offset_bottom = 476.0
 theme_override_colors/font_color = Color(0.12, 0.12, 0.11, 1)
 theme_override_font_sizes/font_size = 16
 text = "UP/DOWN MOVE     LEFT/RIGHT CHANGE
