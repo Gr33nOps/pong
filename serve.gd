@@ -644,18 +644,18 @@ func _make_online_overlay() -> void:
 	online_card.size = Vector2(520.0, 520.0)
 	online_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	online_overlay.add_child(online_card)
-	online_title = _make_online_label("ONLINE", Vector2(0.0, 28.0), Vector2(520.0, 42.0), 30)
+	online_title = _make_online_label("ONLINE", Vector2(0.0, 42.0), Vector2(520.0, 42.0), 30)
 	online_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_title)
-	online_status = _make_online_label("CONNECTING...", Vector2(0.0, 80.0), Vector2(520.0, 66.0), 18)
+	online_status = _make_online_label("CONNECTING...", Vector2(0.0, 94.0), Vector2(520.0, 52.0), 18)
 	online_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	online_card.add_child(online_status)
-	online_code = _make_online_label("", Vector2(0.0, 138.0), Vector2(520.0, 62.0), 38)
+	online_code = _make_online_label("", Vector2(0.0, 160.0), Vector2(520.0, 48.0), 36)
 	online_code.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_code)
 	online_input = LineEdit.new()
-	online_input.position = Vector2(120.0, 148.0)
+	online_input.position = Vector2(120.0, 160.0)
 	online_input.size = Vector2(360.0, 52.0)
 	online_input.max_length = 6
 	online_input.placeholder_text = "6-CHARACTER CODE"
@@ -696,7 +696,7 @@ func _make_online_overlay() -> void:
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		online_card.add_child(label)
 		online_option_labels.append(label)
-	online_hint = _make_online_label("ESC/B BACK", Vector2(0.0, 438.0), Vector2(520.0, 30.0), 16)
+	online_hint = _make_online_label("ESC/B BACK", Vector2(0.0, 456.0), Vector2(520.0, 30.0), 16)
 	online_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	online_card.add_child(online_hint)
 

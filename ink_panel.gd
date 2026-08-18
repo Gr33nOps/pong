@@ -4,7 +4,7 @@ extends Panel
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var paper := StyleBoxFlat.new()
-	paper.bg_color = Color(1.0, 1.0, 1.0, 0.96)
+	paper.bg_color = Color(1.0, 1.0, 1.0, 1.0)
 	paper.border_width_left = 0
 	paper.border_width_top = 0
 	paper.border_width_right = 0
