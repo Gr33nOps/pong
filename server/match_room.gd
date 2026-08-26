@@ -39,10 +39,17 @@ func add_creator(peer_id: int) -> bool:
 
 
 func add_joiner(peer_id: int) -> bool:
-	if right_peer_id != -1 or peer_id == left_peer_id:
+	if is_full() or has_peer(peer_id):
 		return false
-	right_peer_id = peer_id
-	_send(peer_id, {"type": "room_joined", "code": code, "side": "right"})
+	var joined_side := "right"
+	if left_peer_id == -1:
+		left_peer_id = peer_id
+		joined_side = "left"
+	else:
+		right_peer_id = peer_id
+	_rematch_votes.clear()
+	simulation.reset_match()
+	_send(peer_id, {"type": "room_joined", "code": code, "side": joined_side})
 	_send(left_peer_id, {"type": "opponent_connected", "side": "left"})
 	_send(right_peer_id, {"type": "opponent_connected", "side": "right"})
 	started = true
@@ -63,6 +70,7 @@ func remove_peer(peer_id: int) -> Array[int]:
 			remaining.append(left_peer_id)
 	if not remaining.is_empty():
 		_send(remaining[0], {"type": "opponent_disconnected"})
+	_rematch_votes.clear()
 	started = false
 	return remaining
 

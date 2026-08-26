@@ -259,6 +259,23 @@ func online_rematch_started() -> void:
 	serving_changed.emit(serving)
 
 
+func cancel_online_match() -> void:
+	if mode != Constants.MODE_ONLINE:
+		return
+	left_score = 0
+	right_score = 0
+	is_game_over = false
+	paused = false
+	serving = true
+	between_points = false
+	mode_selected = false
+	_online_last_point = ""
+	score_changed.emit(left_score, right_score)
+	paused_changed.emit(paused)
+	_sync_tree_pause()
+	serving_changed.emit(serving)
+
+
 func is_cpu_serving() -> bool:
 	if mode != Constants.MODE_AI:
 		return false

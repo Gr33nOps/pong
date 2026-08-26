@@ -10,8 +10,10 @@ func _init() -> void:
 func _run() -> void:
 	var constants = get_root().get_node("Constants")
 	var game_state = get_root().get_node("GameState")
+	var network_manager = get_root().get_node("NetworkManager")
 	_check(constants.WINNER_SCORE == 5, "winner score remains first-to-five")
 	_check(constants.PADDLE_SPEED > 0.0, "paddle speed is positive")
+	_check(network_manager.process_mode == Node.PROCESS_MODE_ALWAYS, "Online networking keeps polling while menus pause the match")
 
 	game_state.reset_game()
 	game_state.select_mode(constants.MODE_AI)
@@ -41,6 +43,8 @@ func _run() -> void:
 	_check(game_state.mode == constants.MODE_ONLINE and not game_state.player_is_left and game_state.mode_selected, "Online side assignment starts a match")
 	game_state.apply_online_snapshot({"scores": {"left": 1, "right": 0}, "serving": true, "between_points": true, "serve_toward_right": false, "game_over": false, "last_point": "left"})
 	_check(game_state.left_score == 1 and game_state.between_points and not game_state.serve_toward_right, "Online snapshots update score and serve state")
+	game_state.cancel_online_match()
+	_check(not game_state.mode_selected and not game_state.is_game_over and not paused, "Leaving an interrupted Online match restores the lobby state")
 	game_state.reset_game()
 	game_state.player_is_left = true
 	var legacy_settings := ConfigFile.new()

@@ -25,7 +25,15 @@ func _initialize() -> void:
 	_check(serve.online_card is Control and not serve.online_card is Panel, "Online lobby has no background card")
 	_check(input_style != null and input_style.border_width_left == 0 and input_style.border_width_top == 0 and input_style.border_width_right == 0 and input_style.border_width_bottom == 0, "room-code input has no outline")
 	_check(serve.online_option_bgs[0].size == Vector2(480.0, 58.0) and serve.online_option_bgs[1].position.y - serve.online_option_bgs[0].position.y == 70.0, "Online rows match the shared width and gap")
+	serve._online_countdown_active = true
+	game_state.begin_online_match("left")
+	serve.online_status.text = "3"
+	serve._refresh()
+	_check(serve.online_overlay.visible and serve.online_title.text == "MATCH READY" and serve.online_status.text == "3", "Online countdown stays visible and keeps its countdown text")
+	serve._cancel_online_countdown()
+	game_state.cancel_online_match()
 	serve._close_online_lobby()
+	scene.free()
 	if failures.is_empty():
 		print("PONG menu layout smoke: passed")
 		quit(0)

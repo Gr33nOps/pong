@@ -26,6 +26,12 @@ var _last_input_sent := 0.0
 var _input_send_interval := 1.0 / 30.0
 
 
+func _ready() -> void:
+	# Online packets must continue to be polled while local pause and game-over
+	# overlays pause the rest of the scene tree (notably for rematch replies).
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
 func _process(delta: float) -> void:
 	if socket == null:
 		return

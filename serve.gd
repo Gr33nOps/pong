@@ -45,6 +45,7 @@ var _online_view := OnlineView.OPTIONS
 var _online_cursor := 0
 var _pending_online_action := ""
 var _online_countdown_active := false
+var _online_countdown_id := 0
 const TAP_SLACK := 28.0
 
 
@@ -330,7 +331,7 @@ func _handle_serve_input(delta: float) -> void:
 
 
 func _launch_player_serve() -> void:
-	if not _serve_ready or not GameState.serving or GameState.is_cpu_serving():
+	if not _serve_ready or not GameState.serving or GameState.is_cpu_serving() or _online_countdown_active:
 		return
 	SFX.play("confirm", 1.15)
 	if GameState.mode == Constants.MODE_ONLINE:
@@ -485,7 +486,7 @@ func _refresh() -> void:
 		serve_title.visible = false
 		hint_label.visible = false
 		_hide_options()
-		online_overlay.visible = in_menu
+		online_overlay.visible = in_menu or _online_countdown_active
 		_update_online_view()
 		return
 	if _step == Step.ONLINE:
@@ -723,6 +724,7 @@ func _open_online_lobby() -> void:
 
 
 func _close_online_lobby() -> void:
+	_cancel_online_countdown()
 	if NetworkManager.state != NetworkManager.STATE_DISCONNECTED:
 		NetworkManager.disconnect_from_server()
 	_step = Step.MODE
@@ -864,7 +866,10 @@ func _on_online_connection_changed(state: int, message: String) -> void:
 	if _step != Step.ONLINE:
 		return
 	online_status.text = message
-	if state == NetworkManager.STATE_DISCONNECTED and _online_view == OnlineView.WAITING:
+	if state == NetworkManager.STATE_DISCONNECTED and GameState.mode_selected and GameState.mode == Constants.MODE_ONLINE:
+		_return_to_online_lobby()
+		_show_online_error(message)
+	elif state == NetworkManager.STATE_DISCONNECTED and _online_view == OnlineView.WAITING:
 		_show_online_error(message)
 	else:
 		_update_online_view()
@@ -886,6 +891,9 @@ func _on_online_opponent_changed(connected: bool) -> void:
 	if connected:
 		online_status.text = "OPPONENT CONNECTED"
 	else:
+		if GameState.mode_selected and GameState.mode == Constants.MODE_ONLINE:
+			_return_to_online_lobby()
+		_online_view = OnlineView.WAITING
 		online_status.text = "OPPONENT DISCONNECTED"
 	_update_online_view()
 
@@ -894,11 +902,13 @@ func _on_online_match_ready() -> void:
 	if _step != Step.ONLINE or _online_countdown_active:
 		return
 	_online_countdown_active = true
+	_online_countdown_id += 1
+	var countdown_id := _online_countdown_id
 	GameState.begin_online_match(NetworkManager.player_side)
-	_run_online_countdown()
+	_run_online_countdown(countdown_id)
 
 
-func _run_online_countdown() -> void:
+func _run_online_countdown(countdown_id: int) -> void:
 	_online_view = OnlineView.WAITING
 	online_title.text = "MATCH READY"
 	online_code.text = ""
@@ -907,11 +917,16 @@ func _run_online_countdown() -> void:
 		online_status.text = str(count)
 		_update_online_view()
 		await get_tree().create_timer(0.8, true).timeout
+		if not _online_countdown_active or countdown_id != _online_countdown_id:
+			return
 	online_status.text = "GO"
 	_update_online_view()
 	await get_tree().create_timer(0.45, true).timeout
+	if not _online_countdown_active or countdown_id != _online_countdown_id:
+		return
 	_online_countdown_active = false
 	_update_online_view()
+	_refresh()
 
 
 func _update_online_view() -> void:
@@ -922,6 +937,14 @@ func _update_online_view() -> void:
 	online_input.visible = _online_view == OnlineView.JOIN
 	online_code.visible = _online_view == OnlineView.WAITING
 	online_input.position.y = 148.0
+	if _online_countdown_active:
+		online_title.text = "MATCH READY"
+		online_code.visible = false
+		online_hint.text = "PLEASE WAIT"
+		for i in range(online_option_bgs.size()):
+			online_option_bgs[i].visible = false
+			online_option_labels[i].visible = false
+		return
 	online_title.text = "ONLINE"
 	online_hint.text = "ESC/B BACK"
 	var names := PackedStringArray()
@@ -967,3 +990,15 @@ func _online_serve_aim() -> float:
 	var center_offset: float = (paddle.position.y - mid) / maxf(paddle.half_height(), 1.0)
 	var paddle_input: float = paddle.last_vy / maxf(paddle.speed, 1.0) if paddle.has_pointer_target() else paddle.get_move_input()
 	return clampf(paddle_input * 0.85 + center_offset * 0.4, -1.0, 1.0)
+
+
+func _cancel_online_countdown() -> void:
+	_online_countdown_active = false
+	_online_countdown_id += 1
+
+
+func _return_to_online_lobby() -> void:
+	_cancel_online_countdown()
+	GameState.cancel_online_match()
+	_online_view = OnlineView.WAITING if not NetworkManager.room_code.is_empty() else OnlineView.ERROR
+	_refresh()
