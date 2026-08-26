@@ -60,6 +60,36 @@ jobs:
           mkdir -p /tmp/pong-web
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Web" /tmp/pong-web/index.html
 
+      - name: Version Web runtime assets
+        run: |
+          set -euo pipefail
+          cd /tmp/pong-web
+          asset_base="pong-${GITHUB_SHA::12}"
+          for suffix in js pck wasm audio.worklet.js audio.position.worklet.js; do
+            mv "index.${suffix}" "${asset_base}.${suffix}"
+          done
+          mv index.png "${asset_base}.png"
+          mv index.icon.png "${asset_base}.icon.png"
+          mv index.apple-touch-icon.png "${asset_base}.apple-touch-icon.png"
+          sed -i \
+            -e "s/index\.apple-touch-icon\.png/${asset_base}.apple-touch-icon.png/g" \
+            -e "s/index\.icon\.png/${asset_base}.icon.png/g" \
+            -e "s/index\.png/${asset_base}.png/g" \
+            -e "s/index\.js/${asset_base}.js/g" \
+            -e "s/\"executable\":\"index\"/\"executable\":\"${asset_base}\"/g" \
+            -e "s/\"index\.pck\"/\"${asset_base}.pck\"/g" \
+            -e "s/\"index\.wasm\"/\"${asset_base}.wasm\"/g" \
+            index.html
+          for suffix in js pck wasm audio.worklet.js audio.position.worklet.js png icon.png apple-touch-icon.png; do
+            test -s "${asset_base}.${suffix}"
+          done
+          grep -Fq "src=\"${asset_base}.js\"" index.html
+          grep -Fq "\"executable\":\"${asset_base}\"" index.html
+          if grep -Eq 'src="index\.(js|png)"|"executable":"index"|"index\.(pck|wasm)"' index.html; then
+            echo "Unversioned runtime reference remains in index.html" >&2
+            exit 1
+          fi
+
       - name: Export Windows smoke build
         run: |
           set -euo pipefail
