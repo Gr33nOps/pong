@@ -8,6 +8,10 @@ env:
   GODOT_VERSION: 4.7.1
   EXPORT_NAME: pong
 
+defaults:
+  run:
+    shell: bash
+
 permissions:
   contents: write
 
@@ -80,15 +84,54 @@ jobs:
       - name: Package release archives
         run: |
           set -euo pipefail
-          cd /tmp/pong/windows && zip -q -r "$GITHUB_WORKSPACE/pong-windows.zip" .
-          cd /tmp/pong/web && zip -q -r "$GITHUB_WORKSPACE/pong-web.zip" .
-          cp /tmp/pong/android/pong.apk "$GITHUB_WORKSPACE/pong-android-sideload.apk"
+          WINDOWS_ARCHIVE="Pong-v${VERSION}-Windows-x64.zip"
+          WEB_ARCHIVE="Pong-v${VERSION}-Web-itch.zip"
+          ANDROID_APK="Pong-v${VERSION}-Android-arm64-debug.apk"
+          cd /tmp/pong/windows && zip -q -r "$GITHUB_WORKSPACE/$WINDOWS_ARCHIVE" .
+          cd /tmp/pong/web && zip -q -r "$GITHUB_WORKSPACE/$WEB_ARCHIVE" .
+          cp /tmp/pong/android/pong.apk "$GITHUB_WORKSPACE/$ANDROID_APK"
+          cd "$GITHUB_WORKSPACE"
+          sha256sum "$WINDOWS_ARCHIVE" "$WEB_ARCHIVE" "$ANDROID_APK" > SHA256SUMS.txt
+          cat > RELEASE_NOTES.md <<EOF
+          # PONG v${VERSION}
+
+          This patch release makes Online matches more reliable across countdowns, pauses, rematches, disconnects, and replacement players.
+
+          ## What changed
+
+          - Online countdowns remain visible and block early serves.
+          - Network polling continues through pause and game-over screens, allowing rematch replies to arrive.
+          - Connection interruptions return players to a safe lobby state.
+          - Rooms can accept a replacement after the creator disconnects.
+          - Replacement pairings start fresh without stale inputs or rematch votes.
+          - Added regression coverage for Online lobby, countdown, pause, and rejoin behavior.
+
+          ## Downloads
+
+          | Platform | File | Notes |
+          |---|---|---|
+          | Windows x64 | \`$WINDOWS_ARCHIVE\` | Extract and run the included executable. |
+          | Web | \`$WEB_ARCHIVE\` | Browser-ready archive with \`index.html\` at its root. |
+          | Android arm64 | \`$ANDROID_APK\` | Debug-signed APK intended for direct sideloading. |
+
+          SHA-256 hashes for all downloads are provided in \`SHA256SUMS.txt\`.
+
+          ## Online multiplayer
+
+          Choose **Online**, create a room, then share the six-character code with the second player. The hosted server may take a moment to wake after being idle.
+
+          ## Verification
+
+          Gameplay, menu layout, Online lobby, live server connection, two-client room flow, disconnect/rejoin, main-scene startup, and release exports were validated with Godot ${GODOT_VERSION}.
+          EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          generate_release_notes: true
+          name: PONG v${{ env.VERSION }}
+          body_path: RELEASE_NOTES.md
           files: |
-            pong-windows.zip
-            pong-web.zip
-            pong-android-sideload.apk
+            Pong-v${{ env.VERSION }}-Windows-x64.zip
+            Pong-v${{ env.VERSION }}-Web-itch.zip
+            Pong-v${{ env.VERSION }}-Android-arm64-debug.apk
+            SHA256SUMS.txt
