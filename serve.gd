@@ -654,6 +654,10 @@ func _make_online_overlay() -> void:
 	online_card.add_child(online_status)
 	online_code = _make_online_label("", Vector2(0.0, 160.0), Vector2(520.0, 48.0), 36)
 	online_code.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	online_code.mouse_filter = Control.MOUSE_FILTER_STOP
+	online_code.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	online_code.tooltip_text = "COPY ROOM CODE"
+	online_code.gui_input.connect(_on_online_code_gui)
 	online_card.add_child(online_code)
 	online_input = LineEdit.new()
 	online_input.position = Vector2(120.0, 160.0)
@@ -743,7 +747,7 @@ func _online_option_count() -> int:
 		OnlineView.JOIN:
 			return 2
 		OnlineView.WAITING:
-			return 1
+			return 1 if NetworkManager.room_code.is_empty() else 2
 		OnlineView.ERROR:
 			return 2
 	return 0
@@ -794,9 +798,12 @@ func _confirm_online() -> void:
 			else:
 				_open_online_options()
 		OnlineView.WAITING:
-			SFX.play("nav")
-			NetworkManager.leave_room()
-			_open_online_options()
+			if NetworkManager.room_code.is_empty() or _online_cursor == 1:
+				SFX.play("nav")
+				NetworkManager.leave_room()
+				_open_online_options()
+			else:
+				_copy_online_code()
 		OnlineView.ERROR:
 			if _online_cursor == 0:
 				SFX.play("confirm")
@@ -844,6 +851,25 @@ func _on_online_option_gui(event: InputEvent, index: int) -> void:
 	if activated:
 		_update_online_view()
 		_confirm_online()
+
+
+func _on_online_code_gui(event: InputEvent) -> void:
+	if _step != Step.ONLINE or _online_view != OnlineView.WAITING or NetworkManager.room_code.is_empty():
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_copy_online_code()
+	elif event is InputEventScreenTouch and event.pressed:
+		_copy_online_code()
+
+
+func _copy_online_code() -> void:
+	var code := NetworkManager.room_code.strip_edges()
+	if code.is_empty():
+		return
+	DisplayServer.clipboard_set(code)
+	SFX.play("confirm")
+	online_status.text = "ROOM CODE COPIED"
+	online_hint.text = "SHARE IT WITH YOUR OPPONENT"
 
 
 func _open_online_options() -> void:
@@ -948,21 +974,31 @@ func _update_online_view() -> void:
 	online_title.text = "ONLINE"
 	online_hint.text = "ESC/B BACK"
 	var names := PackedStringArray()
+	var option_start_y := 204.0
 	match _online_view:
 		OnlineView.OPTIONS:
 			names = PackedStringArray(["CREATE ROOM", "JOIN ROOM", "BACK"])
 			online_code.text = ""
 		OnlineView.JOIN:
 			names = PackedStringArray(["JOIN ROOM", "BACK"])
-			online_hint.text = "TYPE CODE   ENTER JOIN   ESC/B BACK"
+			option_start_y = 218.0
+			online_hint.text = "TYPE CODE   ENTER TO JOIN   ESC/B BACK"
 		OnlineView.WAITING:
-			names = PackedStringArray(["LEAVE ROOM"])
-			online_title.text = "ROOM %s" % NetworkManager.room_code
-			online_hint.text = "WAITING FOR OPPONENT"
+			option_start_y = 220.0
+			online_title.text = "ONLINE ROOM"
+			if NetworkManager.room_code.is_empty():
+				names = PackedStringArray(["CANCEL"])
+				online_hint.text = "CREATING YOUR PRIVATE ROOM"
+			else:
+				names = PackedStringArray(["COPY CODE", "LEAVE ROOM"])
+				online_hint.text = "SHARE THIS CODE WITH YOUR OPPONENT"
 		OnlineView.ERROR:
 			names = PackedStringArray(["RETRY", "BACK"])
+			option_start_y = 218.0
 			online_code.text = ""
 	for i in range(online_option_bgs.size()):
+		online_option_bgs[i].position.y = option_start_y + i * 70.0
+		online_option_labels[i].position.y = option_start_y + 12.0 + i * 70.0
 		var on := i < names.size()
 		online_option_bgs[i].visible = on
 		online_option_labels[i].visible = on

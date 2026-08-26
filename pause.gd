@@ -39,6 +39,7 @@ func _ready() -> void:
 	master_knob.visible = false
 	$Root/Card/MasterTrack.visible = false
 	GameState.paused_changed.connect(_on_paused_changed)
+	GameState.game_over.connect(_on_game_over)
 	_update_hints()
 
 
@@ -223,6 +224,17 @@ func _on_paused_changed(paused: bool) -> void:
 		_fade_in()
 	else:
 		_fade_out()
+
+
+func _on_game_over(_winner: String) -> void:
+	# Online play can finish remotely while the local pause overlay is open.
+	# Modal overlays are exclusive: game over always replaces pause immediately.
+	if _fade_tween:
+		_fade_tween.kill()
+	_dragging_id = ""
+	_drag_pointer = -1
+	root.modulate.a = 0.0
+	visible = false
 
 
 func _fade_in() -> void:

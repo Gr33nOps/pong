@@ -9,6 +9,7 @@ func _initialize() -> void:
 	root.add_child(scene)
 	await process_frame
 	var game_state: Node = get_root().get_node("GameState")
+	var network_manager: Node = get_root().get_node("NetworkManager")
 	var serve = scene.get_node("serveOverlay")
 	var pause_card: Control = scene.get_node("pause/Root/Card")
 	var game_over_card: Control = scene.get_node("gameOver/Root/Card")
@@ -25,6 +26,17 @@ func _initialize() -> void:
 	_check(serve.online_card is Control and not serve.online_card is Panel, "Online lobby has no background card")
 	_check(input_style != null and input_style.border_width_left == 0 and input_style.border_width_top == 0 and input_style.border_width_right == 0 and input_style.border_width_bottom == 0, "room-code input has no outline")
 	_check(serve.online_option_bgs[0].size == Vector2(480.0, 58.0) and serve.online_option_bgs[1].position.y - serve.online_option_bgs[0].position.y == 70.0, "Online rows match the shared width and gap")
+	network_manager.room_code = "ABC234"
+	serve._online_view = serve.OnlineView.WAITING
+	serve._update_online_view()
+	_check(serve._online_option_count() == 2 and serve.online_option_labels[0].text == "COPY CODE" and serve.online_option_labels[1].text == "LEAVE ROOM", "Online room exposes copy and leave actions")
+	serve._copy_online_code()
+	_check(serve.online_status.text == "ROOM CODE COPIED", "Online room code copy gives immediate feedback")
+	var pause_overlay = scene.get_node("pause")
+	pause_overlay.visible = true
+	pause_overlay.root.modulate.a = 1.0
+	pause_overlay._on_game_over("blue")
+	_check(not pause_overlay.visible and pause_overlay.root.modulate.a == 0.0, "Game-over modal replaces the pause modal")
 	serve._online_countdown_active = true
 	game_state.begin_online_match("left")
 	serve.online_status.text = "3"
