@@ -1,5 +1,7 @@
 extends SceneTree
 
+const InkGeometry = preload("res://ink_geometry.gd")
+
 var failures: Array[String] = []
 
 
@@ -21,6 +23,9 @@ func _initialize() -> void:
 	_check(serve.option2_bg.position.y - serve.option1_bg.position.y == 78.0 and serve.option3_bg.position.y - serve.option2_bg.position.y == 78.0, "main menu rows use one gap")
 	_check(pause_card.position == Vector2(316.0, 64.0) and pause_card.size == Vector2(520.0, 520.0), "pause card uses the shared frame")
 	_check(game_over_card.position == Vector2(316.0, 64.0) and game_over_card.size == Vector2(520.0, 520.0), "game-over card uses the shared frame")
+	_check(pause_card.get_node("Bg").get_script().resource_path == "res://ink_panel.gd" and game_over_card.get_node("Bg").get_script().resource_path == "res://ink_panel.gd", "modal cards share the hand-drawn panel component")
+	var ink_outline := InkGeometry.rough_rect(Vector2(520.0, 520.0), 4.0, 3.4)
+	_check(ink_outline.size() > 8 and ink_outline[0].y != ink_outline[1].y and ink_outline[4].x != ink_outline[5].x, "shared ink outlines vary along horizontal and vertical edges")
 	serve._open_online_lobby()
 	var input_style := serve.online_input.get_theme_stylebox("normal") as StyleBoxFlat
 	_check(serve.online_card is Control and not serve.online_card is Panel, "Online lobby has no background card")

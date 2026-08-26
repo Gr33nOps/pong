@@ -1,6 +1,8 @@
 extends Panel
 ## Paper button with a slightly uneven ink outline.
 
+const InkGeometry = preload("res://ink_geometry.gd")
+
 @export var selected := false:
 	set(next):
 		selected = next
@@ -24,14 +26,9 @@ func _ready() -> void:
 func _draw() -> void:
 	if size.x < 12.0 or size.y < 12.0:
 		return
-	var ink := Color(0.08, 0.08, 0.075, 0.95 if selected else 0.58)
-	var faint := Color(0.08, 0.08, 0.075, 0.32)
-	var border_width := 2.1 if selected else 1.4
-	var p := PackedVector2Array([
-		Vector2(2, 3), Vector2(size.x * 0.28, 1), Vector2(size.x * 0.66, 2.5),
-		Vector2(size.x - 2, 1.5), Vector2(size.x - 1, size.y - 3),
-		Vector2(size.x * 0.68, size.y - 1), Vector2(size.x * 0.28, size.y - 2.5), Vector2(1, size.y - 1), Vector2(2, 3)
-	])
-	draw_polyline(p, ink, border_width, true)
-	draw_line(Vector2(8, size.y - 7), Vector2(size.x - 10, size.y - 8), faint, 1.0, true)
-	draw_line(Vector2(14, size.y - 5), Vector2(size.x * 0.45, size.y - 6), faint, 0.7, true)
+	var ink := Color(0.08, 0.08, 0.075, 0.96 if selected else 0.48)
+	var faint := Color(0.08, 0.08, 0.075, 0.3 if selected else 0.19)
+	var border_width := 2.2 if selected else 1.35
+	draw_polyline(InkGeometry.rough_rect(size, 3.0, 2.8, 0), ink, border_width, true)
+	draw_polyline(InkGeometry.rough_rect(size, 5.0, 1.7, 1), faint, 0.8, true)
+	draw_polyline(InkGeometry.top_scratch(size, 7.0, 1.8, 1), faint, 0.7, true)
