@@ -23,6 +23,10 @@ var _rotate_hint: CanvasLayer = null
 var _pointer_paddles: Dictionary = {}
 var _last_landscape := true
 var _orientation_paused := false
+var _online_snapshot_ready := false
+var _online_ball_target := Vector2.ZERO
+var _online_left_target := 360.0
+var _online_right_target := 360.0
 
 
 func _ready() -> void:
@@ -39,6 +43,7 @@ func _ready() -> void:
 	GameState.paused_changed.connect(_on_paused_changed)
 	NetworkManager.snapshot_received.connect(_on_online_snapshot)
 	NetworkManager.rematch_started.connect(_on_online_rematch_started)
+	GameState.online_match_cancelled.connect(_on_online_match_cancelled)
 	ball.rally_changed.connect(_on_rally_changed)
 	hud.bind_ball(ball)
 	GameState.reset_game()
@@ -129,6 +134,8 @@ func _paddle_for_pointer(pos: Vector2) -> Area2D:
 		return null
 	if GameState.serving:
 		var server_is_left := GameState.server_is_left()
+		if GameState.mode == Constants.MODE_ONLINE and not GameState.is_local_player_serving():
+			return null
 		if GameState.mode == Constants.MODE_AI and server_is_left != GameState.player_is_left:
 			return null
 		if GameState.mode == Constants.MODE_2P and ((pos.x < playfield_size.x * 0.5) != server_is_left):
@@ -179,6 +186,8 @@ func _notification(what: int) -> void:
 
 
 func _on_mode_changed(_mode: int) -> void:
+	if _mode == Constants.MODE_ONLINE:
+		_online_snapshot_ready = false
 	_set_match_visible(true)
 
 
@@ -227,6 +236,7 @@ func _physics_process(_delta: float) -> void:
 		trail.clear_points()
 		return
 	if GameState.mode == Constants.MODE_ONLINE:
+		_smooth_online_state(_delta)
 		_send_online_input()
 		return
 	if GameState.serving:
@@ -386,19 +396,41 @@ func _on_online_snapshot(snapshot: Dictionary) -> void:
 	var paddles = snapshot.get("paddles", {})
 	if paddles is Dictionary:
 		if paddles.has("left"):
-			paddle_left.position.y = float(paddles.get("left"))
+			_online_left_target = float(paddles.get("left"))
 		if paddles.has("right"):
-			paddle_right.position.y = float(paddles.get("right"))
+			_online_right_target = float(paddles.get("right"))
 	var ball_data = snapshot.get("ball", {})
 	if ball_data is Dictionary:
-		ball.position = Vector2(float(ball_data.get("x", ball.position.x)), float(ball_data.get("y", ball.position.y)))
+		_online_ball_target = Vector2(float(ball_data.get("x", ball.position.x)), float(ball_data.get("y", ball.position.y)))
 		ball.velocity = Vector2(float(ball_data.get("vx", ball.velocity.x)), float(ball_data.get("vy", ball.velocity.y)))
 		ball.rally_hits = int(snapshot.get("rally_hits", ball.rally_hits))
-		ball.visible = GameState.mode_selected and not GameState.is_game_over
+		ball.visible = GameState.mode_selected and not GameState.is_game_over and not GameState.between_points
+	if not _online_snapshot_ready:
+		paddle_left.position.y = _online_left_target
+		paddle_right.position.y = _online_right_target
+		ball.position = _online_ball_target
+		_online_snapshot_ready = true
+	elif bool(snapshot.get("between_points", false)) or bool(snapshot.get("serving", false)) or ball.position.distance_to(_online_ball_target) > 180.0:
+		ball.position = _online_ball_target
 	paddle_left.visible = GameState.mode_selected and not GameState.is_game_over
 	paddle_right.visible = GameState.mode_selected and not GameState.is_game_over
 	center_line_ink.visible = ball.velocity != Vector2.ZERO and not GameState.is_game_over
 
 
 func _on_online_rematch_started() -> void:
+	_online_snapshot_ready = false
 	GameState.online_rematch_started()
+
+
+func _smooth_online_state(delta: float) -> void:
+	if not _online_snapshot_ready:
+		return
+	var weight := 1.0 - exp(-60.0 * delta)
+	paddle_left.position.y = lerpf(paddle_left.position.y, _online_left_target, weight)
+	paddle_right.position.y = lerpf(paddle_right.position.y, _online_right_target, weight)
+	ball.position = ball.position.lerp(_online_ball_target, weight)
+
+
+func _on_online_match_cancelled() -> void:
+	_online_snapshot_ready = false
+	_set_match_visible(false)

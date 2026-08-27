@@ -51,8 +51,28 @@ jobs:
       - name: Static checks
         run: git diff --check
 
-      - name: Run smoke tests
-        run: /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --script tests/smoke.gd
+      - name: Run client smoke tests
+        run: |
+          set -euo pipefail
+          godot=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          for test in tests/smoke.gd tests/menu_layout_smoke.gd tests/online_lobby_smoke.gd; do
+            "$godot" --headless --path . --script "$test"
+          done
+
+      - name: Run authoritative Online tests
+        run: |
+          set -euo pipefail
+          godot=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          "$godot" --headless --path server --script res://match_lifecycle_smoke.gd
+          "$godot" --headless --path server --script res://room_rejoin_smoke.gd
+          PORT=9081 "$godot" --headless --path server --scene server_main.tscn >/tmp/pong-server.log 2>&1 &
+          server_pid=$!
+          cleanup() { kill "$server_pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          sleep 1
+          for test in tests/server_smoke.gd tests/server_multiclient_smoke.gd tests/online_match_lifecycle_smoke.gd tests/online_connection_smoke.gd; do
+            "$godot" --headless --path . --script "$test"
+          done
 
       - name: Export Web build
         run: |

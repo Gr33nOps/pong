@@ -86,6 +86,8 @@ func handle_message(peer_id: int, message: Dictionary) -> bool:
 			if simulation.serve(_side_for_peer(peer_id), float(message.get("aim", 0.0))):
 				_send_snapshot(true)
 		"rematch":
+			if not simulation.game_over:
+				return true
 			_rematch_votes[peer_id] = true
 			if _rematch_votes.size() >= 2 and is_full():
 				_rematch_votes.clear()

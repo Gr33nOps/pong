@@ -24,6 +24,8 @@ var _connect_started := 0.0
 var _connection_timeout := 20.0
 var _last_input_sent := 0.0
 var _input_send_interval := 1.0 / 30.0
+var _heartbeat_elapsed := 0.0
+const HEARTBEAT_INTERVAL := 10.0
 
 
 func _ready() -> void:
@@ -39,7 +41,12 @@ func _process(delta: float) -> void:
 	var ready := socket.get_ready_state()
 	if ready == WebSocketPeer.STATE_OPEN:
 		if state == STATE_CONNECTING:
+			_heartbeat_elapsed = 0.0
 			_set_state(STATE_CONNECTED, "CONNECTED TO ONLINE SERVER")
+		_heartbeat_elapsed += delta
+		if _heartbeat_elapsed >= HEARTBEAT_INTERVAL:
+			_heartbeat_elapsed = 0.0
+			_send({"type": "ping"})
 		while socket.get_available_packet_count() > 0:
 			_handle_packet(socket.get_packet())
 	elif ready == WebSocketPeer.STATE_CLOSED:
@@ -68,7 +75,7 @@ func connect_to_server(url: String = "") -> void:
 		_reset_connection("COULDN'T START CONNECTION")
 		return
 	_connect_started = Time.get_ticks_msec() / 1000.0
-	_connection_timeout = 8.0 if server_url.begins_with("ws://127.0.0.1") or server_url.begins_with("ws://localhost") else 20.0
+	_connection_timeout = 8.0 if server_url.begins_with("ws://127.0.0.1") or server_url.begins_with("ws://localhost") else 45.0
 	var wake_message := "START server/server_main.tscn FOR LOCAL PLAY" if _connection_timeout < 10.0 else "FREE SERVER MAY TAKE A MOMENT TO WAKE UP"
 	_set_state(STATE_CONNECTING, "CONNECTING TO ONLINE SERVER...\n" + wake_message)
 
@@ -80,22 +87,30 @@ func disconnect_from_server() -> void:
 
 
 func create_room() -> void:
-	_send({"type": "create_room"})
-	_set_state(STATE_CONNECTED, "CREATING ROOM...")
+	if state != STATE_CONNECTED or not room_code.is_empty():
+		_emit_error("FINISH THE CURRENT ONLINE ACTION FIRST")
+		return
+	if _send({"type": "create_room"}):
+		_set_state(STATE_CONNECTED, "CREATING ROOM...")
 
 
 func join_room(code: String) -> void:
+	if state != STATE_CONNECTED or not room_code.is_empty():
+		_emit_error("FINISH THE CURRENT ONLINE ACTION FIRST")
+		return
 	var normalized := code.strip_edges().to_upper()
 	var room_regex := RegEx.new()
 	room_regex.compile("^[A-Z0-9]{6}$")
 	if normalized.length() != 6 or room_regex.search(normalized) == null:
 		_emit_error("ROOM CODE MUST BE SIX CHARACTERS")
 		return
-	_send({"type": "join_room", "code": normalized})
-	_set_state(STATE_CONNECTED, "JOINING ROOM %s..." % normalized)
+	if _send({"type": "join_room", "code": normalized}):
+		_set_state(STATE_CONNECTED, "JOINING ROOM %s..." % normalized)
 
 
 func leave_room() -> void:
+	if room_code.is_empty():
+		return
 	_send({"type": "leave_room"})
 	room_code = ""
 	player_side = ""
@@ -124,11 +139,15 @@ func connection_is_open() -> bool:
 	return socket != null and socket.get_ready_state() == WebSocketPeer.STATE_OPEN
 
 
-func _send(message: Dictionary) -> void:
+func _send(message: Dictionary) -> bool:
 	if not connection_is_open():
 		_emit_error("NOT CONNECTED TO ONLINE SERVER")
-		return
-	socket.send_text(JSON.stringify(message))
+		return false
+	var result := socket.send_text(JSON.stringify(message))
+	if result != OK:
+		_emit_error("COULDN'T SEND DATA TO ONLINE SERVER")
+		return false
+	return true
 
 
 func _handle_packet(packet: PackedByteArray) -> void:
@@ -140,6 +159,7 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		_emit_error("SERVER SENT INVALID DATA")
 		return
 	var message: Dictionary = parsed
+	_heartbeat_elapsed = 0.0
 	var message_type := str(message.get("type", ""))
 	match message_type:
 		"room_created":
@@ -164,11 +184,17 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		"rematch_started":
 			rematch_started.emit()
 		"error":
-			_emit_error(str(message.get("message", "ONLINE ERROR")))
+			var server_message := str(message.get("message", "ONLINE ERROR"))
+			# Older hosted servers answer the application heartbeat as unknown.
+			# Treat that compatibility response as a successful keepalive.
+			if server_message != "UNKNOWN MESSAGE TYPE":
+				_emit_error(server_message)
 		"left_room":
 			room_code = ""
 			player_side = ""
 			_set_state(STATE_CONNECTED, "LEFT ROOM")
+		"pong":
+			pass
 		_:
 			pass
 
@@ -187,6 +213,7 @@ func _emit_error(message: String) -> void:
 
 func _reset_connection(message: String) -> void:
 	socket = null
+	_heartbeat_elapsed = 0.0
 	room_code = ""
 	player_side = ""
 	_set_state(STATE_DISCONNECTED, message)

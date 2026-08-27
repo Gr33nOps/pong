@@ -6,7 +6,10 @@ var requested := false
 
 
 func _initialize() -> void:
-	var result := socket.connect_to_url("ws://127.0.0.1:9081")
+	var url := OS.get_environment("PONG_TEST_SERVER_URL").strip_edges()
+	if url.is_empty():
+		url = "ws://127.0.0.1:9081"
+	var result := socket.connect_to_url(url)
 	if result != OK:
 		print("PONG server smoke: connection start failed")
 		quit(1)
@@ -26,9 +29,9 @@ func _process(delta: float) -> bool:
 				print("PONG server smoke: %s" % ("passed" if valid else "failed"))
 				socket.close()
 				quit(0 if valid else 1)
-				return false
+				return true
 	if elapsed > 8.0:
 		print("PONG server smoke: timed out")
 		quit(1)
-		return false
-	return true
+		return true
+	return false

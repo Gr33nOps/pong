@@ -11,8 +11,10 @@ func _initialize() -> void:
 	scene = packed.instantiate()
 	root.add_child(scene)
 	await process_frame
-	var serve = scene.get_node("serveOverlay")
-	serve._open_online_lobby()
+	var url := OS.get_environment("PONG_TEST_SERVER_URL").strip_edges()
+	if url.is_empty():
+		url = "ws://127.0.0.1:9081"
+	manager.connect_to_server(url)
 
 
 func _process(delta: float) -> bool:
@@ -21,9 +23,9 @@ func _process(delta: float) -> bool:
 		print("PONG online connection smoke: passed")
 		manager.disconnect_from_server()
 		quit(0)
-		return false
+		return true
 	if elapsed > 10.0:
 		print("PONG online connection smoke: timed out. %s" % manager.status_message)
 		quit(1)
-		return false
-	return true
+		return true
+	return false

@@ -54,8 +54,22 @@ jobs:
       - name: Import resources
         run: godot --headless --verbose --editor --quit
 
-      - name: Run deterministic smoke tests
-        run: godot --headless --path . --script tests/smoke.gd
+      - name: Run deterministic client and Online tests
+        run: |
+          set -euo pipefail
+          for test in tests/smoke.gd tests/menu_layout_smoke.gd tests/online_lobby_smoke.gd; do
+            godot --headless --path . --script "$test"
+          done
+          godot --headless --path server --script res://match_lifecycle_smoke.gd
+          godot --headless --path server --script res://room_rejoin_smoke.gd
+          PORT=9081 godot --headless --path server --scene server_main.tscn >/tmp/pong-server.log 2>&1 &
+          server_pid=$!
+          cleanup() { kill "$server_pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          sleep 1
+          for test in tests/server_smoke.gd tests/server_multiclient_smoke.gd tests/online_match_lifecycle_smoke.gd tests/online_connection_smoke.gd; do
+            godot --headless --path . --script "$test"
+          done
 
       - name: Export Windows Desktop
         run: |
@@ -95,16 +109,17 @@ jobs:
           cat > RELEASE_NOTES.md <<EOF
           # PONG v${VERSION}
 
-          This patch release makes Online matches more reliable across countdowns, pauses, rematches, disconnects, and replacement players.
+          This release rebuilds the Online match lifecycle and improves the feel of network play from room creation through rematch.
 
           ## What changed
 
-          - Online countdowns remain visible and block early serves.
-          - Network polling continues through pause and game-over screens, allowing rematch replies to arrive.
-          - Connection interruptions return players to a safe lobby state.
-          - Rooms can accept a replacement after the creator disconnects.
-          - Replacement pairings start fresh without stale inputs or rematch votes.
-          - Added regression coverage for Online lobby, countdown, pause, and rejoin behavior.
+          - Matches now continue correctly after every point instead of getting stuck before the next serve.
+          - Serve prompts identify whose turn it is and reject input from the wrong player.
+          - Snapshot smoothing makes ball and paddle motion feel steadier at the server update rate.
+          - Room creation and joining wait for sleeping servers and prevent duplicate requests.
+          - Heartbeats keep waiting rooms connected, while stale movement input now stops safely.
+          - Online pause, leave, disconnect, game-over, and two-player rematch states transition cleanly.
+          - Automated tests now play a real two-client match through room creation, scoring, and the next serve.
 
           ## Downloads
 

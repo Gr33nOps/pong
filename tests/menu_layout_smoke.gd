@@ -30,6 +30,7 @@ func _initialize() -> void:
 	var input_style := serve.online_input.get_theme_stylebox("normal") as StyleBoxFlat
 	_check(serve.online_card is Control and not serve.online_card is Panel, "Online lobby has no background card")
 	_check(input_style != null and input_style.border_width_left == 0 and input_style.border_width_top == 0 and input_style.border_width_right == 0 and input_style.border_width_bottom == 0, "room-code input has no outline")
+	_check(serve.online_input.position.x == 80.0 and serve.online_input_frame.position.x == 80.0 and serve.online_input.size.x == 360.0, "room-code field and ink frame are centered")
 	_check(serve.online_option_bgs[0].size == Vector2(480.0, 58.0) and serve.online_option_bgs[1].position.y - serve.online_option_bgs[0].position.y == 70.0, "Online rows match the shared width and gap")
 	network_manager.room_code = "ABC234"
 	serve._online_view = serve.OnlineView.WAITING
@@ -37,7 +38,16 @@ func _initialize() -> void:
 	_check(serve._online_option_count() == 2 and serve.online_option_labels[0].text == "COPY CODE" and serve.online_option_labels[1].text == "LEAVE ROOM", "Online room exposes copy and leave actions")
 	serve._copy_online_code()
 	_check(serve.online_status.text == "ROOM CODE COPIED", "Online room code copy gives immediate feedback")
+	game_state.begin_online_match("right")
+	game_state.serve_toward_right = true
+	serve._refresh()
+	_check(serve.serve_title.text == "OPPONENT SERVES", "Online serve prompt identifies the opponent's turn")
+	game_state.serve_toward_right = false
+	serve._refresh()
+	_check(serve.serve_title.text == "YOUR SERVE", "Online serve prompt identifies the local player's turn")
 	var pause_overlay = scene.get_node("pause")
+	pause_overlay._update_hints()
+	_check(not "rematch" in pause_overlay._ids() and pause_overlay.menu_label.text == "LEAVE MATCH", "Online pause menu cannot request an invalid mid-match rematch")
 	pause_overlay.visible = true
 	pause_overlay.root.modulate.a = 1.0
 	pause_overlay._on_game_over("blue")

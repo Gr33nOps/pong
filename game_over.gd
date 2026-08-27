@@ -13,6 +13,7 @@ extends CanvasLayer
 var _fade_tween: Tween = null
 var menu_hint: Label
 var _cursor := 0
+var _waiting_for_rematch := false
 
 
 func _ready() -> void:
@@ -24,6 +25,7 @@ func _ready() -> void:
 	blue_win_label.visible = false
 	GameState.game_over.connect(_on_game_over)
 	GameState.rematch_started.connect(_on_rematch_started)
+	GameState.online_match_cancelled.connect(_on_online_match_cancelled)
 	GameState.back_pressed.connect(_on_android_back)
 	_make_menu_hint()
 	_set_cursor(0)
@@ -69,6 +71,10 @@ func _make_menu_hint() -> void:
 
 
 func _update_control_hints() -> void:
+	if GameState.mode == Constants.MODE_ONLINE and _waiting_for_rematch:
+		restart_hint.text = "WAITING FOR OPPONENT..."
+		menu_hint.text = "ESC MENU" if not GameState.is_touch_ui() else "TAP MENU"
+		return
 	if GameState.is_touch_ui():
 		menu_hint.text = "TAP MENU"
 		restart_hint.text = "TAP REMATCH"
@@ -129,7 +135,12 @@ func _input(event: InputEvent) -> void:
 
 
 func _do_rematch() -> void:
+	if GameState.mode == Constants.MODE_ONLINE and _waiting_for_rematch:
+		return
 	SFX.play("confirm")
+	if GameState.mode == Constants.MODE_ONLINE:
+		_waiting_for_rematch = true
+		_update_control_hints()
 	GameState.rematch()
 
 
@@ -146,6 +157,7 @@ func _on_android_back() -> void:
 
 
 func _on_rematch_started() -> void:
+	_waiting_for_rematch = false
 	visible = false
 	if _fade_tween:
 		_fade_tween.kill()
@@ -153,6 +165,7 @@ func _on_rematch_started() -> void:
 
 
 func _on_game_over(winner: String) -> void:
+	_waiting_for_rematch = false
 	visible = true
 	_update_control_hints()
 	_set_cursor(0)
@@ -163,6 +176,14 @@ func _on_game_over(winner: String) -> void:
 	rally_label.text = "RALLY %d   BEST %d" % [GameState.last_rally, GameState.longest_rally]
 	SFX.play_win()
 	_fade_in()
+
+
+func _on_online_match_cancelled() -> void:
+	_waiting_for_rematch = false
+	visible = false
+	if _fade_tween:
+		_fade_tween.kill()
+	root.modulate.a = 0.0
 
 
 func _apply_winner_colors(_enabled: bool) -> void:

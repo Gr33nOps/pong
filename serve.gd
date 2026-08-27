@@ -37,6 +37,7 @@ var online_card: Control
 var online_title: Label
 var online_status: Label
 var online_code: Label
+var online_input_frame: Panel
 var online_input: LineEdit
 var online_hint: Label
 var online_option_bgs: Array[Panel] = []
@@ -44,6 +45,8 @@ var online_option_labels: Array[Label] = []
 var _online_view := OnlineView.OPTIONS
 var _online_cursor := 0
 var _pending_online_action := ""
+var _pending_online_code := ""
+var _online_request_sent := false
 var _online_countdown_active := false
 var _online_countdown_id := 0
 const TAP_SLACK := 28.0
@@ -320,6 +323,8 @@ func _go_back() -> void:
 func _handle_serve_input(delta: float) -> void:
 	if not _serve_ready:
 		return
+	if GameState.mode == Constants.MODE_ONLINE and not GameState.is_local_player_serving():
+		return
 	var ai_serving: bool = GameState.is_cpu_serving()
 	if ai_serving:
 		_ai_serve_timer += delta
@@ -333,6 +338,8 @@ func _handle_serve_input(delta: float) -> void:
 func _launch_player_serve() -> void:
 	if not _serve_ready or not GameState.serving or GameState.is_cpu_serving() or _online_countdown_active:
 		return
+	if GameState.mode == Constants.MODE_ONLINE and not GameState.is_local_player_serving():
+		return
 	SFX.play("confirm", 1.15)
 	if GameState.mode == Constants.MODE_ONLINE:
 		NetworkManager.request_serve(_online_serve_aim())
@@ -344,7 +351,7 @@ func _input(event: InputEvent) -> void:
 	if GameState.paused or GameState.is_game_over or not GameState.serving or not GameState.mode_selected:
 		_clear_pointer_state()
 		return
-	if GameState.is_cpu_serving() or not _serve_ready:
+	if GameState.is_cpu_serving() or not _serve_ready or (GameState.mode == Constants.MODE_ONLINE and not GameState.is_local_player_serving()):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		GameState.note_input("mouse")
@@ -383,6 +390,8 @@ func _input(event: InputEvent) -> void:
 
 func _is_valid_serve_pointer(pos: Vector2) -> bool:
 	if pos.y < Constants.HUD_HEIGHT or GameState.is_cpu_serving():
+		return false
+	if GameState.mode == Constants.MODE_ONLINE and not GameState.is_local_player_serving():
 		return false
 	var server_is_left := GameState.server_is_left()
 	if GameState.mode == Constants.MODE_AI and server_is_left != GameState.player_is_left:
@@ -547,7 +556,19 @@ func _refresh() -> void:
 		hint_label.position = Vector2(76, 336)
 		hint_label.size = Vector2(1000, 32)
 		hint_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1))
-		if GameState.is_cpu_serving():
+		if GameState.mode == Constants.MODE_ONLINE:
+			if GameState.is_local_player_serving():
+				serve_title.text = "YOUR SERVE"
+				if GameState.is_touch_ui():
+					hint_label.text = "DRAG TO AIM   TAP TO SERVE"
+				elif GameState.is_controller_ui():
+					hint_label.text = "LEFT STICK AIM   A SERVE   START MENU"
+				else:
+					hint_label.text = "W/S OR ARROWS AIM   SPACE SERVE   ESC MENU"
+			else:
+				serve_title.text = "OPPONENT SERVES"
+				hint_label.text = "WAIT FOR THE SERVE   ESC MENU"
+		elif GameState.is_cpu_serving():
 			serve_title.text = "CPU SERVE"
 			hint_label.text = "PAUSE AT BOTTOM" if GameState.is_touch_ui() else ("START PAUSE" if GameState.is_controller_ui() else "ESC PAUSE")
 		elif GameState.is_p1_serving():
@@ -659,8 +680,14 @@ func _make_online_overlay() -> void:
 	online_code.tooltip_text = "COPY ROOM CODE"
 	online_code.gui_input.connect(_on_online_code_gui)
 	online_card.add_child(online_code)
+	online_input_frame = Panel.new()
+	online_input_frame.set_script(preload("res://ink_panel.gd"))
+	online_input_frame.position = Vector2(80.0, 148.0)
+	online_input_frame.size = Vector2(360.0, 56.0)
+	online_input_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	online_card.add_child(online_input_frame)
 	online_input = LineEdit.new()
-	online_input.position = Vector2(120.0, 160.0)
+	online_input.position = Vector2(80.0, 150.0)
 	online_input.size = Vector2(360.0, 52.0)
 	online_input.max_length = 6
 	online_input.placeholder_text = "6-CHARACTER CODE"
@@ -722,6 +749,8 @@ func _open_online_lobby() -> void:
 	_online_view = OnlineView.OPTIONS
 	_online_cursor = 0
 	_pending_online_action = ""
+	_pending_online_code = ""
+	_online_request_sent = false
 	GameState.select_mode(Constants.MODE_ONLINE)
 	NetworkManager.connect_to_server()
 	_refresh()
@@ -736,6 +765,8 @@ func _close_online_lobby() -> void:
 	_online_view = OnlineView.OPTIONS
 	_online_cursor = 0
 	_pending_online_action = ""
+	_pending_online_code = ""
+	_online_request_sent = false
 	online_overlay.visible = false
 	_refresh()
 
@@ -777,12 +808,16 @@ func _confirm_online() -> void:
 		OnlineView.OPTIONS:
 			match _online_cursor:
 				0:
-					if NetworkManager.connection_is_open():
-						SFX.play("confirm")
-						_pending_online_action = "create"
-						NetworkManager.create_room()
-					else:
-						_show_online_error("STILL CONNECTING. TRY AGAIN.")
+					if not _pending_online_action.is_empty():
+						return
+					SFX.play("confirm")
+					_pending_online_action = "create"
+					_pending_online_code = ""
+					_online_request_sent = false
+					_online_view = OnlineView.WAITING
+					online_code.text = ""
+					_update_online_view()
+					_send_pending_online_action()
 				1:
 					SFX.play("confirm")
 					_online_view = OnlineView.JOIN
@@ -798,7 +833,13 @@ func _confirm_online() -> void:
 			else:
 				_open_online_options()
 		OnlineView.WAITING:
-			if NetworkManager.room_code.is_empty() or _online_cursor == 1:
+			if NetworkManager.room_code.is_empty():
+				SFX.play("nav")
+				_pending_online_action = ""
+				NetworkManager.disconnect_from_server()
+				NetworkManager.connect_to_server()
+				_open_online_options()
+			elif _online_cursor == 1:
 				SFX.play("nav")
 				NetworkManager.leave_room()
 				_open_online_options()
@@ -816,17 +857,21 @@ func _confirm_online() -> void:
 
 
 func _submit_online_join() -> void:
+	if not _pending_online_action.is_empty():
+		return
 	var code := online_input.text.strip_edges().to_upper()
 	if code.length() != 6:
 		_show_online_error("ENTER THE SIX-CHARACTER ROOM CODE")
 		return
-	if not NetworkManager.connection_is_open():
-		_show_online_error("STILL CONNECTING. TRY AGAIN.")
-		return
 	SFX.play("confirm")
 	_pending_online_action = "join"
-	NetworkManager.join_room(code)
+	_pending_online_code = code
+	_online_request_sent = false
+	_online_view = OnlineView.WAITING
+	online_code.text = ""
 	online_input.release_focus()
+	_update_online_view()
+	_send_pending_online_action()
 
 
 func _on_online_text_submitted(_text: String) -> void:
@@ -873,6 +918,9 @@ func _copy_online_code() -> void:
 
 
 func _open_online_options() -> void:
+	_pending_online_action = ""
+	_pending_online_code = ""
+	_online_request_sent = false
 	_online_view = OnlineView.OPTIONS
 	_online_cursor = 0
 	online_input.release_focus()
@@ -881,6 +929,9 @@ func _open_online_options() -> void:
 
 func _show_online_error(message: String) -> void:
 	SFX.play("nav")
+	_pending_online_action = ""
+	_pending_online_code = ""
+	_online_request_sent = false
 	_online_view = OnlineView.ERROR
 	_online_cursor = 0
 	online_status.text = message
@@ -893,10 +944,14 @@ func _on_online_connection_changed(state: int, message: String) -> void:
 		return
 	online_status.text = message
 	if state == NetworkManager.STATE_DISCONNECTED and GameState.mode_selected and GameState.mode == Constants.MODE_ONLINE:
+		_pending_online_action = ""
 		_return_to_online_lobby()
 		_show_online_error(message)
 	elif state == NetworkManager.STATE_DISCONNECTED and _online_view == OnlineView.WAITING:
+		_pending_online_action = ""
 		_show_online_error(message)
+	elif state == NetworkManager.STATE_CONNECTED and not _pending_online_action.is_empty():
+		_send_pending_online_action()
 	else:
 		_update_online_view()
 
@@ -905,6 +960,9 @@ func _on_online_room_changed(code: String, _side: String, status: String) -> voi
 	if _step != Step.ONLINE:
 		return
 	_online_view = OnlineView.WAITING
+	_pending_online_action = ""
+	_pending_online_code = ""
+	_online_request_sent = false
 	_online_cursor = 0
 	online_code.text = code
 	online_status.text = status
@@ -961,8 +1019,9 @@ func _update_online_view() -> void:
 	var count := _online_option_count()
 	_online_cursor = clampi(_online_cursor, 0, maxi(count - 1, 0))
 	online_input.visible = _online_view == OnlineView.JOIN
+	online_input_frame.visible = _online_view == OnlineView.JOIN
 	online_code.visible = _online_view == OnlineView.WAITING
-	online_input.position.y = 148.0
+	online_input.position.y = 150.0
 	if _online_countdown_active:
 		online_title.text = "MATCH READY"
 		online_code.visible = false
@@ -988,7 +1047,10 @@ func _update_online_view() -> void:
 			online_title.text = "ONLINE ROOM"
 			if NetworkManager.room_code.is_empty():
 				names = PackedStringArray(["CANCEL"])
-				online_hint.text = "CREATING YOUR PRIVATE ROOM"
+				if _pending_online_action == "join":
+					online_hint.text = "CHECKING ROOM CODE"
+				else:
+					online_hint.text = "CREATING YOUR PRIVATE ROOM"
 			else:
 				names = PackedStringArray(["COPY CODE", "LEAVE ROOM"])
 				online_hint.text = "SHARE THIS CODE WITH YOUR OPPONENT"
@@ -1011,13 +1073,26 @@ func _update_online_view() -> void:
 	if _online_view == OnlineView.OPTIONS and NetworkManager.state == NetworkManager.STATE_CONNECTING:
 		online_status.text = "CONNECTING...\nSERVER MAY TAKE A MOMENT"
 	if _online_view == OnlineView.WAITING and online_code.text.is_empty():
-		online_status.text = "CREATING ROOM..."
+		if not NetworkManager.connection_is_open():
+			online_status.text = "CONNECTING TO ONLINE SERVER..."
+		else:
+			online_status.text = "JOINING ROOM..." if _pending_online_action == "join" else "CREATING ROOM..."
 
 
 func _on_online_error(message: String) -> void:
 	if _step != Step.ONLINE:
 		return
 	_show_online_error(message)
+
+
+func _send_pending_online_action() -> void:
+	if _pending_online_action.is_empty() or _online_request_sent or not NetworkManager.connection_is_open():
+		return
+	_online_request_sent = true
+	if _pending_online_action == "create":
+		NetworkManager.create_room()
+	elif _pending_online_action == "join":
+		NetworkManager.join_room(_pending_online_code)
 
 
 func _online_serve_aim() -> float:

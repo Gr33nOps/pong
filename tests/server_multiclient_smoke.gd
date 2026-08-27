@@ -13,8 +13,11 @@ var second_snapshot := false
 
 
 func _initialize() -> void:
-	var first_result := first.connect_to_url("ws://127.0.0.1:9081")
-	var second_result := second.connect_to_url("ws://127.0.0.1:9081")
+	var url := OS.get_environment("PONG_TEST_SERVER_URL").strip_edges()
+	if url.is_empty():
+		url = "ws://127.0.0.1:9081"
+	var first_result := first.connect_to_url(url)
+	var second_result := second.connect_to_url(url)
 	if first_result != OK or second_result != OK:
 		print("PONG multiclient server smoke: connection start failed")
 		quit(1)
@@ -37,12 +40,12 @@ func _process(delta: float) -> bool:
 		first.close()
 		second.close()
 		quit(0)
-		return false
+		return true
 	if elapsed > 8.0:
 		print("PONG multiclient server smoke: timed out")
 		quit(1)
-		return false
-	return true
+		return true
+	return false
 
 
 func _read_first_packets() -> void:

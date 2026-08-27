@@ -55,7 +55,11 @@ func _ensure_menu_label() -> void:
 
 
 func _ids() -> Array[String]:
-	var ids: Array[String] = ["resume", "rematch", "menu", "sfx"]
+	var ids: Array[String] = ["resume"]
+	if GameState.mode != Constants.MODE_ONLINE:
+		ids.append("rematch")
+	ids.append("menu")
+	ids.append("sfx")
 	if GameState.mode == Constants.MODE_AI:
 		ids.append("difficulty")
 	return ids
@@ -269,6 +273,8 @@ func _select_option() -> void:
 			GameState.rematch()
 		"menu":
 			SFX.play("confirm")
+			if GameState.mode == Constants.MODE_ONLINE:
+				NetworkManager.disconnect_from_server()
 			get_tree().reload_current_scene()
 		"quit":
 			get_tree().quit()
@@ -304,14 +310,22 @@ func _update_hints() -> void:
 	var ids := _ids()
 	_cursor = clampi(_cursor, 0, ids.size() - 1)
 	quit_label.visible = false
+	restart_label.visible = GameState.mode != Constants.MODE_ONLINE
+	menu_label.position.y = 124.0 if GameState.mode == Constants.MODE_ONLINE else 162.0
+	volume_label.position.y = 172.0 if GameState.mode == Constants.MODE_ONLINE else 214.0
+	sfx_pct.position.y = 172.0 if GameState.mode == Constants.MODE_ONLINE else 214.0
+	$Root/Card/SfxTrack.position.y = 180.0 if GameState.mode == Constants.MODE_ONLINE else 222.0
 	difficulty_label.visible = GameState.mode == Constants.MODE_AI
 	# The game uses one monochrome ink palette by design.
 	resume_label.text = "RESUME"
 	restart_label.text = "REMATCH"
-	menu_label.text = "MAIN MENU"
+	menu_label.text = "LEAVE MATCH" if GameState.mode == Constants.MODE_ONLINE else "MAIN MENU"
 	volume_label.text = "SFX"
 	difficulty_label.text = "CPU DIFFICULTY    <  %s  >" % GameState.difficulty_label().to_upper()
-	if GameState.is_touch_ui():
+	$Root/Card/pauseLabel.text = "ONLINE MENU" if GameState.mode == Constants.MODE_ONLINE else "PAUSED"
+	if GameState.mode == Constants.MODE_ONLINE:
+		pause_hint.text = "MATCH CONTINUES ONLINE\nSELECT RESUME OR LEAVE MATCH"
+	elif GameState.is_touch_ui():
 		pause_hint.text = "TAP ROW     DRAG SFX"
 	elif GameState.is_controller_ui():
 		pause_hint.text = "STICK MOVE     LEFT/RIGHT CHANGE\nA SELECT     B RESUME"

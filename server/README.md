@@ -20,4 +20,4 @@ The free service may sleep when idle. The client therefore keeps the explicit wa
 
 ## Protocol
 
-Clients send JSON messages containing `create_room`, `join_room`, `leave_room`, `input`, `serve`, or `rematch`. Clients never send authoritative positions or scores. The server returns room events, connection events, and snapshots containing ball position and velocity, paddle positions, score, serve state, and match state.
+Clients send JSON messages containing `create_room`, `join_room`, `leave_room`, `input`, `serve`, `rematch`, or the `ping` keepalive. Clients never send authoritative positions or scores. The server answers keepalives with `pong` and returns room events, connection events, and snapshots containing ball position and velocity, paddle positions, score, serve state, and match state.

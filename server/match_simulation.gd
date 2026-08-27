@@ -23,6 +23,7 @@ const ENGLISH := 0.4
 const RALLY_SPEED_STEP := 0.006
 const WINNER_SCORE := 5
 const SCORE_HOLD := 0.4
+const INPUT_TIMEOUT := 0.3
 
 var left_score := 0
 var right_score := 0
@@ -46,6 +47,8 @@ var _right_axis := 0.0
 var _left_target_y := -1.0
 var _right_target_y := -1.0
 var _serve_cooldown := 0.0
+var _left_input_age := 0.0
+var _right_input_age := 0.0
 
 
 func reset_match() -> void:
@@ -67,6 +70,13 @@ func reset_match() -> void:
 	last_point = ""
 	tick_number = 0
 	_serve_cooldown = 0.0
+	_left_axis = 0.0
+	_right_axis = 0.0
+	_left_target_y = -1.0
+	_right_target_y = -1.0
+	_left_input_age = 0.0
+	_right_input_age = 0.0
+	_place_ball_for_serve()
 
 
 func set_input(side: String, axis: float, target_y: float) -> void:
@@ -75,10 +85,12 @@ func set_input(side: String, axis: float, target_y: float) -> void:
 	if side == "left":
 		_left_axis = clean_axis
 		_left_target_y = clean_target
+		_left_input_age = 0.0
 		return
 	if side == "right":
 		_right_axis = clean_axis
 		_right_target_y = clean_target
+		_right_input_age = 0.0
 
 
 func serve(side: String, aim: float) -> bool:
@@ -90,9 +102,7 @@ func serve(side: String, aim: float) -> bool:
 	var clean_aim := clampf(aim, -1.0, 1.0)
 	var angle := clampf(clean_aim, -1.0, 1.0) * deg_to_rad(SERVE_ANGLE_DEG)
 	var direction := 1.0 if serve_toward_right else -1.0
-	var paddle_y := left_y if serve_toward_right else right_y
-	var paddle_x := PADDLE_MARGIN + PADDLE_WIDTH * 0.5 if serve_toward_right else COURT_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH * 0.5
-	ball_position = Vector2(paddle_x + direction * (PADDLE_WIDTH * 0.5 + BALL_RADIUS + 6.0), paddle_y)
+	_place_ball_for_serve()
 	ball_velocity = Vector2(cos(angle) * direction, sin(angle)) * START_SPEED
 	serving = false
 	between_points = false
@@ -105,9 +115,18 @@ func serve(side: String, aim: float) -> bool:
 func tick(delta: float) -> void:
 	tick_number += 1
 	_serve_cooldown = maxf(_serve_cooldown - delta, 0.0)
+	_expire_stale_input(delta)
 	_update_paddle("left", delta)
 	_update_paddle("right", delta)
-	if serving or game_over or between_points or ball_velocity == Vector2.ZERO:
+	if between_points:
+		if _serve_cooldown > 0.0:
+			return
+		between_points = false
+		last_point = ""
+	if serving:
+		_place_ball_for_serve()
+		return
+	if game_over or ball_velocity == Vector2.ZERO:
 		return
 	var travel := ball_velocity.length() * delta
 	var steps := clampi(ceili(travel / BALL_COLLISION_STEP), 1, MAX_BALL_SUBSTEPS)
@@ -246,3 +265,21 @@ func _score(side: String) -> void:
 
 func _court_center_y() -> float:
 	return (HUD_HEIGHT + COURT_HEIGHT) * 0.5
+
+
+func _expire_stale_input(delta: float) -> void:
+	_left_input_age += delta
+	_right_input_age += delta
+	if _left_input_age > INPUT_TIMEOUT:
+		_left_axis = 0.0
+		_left_target_y = -1.0
+	if _right_input_age > INPUT_TIMEOUT:
+		_right_axis = 0.0
+		_right_target_y = -1.0
+
+
+func _place_ball_for_serve() -> void:
+	var direction := 1.0 if serve_toward_right else -1.0
+	var paddle_y := left_y if serve_toward_right else right_y
+	var paddle_x := PADDLE_MARGIN + PADDLE_WIDTH * 0.5 if serve_toward_right else COURT_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH * 0.5
+	ball_position = Vector2(paddle_x + direction * (PADDLE_WIDTH * 0.5 + BALL_RADIUS + 6.0), paddle_y)

@@ -13,6 +13,7 @@ signal ai_difficulty_changed(difficulty: float)
 signal point_scored(side: String)
 signal rematch_started
 signal back_pressed
+signal online_match_cancelled
 
 var left_score := 0
 var right_score := 0
@@ -274,6 +275,7 @@ func cancel_online_match() -> void:
 	paused_changed.emit(paused)
 	_sync_tree_pause()
 	serving_changed.emit(serving)
+	online_match_cancelled.emit()
 
 
 func is_cpu_serving() -> bool:
@@ -284,6 +286,12 @@ func is_cpu_serving() -> bool:
 
 func is_p1_serving() -> bool:
 	return serve_toward_right == player_is_left
+
+
+func is_local_player_serving() -> bool:
+	if mode == Constants.MODE_2P:
+		return true
+	return server_is_left() == player_is_left
 
 
 func rematch() -> void:

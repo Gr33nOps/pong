@@ -41,10 +41,16 @@ func _run() -> void:
 	game_state.reset_game()
 	game_state.begin_online_match("right")
 	_check(game_state.mode == constants.MODE_ONLINE and not game_state.player_is_left and game_state.mode_selected, "Online side assignment starts a match")
+	game_state.serve_toward_right = true
+	_check(not game_state.is_local_player_serving(), "remote serve ownership blocks the local player")
+	game_state.serve_toward_right = false
+	_check(game_state.is_local_player_serving(), "local serve ownership follows the assigned side")
 	game_state.apply_online_snapshot({"scores": {"left": 1, "right": 0}, "serving": true, "between_points": true, "serve_toward_right": false, "game_over": false, "last_point": "left"})
 	_check(game_state.left_score == 1 and game_state.between_points and not game_state.serve_toward_right, "Online snapshots update score and serve state")
+	var online_cancelled := [false]
+	game_state.online_match_cancelled.connect(func() -> void: online_cancelled[0] = true, CONNECT_ONE_SHOT)
 	game_state.cancel_online_match()
-	_check(not game_state.mode_selected and not game_state.is_game_over and not paused, "Leaving an interrupted Online match restores the lobby state")
+	_check(not game_state.mode_selected and not game_state.is_game_over and not paused and online_cancelled[0], "Leaving an interrupted Online match restores the lobby state")
 	game_state.reset_game()
 	game_state.player_is_left = true
 	var legacy_settings := ConfigFile.new()

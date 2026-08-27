@@ -75,6 +75,8 @@ func leave_room(peer_id: int) -> void:
 func handle_message(peer_id: int, message: Dictionary) -> void:
 	var message_type := str(message.get("type", ""))
 	match message_type:
+		"ping":
+			_send(peer_id, {"type": "pong"})
 		"create_room":
 			create_room(peer_id)
 		"join_room":
