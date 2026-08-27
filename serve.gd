@@ -911,7 +911,12 @@ func _copy_online_code() -> void:
 	var code := NetworkManager.room_code.strip_edges()
 	if code.is_empty():
 		return
-	DisplayServer.clipboard_set(code)
+	if OS.has_feature("web"):
+		# Browser clipboard writes must happen inside the click/key input callback.
+		# Room codes use a restricted alphanumeric alphabet, so no escaping is needed.
+		JavaScriptBridge.eval("navigator.clipboard.writeText('%s')" % code)
+	else:
+		DisplayServer.clipboard_set(code)
 	SFX.play("confirm")
 	online_status.text = "ROOM CODE COPIED"
 	online_hint.text = "SHARE IT WITH YOUR OPPONENT"

@@ -117,6 +117,7 @@ jobs:
           - Serve prompts identify whose turn it is and reject input from the wrong player.
           - Snapshot smoothing makes ball and paddle motion feel steadier at the server update rate.
           - Room creation and joining wait for sleeping servers and prevent duplicate requests.
+          - Room-code copying now uses the browser clipboard correctly in the Web build.
           - Heartbeats keep waiting rooms connected, while stale movement input now stops safely.
           - Online pause, leave, disconnect, game-over, and two-player rematch states transition cleanly.
           - Automated tests now play a real two-client match through room creation, scoring, and the next serve.
