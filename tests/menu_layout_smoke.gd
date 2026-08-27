@@ -45,6 +45,9 @@ func _initialize() -> void:
 	game_state.serve_toward_right = false
 	serve._refresh()
 	_check(serve.serve_title.text == "YOUR SERVE", "Online serve prompt identifies the local player's turn")
+	serve.online_code.text = ""
+	serve._on_online_opponent_changed(false)
+	_check(serve.online_code.text == "ABC234" and serve.online_status.text.contains("WAITING FOR A NEW PLAYER"), "a disconnected opponent returns to a shareable room")
 	var pause_overlay = scene.get_node("pause")
 	pause_overlay._update_hints()
 	_check(not "rematch" in pause_overlay._ids() and pause_overlay.menu_label.text == "LEAVE MATCH", "Online pause menu cannot request an invalid mid-match rematch")

@@ -978,7 +978,8 @@ func _on_online_opponent_changed(connected: bool) -> void:
 		if GameState.mode_selected and GameState.mode == Constants.MODE_ONLINE:
 			_return_to_online_lobby()
 		_online_view = OnlineView.WAITING
-		online_status.text = "OPPONENT DISCONNECTED"
+		online_code.text = NetworkManager.room_code
+		online_status.text = "OPPONENT DISCONNECTED\nWAITING FOR A NEW PLAYER..."
 	_update_online_view()
 
 
