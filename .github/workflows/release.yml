@@ -82,6 +82,12 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/pong/web
           godot --headless --verbose --path . --export-release "Web" /tmp/pong/web/index.html
+          grep -Fq 'id="loader-title"' /tmp/pong/web/index.html
+          grep -Fq 'PAPER · INK · FIRST TO FIVE' /tmp/pong/web/index.html
+          if grep -Fq '$GODOT_' /tmp/pong/web/index.html; then
+            echo "Unexpanded Web-shell placeholder remains" >&2
+            exit 1
+          fi
 
       - name: Export Android sideload APK
         run: |
@@ -118,6 +124,7 @@ jobs:
           - Snapshot smoothing makes ball and paddle motion feel steadier at the server update rate.
           - Room creation and joining wait for sleeping servers and prevent duplicate requests.
           - Room-code copying now uses the browser clipboard correctly in the Web build.
+          - The Web build now opens with a responsive paper-and-ink loading screen instead of a generic browser progress bar.
           - Heartbeats keep waiting rooms connected, while stale movement input now stops safely.
           - Online pause, leave, disconnect, game-over, and two-player rematch states transition cleanly.
           - Automated tests now play a real two-client match through room creation, scoring, and the next serve.

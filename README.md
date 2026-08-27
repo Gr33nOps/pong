@@ -1,83 +1,103 @@
-<p align="center">
-</p>
+<div align="center">
+
+<img src="logo.png" alt="Ink paddles and ball on a paper court" width="180">
 
 # PONG
 
-A classic Pong remake built with **Godot 4.7** — aimed serves, rally heat, and a glowing motion trail.
+**A paper-and-ink arcade game with aimed serves, lively rallies, local play, and private online rooms.**
 
-## Play
+[![Play in browser](https://img.shields.io/badge/PLAY_IN_BROWSER-111111?style=for-the-badge)](https://gr33nops.github.io/pong/)
+[![Latest release](https://img.shields.io/github/v/release/Gr33nOps/pong?style=for-the-badge&color=111111)](https://github.com/Gr33nOps/pong/releases/latest)
+[![Godot 4.7](https://img.shields.io/badge/GODOT-4.7-111111?style=for-the-badge)](https://godotengine.org/)
 
-- **Web (browser):** <https://greenops.itch.io/pong/> — upload builds manually when ready.
-- **Web mirror:** <https://gr33nops.github.io/pong/> — a GitHub Pages mirror built from `main`.
-- **Windows:** grab `pong-windows.zip` from the [Releases](https://github.com/Gr33nOps/pong/releases) page, unzip, and run `pong.exe`.
-- **Android:** export an APK locally and install it for testing (enable "Install unknown apps" for your browser/file manager first).
+[Play now](https://gr33nops.github.io/pong/) · [Download](https://github.com/Gr33nOps/pong/releases/latest) · [Report a problem](https://github.com/Gr33nOps/pong/issues)
 
-## Visual preview
+</div>
 
-The game uses a monochrome paper-and-ink presentation with tactile, lightweight sound design and responsive arcade controls.
+## The game
 
-![PONG start menu](readme_media/menu.png)
+PONG keeps the immediate rules of the original and gives every screen a tactile sketchbook feel. The ball waits beside the serving paddle, serves can be aimed, paddle movement adds english, and long rallies grow faster and more dangerous. First to five wins.
 
-*Start menu with Player vs CPU and Player vs Player modes.*
+![PONG paper-and-ink start menu](readme_media/menu.png)
 
-![PONG gameplay](readme_media/gameplay.png)
+![PONG match on the paper court](readme_media/gameplay.png)
 
-*In-match paper court with aimed serve messaging, score HUD, ink paddles, and the ball in play.*
+## Play your way
 
+| Mode | Players | How it works |
+|---|---:|---|
+| Player vs CPU | 1 | Three difficulty levels with configurable sound and touch/controller support. |
+| Player vs Player | 2 local | Share a keyboard, controllers, or opposite sides of a touch screen. |
+| Online | 2 remote | Create a private six-character room, copy the code, and send it to your opponent. |
 
-## Features
+The hosted online server may need a short wake-up after being idle. The lobby waits through that startup and shows clear connection, room, countdown, serve, disconnect, and rematch states.
 
-- Player vs AI and Player vs Player (pick on the start screen)
-- Keyboard (W/S for P1, arrows for P2) plus auto-detecting gamepads
-- Loser serves: ball sits on the paddle; aim with movement or a touch drag, then Space / A / tap to launch
-- Center hits are faster and flatter; edge hits are sharper and a bit slower
-- Paddle english, rally speed ramp, and paddles that shrink after a long volley
-- Rally-based gameplay balancing, speed-scaled SFX pitch and screen shake
-- Pause menu (ESC / START) with volume and AI difficulty controls in a monochrome ink UI
-- Touch play supports speed-limited paddle movement, aimed serves, two-player side ownership, and draggable volume controls
-- First to 5 wins
+## What makes it different
+
+- Hand-drawn panels, controls, court markings, paddles, ball, and loading experience
+- Aimed serves from the paddle instead of automatic center-court launches
+- Paddle english, speed ramping, sharper edge returns, and shrinking paddles during long rallies
+- Server-authoritative online matches with private rooms and smooth 30 Hz snapshots
+- Keyboard, controller, mouse, and touch input with context-aware instructions
+- Rally-sensitive sound, ink impact effects, motion trail, and screen shake
+- First to five with loser-serves-next rules
 
 ## Controls
 
-| Action    | P1        | P2           | Gamepad           |
-|-----------|-----------|--------------|-------------------|
-| Move      | W / S     | ↑ / ↓        | Left stick, D-pad |
-| Confirm   | Space / A | (pad A)      | A / START         |
-| Mode pick | 1 / 2     | (pad d-pad)  | D-pad + A         |
-| Pause     | ESC       | START / BACK | START / BACK      |
+| Action | Keyboard | Controller | Touch / mouse |
+|---|---|---|---|
+| Move | P1: W/S · P2: ↑/↓ | Left stick or D-pad | Drag your side of the court |
+| Aim serve | Move the serving paddle | Left stick | Drag before serving |
+| Serve / select | Space | A | Tap |
+| Pause / back | Esc | Start / Back | Pause button |
+| Mute | M | — | Pause menu |
 
-Aim the serve by moving the paddle before you launch. In vs AI, the computer auto-serves after a short delay. Touch players must use the serving side of the court.
+## Download
 
-## Running from source
+The [latest release](https://github.com/Gr33nOps/pong/releases/latest) includes:
 
-1. Open `pong/` (the project root, where `project.godot` lives) in the Godot 4.7 editor.
-2. Press **F5**.
+- Windows x64 archive
+- Browser-ready Web archive for hosts such as itch.io
+- Android arm64 sideload APK
+- SHA-256 checksums for every download
 
-## Building
+Windows builds are currently unsigned, so SmartScreen may show an unknown-publisher warning. The Android download is debug-signed for direct testing and sideloading.
 
-All presets are in `export_presets.cfg`. From the project root:
+## Run from source
+
+Requires Godot 4.7.1.
+
+1. Clone the repository.
+2. Open the directory containing `project.godot` in Godot.
+3. Press **F5**.
+
+Run the deterministic client checks:
 
 ```bash
 godot --headless --path . --script tests/smoke.gd
+godot --headless --path . --script tests/menu_layout_smoke.gd
+godot --headless --path . --script tests/online_lobby_smoke.gd
+```
+
+## Build
+
+Export presets are committed for Windows, Web, and Android:
+
+```bash
 godot --headless --path . --export-release "Windows Desktop" ../pong-build/pong.exe
 godot --headless --path . --export-release "Web" ../pong-build/web/index.html
 godot --headless --path . --export-release "Android" ../pong-build/android/Pong.apk
 ```
 
-Pushing a `v*` tag (e.g. `v1.1.4`) triggers [`release.yml`](.github/workflows/release.yml), which validates and packages the Windows and Web builds as GitHub Release artifacts. Itch.io uploads are intentionally manual for now; no Butler token or Android signing secret is required.
+Every push to `main` validates gameplay, UI layout, room flow, the authoritative server, and a real two-client online lifecycle before deploying GitHub Pages. A `v*` tag builds and publishes the downloadable release artifacts.
 
-Windows builds are x64 and currently unsigned, so Windows SmartScreen may show an “unknown publisher” prompt. An Authenticode certificate can be added later without changing the game package.
+## Project map
 
-### Android testing setup
+- `main.gd`, `game_state.gd` — match orchestration, scoring, serve, and online state
+- `ball.gd`, `paddle.gd`, `ai.gd` — local gameplay simulation
+- `serve.gd`, `pause.gd`, `game_over.gd` — paper-and-ink UI flows
+- `network_manager.gd` — WebSocket client, rooms, input, heartbeats, and snapshots
+- `server/` — authoritative headless match server
+- `tests/` — deterministic UI, gameplay, room, socket, and lifecycle checks
 
-For local Android testing, install JDK 17, Android SDK Platform 36, Build Tools, Platform Tools, and the Godot 4.7.1 Android build template. Set the SDK/JDK paths in Godot’s Editor Settings; machine-specific paths are intentionally not stored in this repository. A debug-signed APK is sufficient for sideloading and manual Itch testing. A permanent release key is only needed later for Google Play or upgrade-safe public releases.
-
-## Project layout
-
-- `constants.gd` — shared gameplay numbers
-- `game_state.gd` — scores, serve/pause/game-over flow, mode selection
-- `main.gd` — scoring, aimed serve placement, rally UI
-- `ball.gd`, `paddle.gd`, `ai.gd`, `trail.gd` — gameplay
-- `players.gd` — gamepad auto-assignment + input latches
-- `serve.gd`, `pause.gd`, `game_over.gd` — UI overlays
-- `sfx.gd`, `screen_shake.gd`, `particle_effects.gd` — juice
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
