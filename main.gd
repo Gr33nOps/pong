@@ -27,6 +27,17 @@ var _online_snapshot_ready := false
 var _online_ball_target := Vector2.ZERO
 var _online_left_target := 360.0
 var _online_right_target := 360.0
+var _online_left_snapshot_y := 360.0
+var _online_right_snapshot_y := 360.0
+var _online_left_velocity := 0.0
+var _online_right_velocity := 0.0
+var _online_snapshot_age := 0.0
+
+const ONLINE_EXTRAPOLATION_LIMIT := 0.1
+const ONLINE_BALL_CORRECTION_RATE := 22.0
+const ONLINE_REMOTE_CORRECTION_RATE := 28.0
+const ONLINE_LOCAL_CORRECTION_RATE := 16.0
+const ONLINE_SNAP_DISTANCE := 140.0
 
 
 func _ready() -> void:
@@ -393,12 +404,25 @@ func _on_online_snapshot(snapshot: Dictionary) -> void:
 	if GameState.mode != Constants.MODE_ONLINE:
 		return
 	GameState.apply_online_snapshot(snapshot)
+	var snapshot_interval := maxf(_online_snapshot_age, 1.0 / 30.0)
+	var previous_left_snapshot_y := _online_left_snapshot_y
+	var previous_right_snapshot_y := _online_right_snapshot_y
 	var paddles = snapshot.get("paddles", {})
 	if paddles is Dictionary:
 		if paddles.has("left"):
-			_online_left_target = float(paddles.get("left"))
+			_online_left_snapshot_y = float(paddles.get("left"))
+			_online_left_target = _online_left_snapshot_y
 		if paddles.has("right"):
-			_online_right_target = float(paddles.get("right"))
+			_online_right_snapshot_y = float(paddles.get("right"))
+			_online_right_target = _online_right_snapshot_y
+	var paddle_velocities = snapshot.get("paddle_velocities", {})
+	if paddle_velocities is Dictionary and paddle_velocities.has("left") and paddle_velocities.has("right"):
+		_online_left_velocity = float(paddle_velocities.get("left"))
+		_online_right_velocity = float(paddle_velocities.get("right"))
+	elif _online_snapshot_ready:
+		# Infer velocity while an older hosted server is still rolling forward.
+		_online_left_velocity = (_online_left_snapshot_y - previous_left_snapshot_y) / snapshot_interval
+		_online_right_velocity = (_online_right_snapshot_y - previous_right_snapshot_y) / snapshot_interval
 	var ball_data = snapshot.get("ball", {})
 	if ball_data is Dictionary:
 		_online_ball_target = Vector2(float(ball_data.get("x", ball.position.x)), float(ball_data.get("y", ball.position.y)))
@@ -415,6 +439,7 @@ func _on_online_snapshot(snapshot: Dictionary) -> void:
 	paddle_left.visible = GameState.mode_selected and not GameState.is_game_over
 	paddle_right.visible = GameState.mode_selected and not GameState.is_game_over
 	center_line_ink.visible = ball.velocity != Vector2.ZERO and not GameState.is_game_over
+	_online_snapshot_age = 0.0
 
 
 func _on_online_rematch_started() -> void:
@@ -425,10 +450,51 @@ func _on_online_rematch_started() -> void:
 func _smooth_online_state(delta: float) -> void:
 	if not _online_snapshot_ready:
 		return
-	var weight := 1.0 - exp(-60.0 * delta)
-	paddle_left.position.y = lerpf(paddle_left.position.y, _online_left_target, weight)
-	paddle_right.position.y = lerpf(paddle_right.position.y, _online_right_target, weight)
-	ball.position = ball.position.lerp(_online_ball_target, weight)
+	var remaining_extrapolation := maxf(ONLINE_EXTRAPOLATION_LIMIT - _online_snapshot_age, 0.0)
+	var prediction_delta := minf(delta, remaining_extrapolation)
+	_online_snapshot_age += delta
+	if prediction_delta > 0.0:
+		_online_left_target = clampf(_online_left_target + _online_left_velocity * prediction_delta, paddle_left.top_limit, paddle_left.bottom_limit)
+		_online_right_target = clampf(_online_right_target + _online_right_velocity * prediction_delta, paddle_right.top_limit, paddle_right.bottom_limit)
+		_predict_online_ball(prediction_delta)
+
+	var local_paddle: Area2D = paddle_left if GameState.player_is_left else paddle_right
+	var remote_paddle: Area2D = paddle_right if GameState.player_is_left else paddle_left
+	var local_target: float = _online_left_target if GameState.player_is_left else _online_right_target
+	var remote_target: float = _online_right_target if GameState.player_is_left else _online_left_target
+	var local_axis := float(local_paddle.get_move_input())
+	var local_is_active: bool = absf(local_axis) > 0.01 or local_paddle.has_pointer_target()
+	if local_paddle.has_pointer_target():
+		local_paddle.position.y = move_toward(local_paddle.position.y, local_paddle._pointer_target_y, Constants.PADDLE_POINTER_SNAP_SPEED * delta)
+	else:
+		local_paddle.position.y += local_axis * local_paddle.speed * delta
+	local_paddle.position.y = clampf(local_paddle.position.y, local_paddle.top_limit, local_paddle.bottom_limit)
+	var local_error: float = local_target - local_paddle.position.y
+	var local_snap_distance := ONLINE_SNAP_DISTANCE * 2.0 if local_is_active else ONLINE_SNAP_DISTANCE
+	if absf(local_error) > local_snap_distance:
+		local_paddle.position.y = local_target
+	elif not local_is_active:
+		var local_weight := 1.0 - exp(-ONLINE_LOCAL_CORRECTION_RATE * delta)
+		local_paddle.position.y = lerpf(local_paddle.position.y, local_target, local_weight)
+
+	var remote_weight := 1.0 - exp(-ONLINE_REMOTE_CORRECTION_RATE * delta)
+	remote_paddle.position.y = lerpf(remote_paddle.position.y, remote_target, remote_weight)
+	var ball_weight := 1.0 - exp(-ONLINE_BALL_CORRECTION_RATE * delta)
+	ball.position = ball.position.lerp(_online_ball_target, ball_weight)
+
+
+func _predict_online_ball(delta: float) -> void:
+	if GameState.serving or GameState.between_points or GameState.is_game_over:
+		return
+	_online_ball_target += ball.velocity * delta
+	var min_y := Constants.HUD_HEIGHT + Constants.BALL_RADIUS
+	var max_y := playfield_size.y - 10.0 - Constants.BALL_RADIUS
+	if _online_ball_target.y < min_y:
+		_online_ball_target.y = min_y + (min_y - _online_ball_target.y)
+		ball.velocity.y = absf(ball.velocity.y)
+	elif _online_ball_target.y > max_y:
+		_online_ball_target.y = max_y - (_online_ball_target.y - max_y)
+		ball.velocity.y = -absf(ball.velocity.y)
 
 
 func _on_online_match_cancelled() -> void:

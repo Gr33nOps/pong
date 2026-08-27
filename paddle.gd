@@ -43,7 +43,7 @@ func is_human() -> bool:
 func get_move_input() -> float:
 	if not is_human():
 		return 0.0
-	if GameState.mode == Constants.MODE_AI:
+	if GameState.mode == Constants.MODE_AI or GameState.mode == Constants.MODE_ONLINE:
 		var keyboard_input := Input.get_axis("up", "down") + Input.get_axis("up2", "down2")
 		var pad := Players.get_axis(Players.PLAYER_1)
 		return clampf(keyboard_input + pad, -1.0, 1.0)

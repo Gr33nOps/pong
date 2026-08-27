@@ -90,6 +90,15 @@ func _run() -> void:
 	_check(absf(paddle.position.y - before_y) <= constants.PADDLE_SPEED / 60.0 + 0.01, "pointer movement is speed limited")
 	paddle.release_pointer(7)
 	_check(not paddle.has_pointer_target(), "pointer release clears paddle ownership")
+	game_state.mode = constants.MODE_ONLINE
+	game_state.mode_selected = true
+	game_state.player_is_left = true
+	Input.action_press("up2")
+	_check(paddle.get_move_input() < -0.9, "Online paddle accepts arrow-key movement regardless of assigned side")
+	Input.action_release("up2")
+	Input.action_press("down2")
+	_check(paddle.get_move_input() > 0.9, "Online paddle accepts the down arrow")
+	Input.action_release("down2")
 	paddle.free()
 
 	# Exercise the real scene's swept collision path at an intentionally high speed.
@@ -105,7 +114,18 @@ func _run() -> void:
 	game_state.between_points = false
 	var scene_ball = main_scene.get_node("ball")
 	var scene_left = main_scene.get_node("paddleLeft")
+	game_state.mode = constants.MODE_ONLINE
+	game_state.mode_selected = true
+	game_state.serving = false
+	main_scene._online_snapshot_ready = true
+	main_scene._online_snapshot_age = 0.0
+	main_scene._online_ball_target = Vector2(576.0, 324.0)
+	scene_ball.position = main_scene._online_ball_target
+	scene_ball.velocity = Vector2(600.0, 0.0)
+	main_scene._smooth_online_state(1.0 / 60.0)
+	_check(main_scene._online_ball_target.x > 576.0 and scene_ball.position.x > 576.0, "Online ball advances smoothly between server snapshots")
 	scene_left.position.y = 324.0
+	game_state.mode = constants.MODE_2P
 	scene_ball.position = Vector2(90.0, scene_left.position.y)
 	scene_ball.velocity = Vector2(-2400.0, 0.0)
 	scene_ball._last_paddle = "right"

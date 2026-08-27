@@ -23,7 +23,7 @@ var status_message := ""
 var _connect_started := 0.0
 var _connection_timeout := 20.0
 var _last_input_sent := 0.0
-var _input_send_interval := 1.0 / 30.0
+var _input_send_interval := 1.0 / 60.0
 var _heartbeat_elapsed := 0.0
 const HEARTBEAT_INTERVAL := 10.0
 

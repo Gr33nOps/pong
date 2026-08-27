@@ -52,6 +52,8 @@ The hosted online server may need a short wake-up after being idle. The lobby wa
 | Pause / back | Esc | Start / Back | Pause button |
 | Mute | M | — | Pause menu |
 
+In Online mode, either W/S or ↑/↓ controls your paddle.
+
 ## Download
 
 The [latest release](https://github.com/Gr33nOps/pong/releases/latest) includes:

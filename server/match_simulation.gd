@@ -149,6 +149,7 @@ func snapshot() -> Dictionary:
 		"tick": tick_number,
 		"ball": {"x": ball_position.x, "y": ball_position.y, "vx": ball_velocity.x, "vy": ball_velocity.y},
 		"paddles": {"left": left_y, "right": right_y},
+		"paddle_velocities": {"left": left_last_vy, "right": right_last_vy},
 		"scores": {"left": left_score, "right": right_score},
 		"serving": serving,
 		"serve_toward_right": serve_toward_right,
