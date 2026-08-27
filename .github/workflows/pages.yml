@@ -80,7 +80,7 @@ jobs:
           mkdir -p /tmp/pong-web
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . --export-release "Web" /tmp/pong-web/index.html
           grep -Fq 'id="loader-title"' /tmp/pong-web/index.html
-          grep -Fq 'PAPER · INK · FIRST TO FIVE' /tmp/pong-web/index.html
+          grep -Fq 'id="loader-logo"' /tmp/pong-web/index.html
           if grep -Fq '$GODOT_' /tmp/pong-web/index.html; then
             echo "Unexpanded Web-shell placeholder remains" >&2
             exit 1

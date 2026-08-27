@@ -16,7 +16,6 @@
 :root {
 	color-scheme: light;
 	--ink: #1d1d1a;
-	--soft-ink: #6f6e67;
 	--paper: #f7f6f1;
 }
 
@@ -63,98 +62,38 @@ body {
 }
 
 #status-card {
-	width: min(78vw, 430px);
+	width: min(72vw, 360px);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 18px;
+	gap: 20px;
 	text-align: center;
 }
 
 #loader-title {
-	font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
-	font-size: clamp(52px, 10vw, 82px);
+	font-family: "Segoe Print", "Comic Sans MS", sans-serif;
+	font-size: clamp(42px, 9vw, 58px);
 	font-weight: 700;
-	letter-spacing: 0.08em;
-	line-height: 0.9;
-	transform: rotate(-0.8deg);
+	letter-spacing: 0.1em;
+	line-height: 1;
 }
 
-#loader-subtitle,
-#status-label,
-#status-percent,
-#status-notice {
-	font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-}
-
-#loader-subtitle {
-	margin-top: -8px;
-	color: var(--soft-ink);
-	font-size: 12px;
-}
-
-#mini-court {
+#loader-logo-window {
 	position: relative;
-	width: min(66vw, 286px);
-	height: 112px;
-	border: 2px solid var(--ink);
-	transform: rotate(0.35deg);
+	width: clamp(104px, 24vw, 150px);
+	height: clamp(112px, 26vw, 160px);
+	overflow: hidden;
 }
 
-#mini-court::before {
-	content: "";
+#loader-logo {
 	position: absolute;
-	inset: 2px -3px -3px 2px;
-	border: 1px solid rgba(29, 29, 26, 0.5);
-	transform: rotate(-0.7deg);
-}
-
-#court-line {
-	position: absolute;
-	top: 8px;
-	bottom: 8px;
 	left: 50%;
-	border-left: 2px dashed rgba(29, 29, 26, 0.5);
-}
-
-.loader-paddle {
-	position: absolute;
-	top: 29px;
-	width: 9px;
-	height: 54px;
-	background: var(--ink);
-	box-shadow: 2px 1px 0 rgba(29, 29, 26, 0.28);
-}
-
-.loader-paddle.left {
-	left: 17px;
-	transform: rotate(-1.5deg);
-}
-
-.loader-paddle.right {
-	right: 17px;
-	transform: rotate(1.2deg);
-}
-
-#loader-ball {
-	position: absolute;
-	top: 48px;
-	left: calc(50% - 9px);
-	width: 18px;
-	height: 18px;
-	border-radius: 47% 53% 49% 51%;
-	background: var(--ink);
-	animation: rally 1.25s cubic-bezier(0.44, 0.08, 0.56, 0.92) infinite alternate;
-}
-
-#loading-copy {
-	width: 100%;
-	display: flex;
-	justify-content: space-between;
-	align-items: baseline;
-	font-size: 13px;
+	top: 50%;
+	width: clamp(250px, 58vw, 330px);
+	height: clamp(250px, 58vw, 330px);
+	max-width: none;
+	object-fit: contain;
+	transform: translate(-50%, -50%);
 }
 
 #status-progress {
@@ -165,7 +104,6 @@ body {
 	border: 2px solid var(--ink);
 	border-radius: 0;
 	background: transparent;
-	transform: rotate(-0.3deg);
 	overflow: hidden;
 }
 
@@ -194,14 +132,9 @@ body {
 	padding: 18px 20px;
 	border: 2px solid var(--ink);
 	background: rgba(247, 246, 241, 0.94);
+	font-family: system-ui, sans-serif;
 	font-size: 15px;
 	line-height: 1.5;
-	transform: rotate(0.25deg);
-}
-
-@keyframes rally {
-	from { transform: translateX(-88px) rotate(-8deg); }
-	to { transform: translateX(88px) rotate(8deg); }
 }
 
 @keyframes ink-progress {
@@ -210,7 +143,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	#loader-ball,
 	#status-progress:indeterminate {
 		animation: none;
 	}
@@ -225,18 +157,10 @@ body {
 		<div id="status" role="status" aria-live="polite">
 			<div id="status-card">
 				<div id="loader-title">PONG</div>
-				<div id="loader-subtitle">PAPER · INK · FIRST TO FIVE</div>
-				<div id="mini-court" aria-hidden="true">
-					<div id="court-line"></div>
-					<div class="loader-paddle left"></div>
-					<div id="loader-ball"></div>
-					<div class="loader-paddle right"></div>
+				<div id="loader-logo-window" aria-hidden="true">
+					<img id="loader-logo" src="$GODOT_SPLASH" alt="">
 				</div>
-				<div id="loading-copy">
-					<span id="status-label">INKING THE COURT</span>
-					<span id="status-percent">0%</span>
-				</div>
-				<progress id="status-progress"></progress>
+				<progress id="status-progress" aria-label="Loading PONG"></progress>
 			</div>
 			<div id="status-notice"></div>
 		</div>
@@ -252,8 +176,6 @@ const engine = new Engine(GODOT_CONFIG);
 	const statusCard = document.getElementById('status-card');
 	const statusProgress = document.getElementById('status-progress');
 	const statusNotice = document.getElementById('status-notice');
-	const statusLabel = document.getElementById('status-label');
-	const statusPercent = document.getElementById('status-percent');
 	let initializing = true;
 	let statusMode = '';
 
@@ -294,16 +216,11 @@ const engine = new Engine(GODOT_CONFIG);
 	engine.startGame({
 		onProgress(current, total) {
 			if (current > 0 && total > 0) {
-				const ratio = Math.min(current / total, 1);
-				const percent = Math.round(ratio * 100);
 				statusProgress.value = current;
 				statusProgress.max = total;
-				statusPercent.textContent = percent + '%';
-				statusLabel.textContent = ratio < 0.35 ? 'SHARPENING PENCILS' : (ratio < 0.82 ? 'INKING THE COURT' : 'FINAL STROKES');
 			} else {
 				statusProgress.removeAttribute('value');
 				statusProgress.removeAttribute('max');
-				statusPercent.textContent = '...';
 			}
 		},
 	}).then(() => setStatusMode('hidden'), displayFailureNotice);
