@@ -448,6 +448,7 @@ func _on_online_snapshot(snapshot: Dictionary) -> void:
 	var now := _online_now()
 	var had_snapshot := _online_snapshot_ready
 	var was_in_play := _online_ball_in_play()
+	var was_serving := GameState.serving and not GameState.between_points
 	var old_ball := Vector2.ZERO
 	var old_remote := 0.0
 	if had_snapshot:
@@ -486,7 +487,9 @@ func _on_online_snapshot(snapshot: Dictionary) -> void:
 	else:
 		# Keep what is on screen continuous and fade the correction out instead.
 		_ball_error = Vector2.ZERO
-		if was_in_play and _online_ball_in_play():
+		# Includes the serve itself, so the ball leaves the paddle instead of
+		# skipping a round trip ahead.
+		if (was_in_play or was_serving) and _online_ball_in_play():
 			_ball_error = old_ball - _online_ball_position(now)
 			if _ball_error.length() > ONLINE_SNAP_DISTANCE:
 				_ball_error = Vector2.ZERO

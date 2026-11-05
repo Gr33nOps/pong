@@ -15,6 +15,15 @@ func _initialize() -> void:
 	var serve = scene.get_node("serveOverlay")
 	var pause_card: Control = scene.get_node("pause/Root/Card")
 	var game_over_card: Control = scene.get_node("gameOver/Root/Card")
+	_check(serve._step == serve.Step.PLAYERS and serve._option_count() == 2 and serve.option1_label.text == "2 PLAYERS" and serve.option2_label.text == "4 PLAYERS", "the menu opens on the player-count choice")
+	serve.cursor = 1
+	serve._confirm_menu()
+	_check(serve._step == serve.Step.QUAD and serve._option_count() == 3 and serve.option1_label.text == "PLAYER VS CPU" and serve.option3_label.text == "ONLINE", "4 PLAYERS opens the four-player modes")
+	serve._go_back()
+	_check(serve._step == serve.Step.PLAYERS and serve.cursor == 1 and not serve.back_label.visible, "back returns to the player count")
+	serve.cursor = 0
+	serve._confirm_menu()
+	_check(serve._step == serve.Step.MODE and serve.option1_label.text == "PLAYER VS CPU" and serve.back_label.visible, "2 PLAYERS opens the original menu")
 	serve._step = serve.Step.MODE
 	game_state.reset_game()
 	serve._refresh()

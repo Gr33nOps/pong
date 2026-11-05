@@ -16,11 +16,13 @@ extends CanvasLayer
 @onready var _style_sel: StyleBox = $Root/option1Bg.get_theme_stylebox("panel")
 @onready var _style_idle: StyleBox = $Root/option2Bg.get_theme_stylebox("panel")
 
-enum Step { MODE, DIFF, SIDE, ONLINE }
+enum Step { MODE, DIFF, SIDE, ONLINE, PLAYERS, QUAD }
+const QUAD_SCENE := "res://quad.tscn"
+const QUAD_MODES: Array[String] = ["cpu", "local", "online"]
 enum OnlineView { OPTIONS, JOIN, WAITING, ERROR }
 
 var cursor := 0
-var _step := Step.MODE
+var _step := Step.PLAYERS
 var _fade_tween: Tween = null
 var _ai_serve_timer := 0.0
 var _serve_ready := false
@@ -85,6 +87,11 @@ func _ready() -> void:
 	_make_back_label()
 	devices_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	devices_label.gui_input.connect(_on_devices_gui)
+	if GameState.quad_mode in QUAD_MODES:
+		# Coming back from a four-player match reopens that menu where it was.
+		_step = Step.QUAD
+		cursor = QUAD_MODES.find(GameState.quad_mode)
+	GameState.quad_mode = ""
 
 
 func _make_option3() -> void:
@@ -149,7 +156,7 @@ func _process(delta: float) -> void:
 
 
 func _handle_menu_input() -> void:
-	if _step != Step.MODE and (Input.is_action_just_pressed("ui_cancel") or Players.is_pause_just_pressed()):
+	if _step != Step.PLAYERS and (Input.is_action_just_pressed("ui_cancel") or Players.is_pause_just_pressed()):
 		_go_back()
 		return
 	if _step == Step.ONLINE:
@@ -200,7 +207,7 @@ func _adjust_dir() -> int:
 
 
 func _option_count() -> int:
-	if _step == Step.MODE or _step == Step.DIFF:
+	if _step == Step.MODE or _step == Step.DIFF or _step == Step.QUAD:
 		return 3
 	if _step == Step.ONLINE:
 		return _online_option_count()
@@ -223,6 +230,15 @@ func _confirm_menu() -> void:
 			_confirm_diff()
 		Step.ONLINE:
 			_confirm_online()
+		Step.PLAYERS:
+			SFX.play("confirm")
+			_step = Step.MODE if cursor == 0 else Step.QUAD
+			cursor = 0
+			_refresh()
+		Step.QUAD:
+			SFX.play("confirm")
+			GameState.quad_mode = QUAD_MODES[clampi(cursor, 0, QUAD_MODES.size() - 1)]
+			get_tree().change_scene_to_file(QUAD_SCENE)
 		_:
 			if cursor == 2:
 				_open_online_lobby()
@@ -287,7 +303,7 @@ func _on_devices_gui(event: InputEvent) -> void:
 func _on_back_pressed() -> void:
 	if GameState.mode_selected or GameState.paused or GameState.is_game_over:
 		return
-	if _step != Step.MODE:
+	if _step != Step.PLAYERS:
 		_go_back()
 	elif OS.has_feature("mobile"):
 		get_tree().quit()
@@ -314,6 +330,9 @@ func _go_back() -> void:
 	if _step == Step.SIDE and GameState.mode == Constants.MODE_AI:
 		_step = Step.DIFF
 		cursor = _diff_cursor()
+	elif _step == Step.MODE or _step == Step.QUAD:
+		cursor = 0 if _step == Step.MODE else 1
+		_step = Step.PLAYERS
 	else:
 		_step = Step.MODE
 		cursor = 0 if GameState.mode == Constants.MODE_AI else 1
@@ -486,7 +505,7 @@ func _refresh() -> void:
 	panel.visible = in_menu
 	devices_label.visible = in_menu
 	if back_label:
-		back_label.visible = in_menu and _step != Step.MODE
+		back_label.visible = in_menu and _step != Step.PLAYERS
 	if _step == Step.ONLINE and (not GameState.mode_selected or _online_countdown_active):
 		title_label.visible = false
 		subtitle_label.visible = false
@@ -505,7 +524,7 @@ func _refresh() -> void:
 	hint_label.modulate.a = 1.0
 	if in_menu:
 		cursor = mini(cursor, _option_count() - 1)
-		var three_row_menu := _step == Step.DIFF or _step == Step.MODE
+		var three_row_menu := _step == Step.DIFF or _step == Step.MODE or _step == Step.QUAD
 		hint_label.position = Vector2(80, 476 if _step == Step.DIFF else (526 if three_row_menu else 456))
 		hint_label.size = Vector2(992, 36)
 		devices_label.position.y = 520.0 if _step == Step.DIFF else (566.0 if three_row_menu else 500.0)
@@ -517,6 +536,24 @@ func _refresh() -> void:
 				if GameState.is_touch_ui():
 					hint_label.text = "TAP TO CHOOSE"
 				elif GameState.is_controller_ui():
+					hint_label.text = "STICK MOVE   A SELECT   B BACK"
+				else:
+					hint_label.text = "UP/DOWN MOVE   SPACE SELECT   ESC BACK"
+				_update_devices_label()
+			Step.PLAYERS:
+				subtitle_label.position.y = 226.0
+				subtitle_label.text = "HOW MANY PLAYERS"
+				if GameState.is_touch_ui():
+					hint_label.text = "TAP TO CHOOSE"
+				elif GameState.is_controller_ui():
+					hint_label.text = "STICK MOVE   A SELECT"
+				else:
+					hint_label.text = "UP/DOWN MOVE   SPACE SELECT"
+				_update_devices_label()
+			Step.QUAD:
+				subtitle_label.position.y = 226.0
+				subtitle_label.text = "FIVE LIVES EACH"
+				if GameState.is_controller_ui():
 					hint_label.text = "STICK MOVE   A SELECT   B BACK"
 				else:
 					hint_label.text = "UP/DOWN MOVE   SPACE SELECT   ESC BACK"
@@ -624,6 +661,10 @@ func _update_menu_highlight() -> void:
 		_place_option(option1_bg, option1_label, 268.0, 68.0)
 		_place_option(option2_bg, option2_label, 356.0, 68.0)
 		names = PackedStringArray(["LEFT", "RIGHT"])
+	elif _step == Step.PLAYERS:
+		_place_option(option1_bg, option1_label, 268.0, 68.0)
+		_place_option(option2_bg, option2_label, 356.0, 68.0)
+		names = PackedStringArray(["2 PLAYERS", "4 PLAYERS"])
 	else:
 		_place_option(option1_bg, option1_label, 248.0, 62.0)
 		_place_option(option2_bg, option2_label, 326.0, 62.0)
