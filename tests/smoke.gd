@@ -13,6 +13,10 @@ func _run() -> void:
 	var network_manager = get_root().get_node("NetworkManager")
 	_check(constants.WINNER_SCORE == 5, "winner score remains first-to-five")
 	_check(constants.PADDLE_SPEED > 0.0, "paddle speed is positive")
+	_check(constants.clean_server_override(" wss://pong-test.onrender.com ") == "wss://pong-test.onrender.com", "test builds accept a secure server override")
+	_check(constants.clean_server_override("ws://127.0.0.1:9081") == "ws://127.0.0.1:9081", "test builds accept a local server override")
+	_check(constants.clean_server_override("ws://example.com").is_empty(), "insecure remote server overrides are rejected")
+	_check(constants.clean_server_override("wss://evil.com/path?x=1").is_empty(), "server overrides with paths or queries are rejected")
 	_check(network_manager.process_mode == Node.PROCESS_MODE_ALWAYS, "Online networking keeps polling while menus pause the match")
 
 	game_state.reset_game()
