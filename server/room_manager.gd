@@ -76,7 +76,11 @@ func handle_message(peer_id: int, message: Dictionary) -> void:
 	var message_type := str(message.get("type", ""))
 	match message_type:
 		"ping":
-			_send(peer_id, {"type": "pong"})
+			var reply := {"type": "pong"}
+			var client_time = message.get("t")
+			if client_time is float or client_time is int:
+				reply["t"] = client_time
+			_send(peer_id, reply)
 		"create_room":
 			create_room(peer_id)
 		"join_room":

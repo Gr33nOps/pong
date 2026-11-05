@@ -1,7 +1,9 @@
 class_name MatchRoom
 extends RefCounted
 
-const SNAPSHOT_INTERVAL := 1.0 / 30.0
+const SNAPSHOT_INTERVAL := 1.0 / 40.0
+const SIM_STEP := 1.0 / 120.0
+const MAX_FRAME_CATCH_UP := 0.25
 const MATCH_SIMULATION_SCRIPT = preload("res://match_simulation.gd")
 
 var code := ""
@@ -10,6 +12,7 @@ var right_peer_id := -1
 var simulation = MATCH_SIMULATION_SCRIPT.new()
 var started := false
 var _snapshot_timer := 0.0
+var _sim_accumulator := 0.0
 var _rematch_votes: Dictionary = {}
 var _send_callback: Callable
 var _close_callback: Callable
@@ -54,6 +57,7 @@ func add_joiner(peer_id: int) -> bool:
 	_send(right_peer_id, {"type": "opponent_connected", "side": "right"})
 	started = true
 	_snapshot_timer = 0.0
+	_sim_accumulator = 0.0
 	_send_snapshot(true)
 	return true
 
@@ -103,7 +107,10 @@ func handle_message(peer_id: int, message: Dictionary) -> bool:
 func tick(delta: float) -> void:
 	if not is_full() or not started:
 		return
-	simulation.tick(delta)
+	_sim_accumulator = minf(_sim_accumulator + delta, MAX_FRAME_CATCH_UP)
+	while _sim_accumulator >= SIM_STEP:
+		simulation.tick(SIM_STEP)
+		_sim_accumulator -= SIM_STEP
 	_snapshot_timer += delta
 	if _snapshot_timer >= SNAPSHOT_INTERVAL:
 		_snapshot_timer = fmod(_snapshot_timer, SNAPSHOT_INTERVAL)

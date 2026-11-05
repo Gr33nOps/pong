@@ -24,6 +24,9 @@ const RALLY_SPEED_STEP := 0.006
 const WINNER_SCORE := 5
 const SCORE_HOLD := 0.4
 const INPUT_TIMEOUT := 0.3
+# Clients report where their predicted paddle is; a little extra speed lets the
+# server paddle catch up after jittery packet arrival instead of trailing it.
+const TARGET_CATCH_UP := 1.35
 
 var left_score := 0
 var right_score := 0
@@ -147,9 +150,9 @@ func snapshot() -> Dictionary:
 	return {
 		"type": "snapshot",
 		"tick": tick_number,
-		"ball": {"x": ball_position.x, "y": ball_position.y, "vx": ball_velocity.x, "vy": ball_velocity.y},
-		"paddles": {"left": left_y, "right": right_y},
-		"paddle_velocities": {"left": left_last_vy, "right": right_last_vy},
+		"ball": {"x": snappedf(ball_position.x, 0.01), "y": snappedf(ball_position.y, 0.01), "vx": snappedf(ball_velocity.x, 0.01), "vy": snappedf(ball_velocity.y, 0.01)},
+		"paddles": {"left": snappedf(left_y, 0.01), "right": snappedf(right_y, 0.01)},
+		"paddle_velocities": {"left": snappedf(left_last_vy, 0.1), "right": snappedf(right_last_vy, 0.1)},
 		"scores": {"left": left_score, "right": right_score},
 		"serving": serving,
 		"serve_toward_right": serve_toward_right,
@@ -166,7 +169,7 @@ func _update_paddle(side: String, delta: float) -> void:
 	var target_y := _left_target_y if side == "left" else _right_target_y
 	var axis := _left_axis if side == "left" else _right_axis
 	if target_y >= 0.0:
-		current_y = move_toward(current_y, target_y, PADDLE_SPEED * delta)
+		current_y = move_toward(current_y, target_y, PADDLE_SPEED * TARGET_CATCH_UP * delta)
 	else:
 		current_y += axis * PADDLE_SPEED * delta
 	current_y = clampf(current_y, HUD_HEIGHT + PADDLE_HALF_HEIGHT, COURT_HEIGHT - 12.0 - PADDLE_HALF_HEIGHT)

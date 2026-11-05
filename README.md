@@ -37,7 +37,7 @@ The hosted online server may need a short wake-up after being idle. The lobby wa
 - Hand-drawn panels, controls, court markings, paddles, ball, and loading experience
 - Aimed serves from the paddle instead of automatic center-court launches
 - Paddle english, speed ramping, sharper edge returns, and shrinking paddles during long rallies
-- Server-authoritative online matches with private rooms and smooth 30 Hz snapshots
+- Server-authoritative online matches with private rooms, 40 Hz snapshots, and latency-compensated client prediction
 - Keyboard, controller, mouse, and touch input with context-aware instructions
 - Rally-sensitive sound, ink impact effects, motion trail, and screen shake
 - First to five with loser-serves-next rules
@@ -53,6 +53,8 @@ The hosted online server may need a short wake-up after being idle. The lobby wa
 | Mute | M | — | Pause menu |
 
 In Online mode, either W/S or ↑/↓ controls your paddle.
+
+On phones, the browser build goes full screen and locks to landscape on your first tap where the browser allows it. Touching near your paddle grabs it where it is, and you can steer from the margins beside the court so your finger stays off the play area.
 
 ## Download
 
@@ -97,6 +99,7 @@ Every push to `main` validates gameplay, UI layout, room flow, the authoritative
 
 - `main.gd`, `game_state.gd` — match orchestration, scoring, serve, and online state
 - `ball.gd`, `paddle.gd`, `ai.gd` — local gameplay simulation
+- `online_prediction.gd` — client-side forward simulation of the online ball
 - `serve.gd`, `pause.gd`, `game_over.gd` — paper-and-ink UI flows
 - `network_manager.gd` — WebSocket client, rooms, input, heartbeats, and snapshots
 - `server/` — authoritative headless match server

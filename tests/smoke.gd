@@ -117,13 +117,29 @@ func _run() -> void:
 	game_state.mode = constants.MODE_ONLINE
 	game_state.mode_selected = true
 	game_state.serving = false
+	game_state.between_points = false
+	game_state.is_game_over = false
+	game_state.player_is_left = true
+	main_scene._reset_online_prediction()
 	main_scene._online_snapshot_ready = true
-	main_scene._online_snapshot_age = 0.0
-	main_scene._online_ball_target = Vector2(576.0, 324.0)
-	scene_ball.position = main_scene._online_ball_target
-	scene_ball.velocity = Vector2(600.0, 0.0)
+	main_scene._online_snapshot_time = main_scene._online_now()
+	main_scene._snap_ball_pos = Vector2(576.0, 324.0)
+	main_scene._snap_ball_vel = Vector2(600.0, 0.0)
 	main_scene._smooth_online_state(1.0 / 60.0)
-	_check(main_scene._online_ball_target.x > 576.0 and scene_ball.position.x > 576.0, "Online ball advances smoothly between server snapshots")
+	_check(scene_ball.position.x > 576.0, "Online ball is drawn ahead of the last server snapshot")
+	var scene_right = main_scene.get_node("paddleRight")
+	main_scene._snap_paddle_y["right"] = 324.0
+	main_scene._snap_paddle_vy["right"] = 0.0
+	main_scene._snap_ball_pos = Vector2(scene_right.position.x - 80.0, 324.0)
+	main_scene._snap_ball_vel = Vector2(900.0, 0.0)
+	main_scene._online_snapshot_time = main_scene._online_now() - 0.2
+	main_scene._smooth_online_state(1.0 / 60.0)
+	_check(scene_ball.velocity.x < 0.0 and scene_ball.position.x < scene_right.position.x, "Online prediction bounces the ball off the opponent paddle")
+	var predictor = load("res://online_prediction.gd").new()
+	var no_paddles := func(_side: String, _offset: float) -> Vector2: return Vector2(-1000.0, 0.0)
+	var wall_case: Dictionary = predictor.advance(Vector2(576.0, Constants.HUD_HEIGHT + Constants.BALL_RADIUS + 5.0), Vector2(200.0, -600.0), 0, 0.1, Vector2(1152.0, 648.0), no_paddles)
+	_check(wall_case["vel"].y > 0.0 and wall_case["pos"].y >= Constants.HUD_HEIGHT + Constants.BALL_RADIUS, "Online prediction reflects off the top wall")
+	main_scene._reset_online_prediction()
 	scene_left.position.y = 324.0
 	game_state.mode = constants.MODE_2P
 	scene_ball.position = Vector2(90.0, scene_left.position.y)
@@ -138,6 +154,18 @@ func _run() -> void:
 	scene_ball.velocity = Vector2(300.0, -900.0)
 	scene_ball._physics_process(1.0 / 60.0)
 	_check(scene_ball.velocity.y >= 0.0, "wall reflection keeps the ball inside the playfield")
+	game_state.mode = constants.MODE_2P
+	game_state.serving = false
+	scene_left.position.y = 324.0
+	main_scene._handle_pointer_touch(3, Vector2(100.0, 364.0), true)
+	_check(is_equal_approx(scene_left._pointer_target_y, 324.0), "touching near a paddle grabs it without jumping under the finger")
+	main_scene._handle_pointer_motion(3, Vector2(100.0, 464.0))
+	_check(is_equal_approx(scene_left._pointer_target_y, 424.0), "touch drags the paddle by the finger's movement")
+	main_scene._handle_pointer_motion(3, Vector2(100.0, 20.0))
+	main_scene._handle_pointer_motion(3, Vector2(100.0, 200.0))
+	_check(is_equal_approx(scene_left._pointer_target_y, 200.0), "dragging past a wall folds the grab offset away")
+	main_scene._handle_pointer_touch(3, Vector2(100.0, 200.0), false)
+	_check(not scene_left.has_pointer_target(), "lifting the finger releases the paddle")
 	sfx.stop_all()
 	sfx.muted = was_muted
 	main_scene.free()

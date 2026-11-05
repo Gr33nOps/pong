@@ -18,31 +18,49 @@ extends Node2D
 @onready var bottom_rail = $Court/BottomRail
 @onready var ink_rails = $InkRails
 
+const OnlinePrediction = preload("res://online_prediction.gd")
+
 var playfield_size := Vector2.ZERO
-var _rotate_hint: CanvasLayer = null
 var _pointer_paddles: Dictionary = {}
+var _pointer_offsets: Dictionary = {}
 var _last_landscape := true
 var _orientation_paused := false
+var _online_predictor = OnlinePrediction.new()
 var _online_snapshot_ready := false
-var _online_ball_target := Vector2.ZERO
-var _online_left_target := 360.0
-var _online_right_target := 360.0
-var _online_left_snapshot_y := 360.0
-var _online_right_snapshot_y := 360.0
-var _online_left_velocity := 0.0
-var _online_right_velocity := 0.0
-var _online_snapshot_age := 0.0
+var _online_snapshot_time := 0.0
+var _snap_ball_pos := Vector2.ZERO
+var _snap_ball_vel := Vector2.ZERO
+var _snap_rally_hits := 0
+var _snap_paddle_y := {"left": 360.0, "right": 360.0}
+var _snap_paddle_vy := {"left": 0.0, "right": 0.0}
+var _ball_error := Vector2.ZERO
+var _remote_error := 0.0
+var _predicted_velocity := Vector2.ZERO
+var _local_idle_time := 0.0
+var _history_t := PackedFloat64Array()
+var _history_y := PackedFloat32Array()
+var _history_vy := PackedFloat32Array()
+var _last_hit_fx_time := -1.0
+var _last_wall_fx_time := -1.0
 
-const ONLINE_EXTRAPOLATION_LIMIT := 0.1
-const ONLINE_BALL_CORRECTION_RATE := 22.0
-const ONLINE_REMOTE_CORRECTION_RATE := 28.0
-const ONLINE_LOCAL_CORRECTION_RATE := 16.0
-const ONLINE_SNAP_DISTANCE := 140.0
+# Online view runs ahead of the latest snapshot by its age plus one round trip,
+# which is when this client's paddle input actually lands on the server.
+const ONLINE_MAX_SNAPSHOT_AGE := 0.25
+const ONLINE_MAX_LEAD_RTT := 0.3
+const ONLINE_REMOTE_EXTRAPOLATION := 0.15
+const ONLINE_ERROR_DECAY := 12.0
+const ONLINE_SNAP_DISTANCE := 160.0
+const ONLINE_LOCAL_IDLE_RESYNC := 0.5
+const ONLINE_LOCAL_RESYNC_RATE := 10.0
+const ONLINE_HISTORY_SECONDS := 1.0
+const ONLINE_FX_COOLDOWN := 0.12
+# Touching near your paddle grabs it where it is instead of jumping it under the finger.
+const TOUCH_GRAB_SLACK := 70.0
 
 
 func _ready() -> void:
 	ScreenShake.reset()
-	_last_landscape = get_viewport_rect().size.x >= get_viewport_rect().size.y
+	_last_landscape = _window_is_landscape()
 	_update_playfield_size()
 	GameState.score_changed.connect(_on_score_changed)
 	GameState.serving_changed.connect(_on_serving_changed)
@@ -67,41 +85,13 @@ func _ready() -> void:
 	# script in the frame loop on lower-powered browsers and phones.
 	trail.set_process(false)
 	_set_match_visible(false)
-	if GameState.is_touch_ui():
-		_make_rotate_hint()
-		_update_rotate_hint()
 
 
-func _make_rotate_hint() -> void:
-	_rotate_hint = CanvasLayer.new()
-	_rotate_hint.layer = 90
-	_rotate_hint.process_mode = Node.PROCESS_MODE_ALWAYS
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(1.0, 1.0, 1.0, 0.98)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	var label := Label.new()
-	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.text = "↻\n\nROTATE YOUR DEVICE\nPONG plays in landscape"
-	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.11, 1.0))
-	root.theme = preload("res://ink_theme.tres")
-	root.add_child(dim)
-	root.add_child(label)
-	_rotate_hint.add_child(root)
-	add_child(_rotate_hint)
-	_rotate_hint.visible = false
-
-
-func _update_rotate_hint() -> void:
-	if _rotate_hint == null:
-		return
-	var size := get_viewport_rect().size
-	_rotate_hint.visible = size.y > size.x
+func _window_is_landscape() -> bool:
+	# The court is a fixed 1152x648 viewport, so orientation has to come from the
+	# real window; the web shell shows its own full-screen rotate prompt.
+	var window_size := DisplayServer.window_get_size()
+	return window_size.x >= window_size.y
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -162,16 +152,30 @@ func _paddle_for_pointer(pos: Vector2) -> Area2D:
 func _handle_pointer_touch(pointer_id: int, pos: Vector2, pressed: bool) -> void:
 	if pressed:
 		var paddle := _paddle_for_pointer(pos)
-		if paddle != null and paddle.begin_pointer(pointer_id, pos.y):
+		if paddle == null:
+			return
+		var offset := 0.0
+		if pointer_id >= 0:
+			offset = clampf(paddle.position.y - pos.y, -TOUCH_GRAB_SLACK, TOUCH_GRAB_SLACK)
+		if paddle.begin_pointer(pointer_id, pos.y + offset):
 			_pointer_paddles[pointer_id] = paddle
+			_pointer_offsets[pointer_id] = offset
 	else:
 		_release_pointer(pointer_id)
 
 
 func _handle_pointer_motion(pointer_id: int, pos: Vector2) -> void:
 	var paddle: Area2D = _pointer_paddles.get(pointer_id)
-	if paddle != null and is_instance_valid(paddle):
-		paddle.set_pointer_target(pos.y, pointer_id)
+	if paddle == null or not is_instance_valid(paddle):
+		return
+	var offset := float(_pointer_offsets.get(pointer_id, 0.0))
+	# Fold the grab offset away at the walls so the paddle can always reach them.
+	if pos.y + offset < paddle.top_limit:
+		offset = minf(paddle.top_limit - pos.y, 0.0) if offset < 0.0 else offset
+	elif pos.y + offset > paddle.bottom_limit:
+		offset = maxf(paddle.bottom_limit - pos.y, 0.0) if offset > 0.0 else offset
+	_pointer_offsets[pointer_id] = offset
+	paddle.set_pointer_target(pos.y + offset, pointer_id)
 
 
 func _release_pointer(pointer_id: int) -> void:
@@ -179,6 +183,7 @@ func _release_pointer(pointer_id: int) -> void:
 	if paddle != null and is_instance_valid(paddle):
 		paddle.release_pointer(pointer_id)
 	_pointer_paddles.erase(pointer_id)
+	_pointer_offsets.erase(pointer_id)
 
 
 func _release_all_pointers() -> void:
@@ -198,7 +203,7 @@ func _notification(what: int) -> void:
 
 func _on_mode_changed(_mode: int) -> void:
 	if _mode == Constants.MODE_ONLINE:
-		_online_snapshot_ready = false
+		_reset_online_prediction()
 	_set_match_visible(true)
 
 
@@ -306,7 +311,7 @@ func _serve_aim() -> float:
 
 func _update_playfield_size() -> void:
 	playfield_size = get_viewport_rect().size
-	var landscape := playfield_size.x >= playfield_size.y
+	var landscape := _window_is_landscape()
 	if landscape != _last_landscape and GameState.mode_selected and not GameState.is_game_over:
 		_release_all_pointers()
 		if not landscape:
@@ -348,7 +353,6 @@ func _update_playfield_size() -> void:
 	if $AI:
 		$AI.center_y = (playfield_size.y + Constants.HUD_HEIGHT) * 0.5
 	_refresh_touch_roots()
-	_update_rotate_hint()
 
 
 func _on_score_changed(left_score: int, right_score: int) -> void:
@@ -394,109 +398,240 @@ func _on_game_over(_winner: String) -> void:
 func _send_online_input() -> void:
 	if not NetworkManager.connection_is_open() or NetworkManager.state != NetworkManager.STATE_PLAYING:
 		return
-	var paddle = paddle_left if GameState.player_is_left else paddle_right
-	var axis := float(paddle.get_move_input())
-	var target_y: float = float(paddle._pointer_target_y) if paddle.has_pointer_target() else -1.0
-	NetworkManager.send_input(axis, target_y)
+	var paddle := _local_paddle()
+	# The client owns its paddle position; the server follows it under a speed cap.
+	NetworkManager.send_input(float(paddle.get_move_input()), paddle.position.y)
+
+
+func _local_side() -> String:
+	return "left" if GameState.player_is_left else "right"
+
+
+func _local_paddle() -> Area2D:
+	return paddle_left if GameState.player_is_left else paddle_right
+
+
+func _remote_paddle() -> Area2D:
+	return paddle_right if GameState.player_is_left else paddle_left
+
+
+func _online_now() -> float:
+	return Time.get_ticks_usec() / 1000000.0
+
+
+func _online_lead_rtt() -> float:
+	return clampf(NetworkManager.rtt_seconds, 0.0, ONLINE_MAX_LEAD_RTT)
+
+
+func _online_lead(now: float) -> float:
+	return clampf(now - _online_snapshot_time, 0.0, ONLINE_MAX_SNAPSHOT_AGE) + _online_lead_rtt()
+
+
+func _online_ball_in_play() -> bool:
+	return not GameState.serving and not GameState.between_points and not GameState.is_game_over
+
+
+func _reset_online_prediction() -> void:
+	_online_snapshot_ready = false
+	_ball_error = Vector2.ZERO
+	_remote_error = 0.0
+	_predicted_velocity = Vector2.ZERO
+	_local_idle_time = 0.0
+	_history_t.clear()
+	_history_y.clear()
+	_history_vy.clear()
 
 
 func _on_online_snapshot(snapshot: Dictionary) -> void:
 	if GameState.mode != Constants.MODE_ONLINE:
 		return
+	var now := _online_now()
+	var had_snapshot := _online_snapshot_ready
+	var was_in_play := _online_ball_in_play()
+	var old_ball := Vector2.ZERO
+	var old_remote := 0.0
+	if had_snapshot:
+		old_ball = _online_ball_position(now) + (_ball_error if was_in_play else Vector2.ZERO)
+		old_remote = _remote_predicted_y(now) + _remote_error
+	var previous_snapshot_time := _online_snapshot_time
+	var previous_left := float(_snap_paddle_y["left"])
+	var previous_right := float(_snap_paddle_y["right"])
 	GameState.apply_online_snapshot(snapshot)
-	var snapshot_interval := maxf(_online_snapshot_age, 1.0 / 30.0)
-	var previous_left_snapshot_y := _online_left_snapshot_y
-	var previous_right_snapshot_y := _online_right_snapshot_y
 	var paddles = snapshot.get("paddles", {})
 	if paddles is Dictionary:
-		if paddles.has("left"):
-			_online_left_snapshot_y = float(paddles.get("left"))
-			_online_left_target = _online_left_snapshot_y
-		if paddles.has("right"):
-			_online_right_snapshot_y = float(paddles.get("right"))
-			_online_right_target = _online_right_snapshot_y
+		for side in ["left", "right"]:
+			if paddles.has(side):
+				_snap_paddle_y[side] = float(paddles.get(side))
 	var paddle_velocities = snapshot.get("paddle_velocities", {})
 	if paddle_velocities is Dictionary and paddle_velocities.has("left") and paddle_velocities.has("right"):
-		_online_left_velocity = float(paddle_velocities.get("left"))
-		_online_right_velocity = float(paddle_velocities.get("right"))
-	elif _online_snapshot_ready:
-		# Infer velocity while an older hosted server is still rolling forward.
-		_online_left_velocity = (_online_left_snapshot_y - previous_left_snapshot_y) / snapshot_interval
-		_online_right_velocity = (_online_right_snapshot_y - previous_right_snapshot_y) / snapshot_interval
+		_snap_paddle_vy["left"] = float(paddle_velocities.get("left"))
+		_snap_paddle_vy["right"] = float(paddle_velocities.get("right"))
+	elif had_snapshot:
+		# Older hosted servers omit velocities; infer them from consecutive snapshots.
+		var interval := maxf(now - previous_snapshot_time, 1.0 / 60.0)
+		_snap_paddle_vy["left"] = (float(_snap_paddle_y["left"]) - previous_left) / interval
+		_snap_paddle_vy["right"] = (float(_snap_paddle_y["right"]) - previous_right) / interval
 	var ball_data = snapshot.get("ball", {})
 	if ball_data is Dictionary:
-		_online_ball_target = Vector2(float(ball_data.get("x", ball.position.x)), float(ball_data.get("y", ball.position.y)))
-		ball.velocity = Vector2(float(ball_data.get("vx", ball.velocity.x)), float(ball_data.get("vy", ball.velocity.y)))
-		ball.rally_hits = int(snapshot.get("rally_hits", ball.rally_hits))
-		ball.visible = GameState.mode_selected and not GameState.is_game_over and not GameState.between_points
-	if not _online_snapshot_ready:
-		paddle_left.position.y = _online_left_target
-		paddle_right.position.y = _online_right_target
-		ball.position = _online_ball_target
+		_snap_ball_pos = Vector2(float(ball_data.get("x", _snap_ball_pos.x)), float(ball_data.get("y", _snap_ball_pos.y)))
+		_snap_ball_vel = Vector2(float(ball_data.get("vx", _snap_ball_vel.x)), float(ball_data.get("vy", _snap_ball_vel.y)))
+	_snap_rally_hits = int(snapshot.get("rally_hits", _snap_rally_hits))
+	_online_snapshot_time = now
+	if not had_snapshot:
+		paddle_left.position.y = float(_snap_paddle_y["left"])
+		paddle_right.position.y = float(_snap_paddle_y["right"])
+		_ball_error = Vector2.ZERO
+		_remote_error = 0.0
 		_online_snapshot_ready = true
-	elif bool(snapshot.get("between_points", false)) or bool(snapshot.get("serving", false)) or ball.position.distance_to(_online_ball_target) > 180.0:
-		ball.position = _online_ball_target
+	else:
+		# Keep what is on screen continuous and fade the correction out instead.
+		_ball_error = Vector2.ZERO
+		if was_in_play and _online_ball_in_play():
+			_ball_error = old_ball - _online_ball_position(now)
+			if _ball_error.length() > ONLINE_SNAP_DISTANCE:
+				_ball_error = Vector2.ZERO
+		_remote_error = old_remote - _remote_predicted_y(now)
+		if absf(_remote_error) > ONLINE_SNAP_DISTANCE:
+			_remote_error = 0.0
+	ball.visible = GameState.mode_selected and not GameState.is_game_over and not GameState.between_points
 	paddle_left.visible = GameState.mode_selected and not GameState.is_game_over
 	paddle_right.visible = GameState.mode_selected and not GameState.is_game_over
-	center_line_ink.visible = ball.velocity != Vector2.ZERO and not GameState.is_game_over
-	_online_snapshot_age = 0.0
+	center_line_ink.visible = _online_ball_in_play()
 
 
 func _on_online_rematch_started() -> void:
-	_online_snapshot_ready = false
+	_reset_online_prediction()
 	GameState.online_rematch_started()
 
 
 func _smooth_online_state(delta: float) -> void:
 	if not _online_snapshot_ready:
 		return
-	var remaining_extrapolation := maxf(ONLINE_EXTRAPOLATION_LIMIT - _online_snapshot_age, 0.0)
-	var prediction_delta := minf(delta, remaining_extrapolation)
-	_online_snapshot_age += delta
-	if prediction_delta > 0.0:
-		_online_left_target = clampf(_online_left_target + _online_left_velocity * prediction_delta, paddle_left.top_limit, paddle_left.bottom_limit)
-		_online_right_target = clampf(_online_right_target + _online_right_velocity * prediction_delta, paddle_right.top_limit, paddle_right.bottom_limit)
-		_predict_online_ball(prediction_delta)
-
-	var local_paddle: Area2D = paddle_left if GameState.player_is_left else paddle_right
-	var remote_paddle: Area2D = paddle_right if GameState.player_is_left else paddle_left
-	var local_target: float = _online_left_target if GameState.player_is_left else _online_right_target
-	var remote_target: float = _online_right_target if GameState.player_is_left else _online_left_target
-	var local_axis := float(local_paddle.get_move_input())
-	var local_is_active: bool = absf(local_axis) > 0.01 or local_paddle.has_pointer_target()
-	if local_paddle.has_pointer_target():
-		local_paddle.position.y = move_toward(local_paddle.position.y, local_paddle._pointer_target_y, Constants.PADDLE_POINTER_SNAP_SPEED * delta)
-	else:
-		local_paddle.position.y += local_axis * local_paddle.speed * delta
-	local_paddle.position.y = clampf(local_paddle.position.y, local_paddle.top_limit, local_paddle.bottom_limit)
-	var local_error: float = local_target - local_paddle.position.y
-	var local_snap_distance := ONLINE_SNAP_DISTANCE * 2.0 if local_is_active else ONLINE_SNAP_DISTANCE
-	if absf(local_error) > local_snap_distance:
-		local_paddle.position.y = local_target
-	elif not local_is_active:
-		var local_weight := 1.0 - exp(-ONLINE_LOCAL_CORRECTION_RATE * delta)
-		local_paddle.position.y = lerpf(local_paddle.position.y, local_target, local_weight)
-
-	var remote_weight := 1.0 - exp(-ONLINE_REMOTE_CORRECTION_RATE * delta)
-	remote_paddle.position.y = lerpf(remote_paddle.position.y, remote_target, remote_weight)
-	var ball_weight := 1.0 - exp(-ONLINE_BALL_CORRECTION_RATE * delta)
-	ball.position = ball.position.lerp(_online_ball_target, ball_weight)
-
-
-func _predict_online_ball(delta: float) -> void:
-	if GameState.serving or GameState.between_points or GameState.is_game_over:
+	var now := _online_now()
+	_update_local_online_paddle(delta, now)
+	var decay := exp(-ONLINE_ERROR_DECAY * delta)
+	_ball_error *= decay
+	_remote_error *= decay
+	var remote := _remote_paddle()
+	remote.position.y = clampf(_remote_predicted_y(now) + _remote_error, remote.top_limit, remote.bottom_limit)
+	if not _online_ball_in_play():
+		ball.position = _online_ball_position(now)
+		ball.velocity = Vector2.ZERO
+		_predicted_velocity = Vector2.ZERO
 		return
-	_online_ball_target += ball.velocity * delta
-	var min_y := Constants.HUD_HEIGHT + Constants.BALL_RADIUS
-	var max_y := playfield_size.y - 10.0 - Constants.BALL_RADIUS
-	if _online_ball_target.y < min_y:
-		_online_ball_target.y = min_y + (min_y - _online_ball_target.y)
-		ball.velocity.y = absf(ball.velocity.y)
-	elif _online_ball_target.y > max_y:
-		_online_ball_target.y = max_y - (_online_ball_target.y - max_y)
-		ball.velocity.y = -absf(ball.velocity.y)
+	var predicted := _predict_online_ball(now)
+	ball.position = predicted["pos"] + _ball_error
+	ball.velocity = predicted["vel"]
+	ball.rally_hits = int(predicted["rally_hits"])
+	_play_online_ball_feedback(ball.velocity, now)
+
+
+func _update_local_online_paddle(delta: float, now: float) -> void:
+	var paddle := _local_paddle()
+	var before: float = paddle.position.y
+	var y := before
+	if paddle.has_pointer_target():
+		y = move_toward(y, paddle._pointer_target_y, Constants.PADDLE_POINTER_SNAP_SPEED * delta)
+	else:
+		y += float(paddle.get_move_input()) * paddle.speed * delta
+	y = clampf(y, paddle.top_limit, paddle.bottom_limit)
+	if absf(y - before) > 0.001:
+		_local_idle_time = 0.0
+	else:
+		_local_idle_time += delta
+		# Only reconcile once the server has had time to see us standing still.
+		if _local_idle_time > ONLINE_LOCAL_IDLE_RESYNC + _online_lead_rtt():
+			var server_y := float(_snap_paddle_y[_local_side()])
+			if absf(server_y - y) > 0.5:
+				y = lerpf(y, server_y, 1.0 - exp(-ONLINE_LOCAL_RESYNC_RATE * delta))
+	paddle.position.y = y
+	paddle.previous_y = before
+	paddle.last_vy = (y - before) / delta if delta > 0.0 else 0.0
+	_history_t.append(now)
+	_history_y.append(y)
+	_history_vy.append(paddle.last_vy)
+	var stale := 0
+	while stale < _history_t.size() and _history_t[stale] < now - ONLINE_HISTORY_SECONDS:
+		stale += 1
+	if stale > 0:
+		_history_t = _history_t.slice(stale)
+		_history_y = _history_y.slice(stale)
+		_history_vy = _history_vy.slice(stale)
+
+
+func _predict_online_ball(now: float) -> Dictionary:
+	return _online_predictor.advance(_snap_ball_pos, _snap_ball_vel, _snap_rally_hits, _online_lead(now), playfield_size, _sample_online_paddle)
+
+
+func _online_ball_position(now: float) -> Vector2:
+	if GameState.serving and not GameState.between_points and not GameState.is_game_over:
+		# Keep the waiting ball glued to the serving paddle as it is drawn locally.
+		var server_paddle: Area2D = paddle_left if GameState.serve_toward_right else paddle_right
+		var direction := 1.0 if GameState.serve_toward_right else -1.0
+		var server_y: float = server_paddle.position.y
+		if server_paddle != _local_paddle():
+			server_y = _remote_predicted_y(now) + _remote_error
+		return Vector2(
+			server_paddle.position.x + direction * (Constants.PADDLE_WIDTH * 0.5 + Constants.BALL_RADIUS + 6.0),
+			server_y
+		)
+	if not _online_ball_in_play():
+		return _snap_ball_pos
+	return _predict_online_ball(now)["pos"]
+
+
+func _sample_online_paddle(side: String, offset: float) -> Vector2:
+	if side == _local_side():
+		# The server applies our paddle one RTT after we drew it.
+		return _local_paddle_at(_online_snapshot_time - _online_lead_rtt() + offset)
+	var paddle: Area2D = paddle_left if side == "left" else paddle_right
+	var vy := float(_snap_paddle_vy[side])
+	var t := minf(offset, ONLINE_REMOTE_EXTRAPOLATION)
+	var y := clampf(float(_snap_paddle_y[side]) + vy * t, paddle.top_limit, paddle.bottom_limit)
+	return Vector2(y, vy if offset <= ONLINE_REMOTE_EXTRAPOLATION else 0.0)
+
+
+func _remote_predicted_y(now: float) -> float:
+	return _sample_online_paddle("right" if GameState.player_is_left else "left", _online_lead(now)).x
+
+
+func _local_paddle_at(time: float) -> Vector2:
+	var paddle := _local_paddle()
+	var count := _history_t.size()
+	if count == 0 or time >= _history_t[count - 1]:
+		return Vector2(paddle.position.y, paddle.last_vy)
+	for i in range(count - 2, -1, -1):
+		if _history_t[i] <= time:
+			var span := _history_t[i + 1] - _history_t[i]
+			var weight := (time - _history_t[i]) / span if span > 0.0 else 1.0
+			return Vector2(lerpf(_history_y[i], _history_y[i + 1], weight), _history_vy[i + 1])
+	return Vector2(_history_y[0], _history_vy[0])
+
+
+func _play_online_ball_feedback(velocity: Vector2, now: float) -> void:
+	var previous := _predicted_velocity
+	_predicted_velocity = velocity
+	if previous == Vector2.ZERO or velocity == Vector2.ZERO:
+		return
+	var ratio := clampf((velocity.length() - Constants.START_SPEED) / (Constants.MAX_SPEED - Constants.START_SPEED), 0.0, 1.0)
+	if signf(previous.x) != signf(velocity.x):
+		var paddle: Area2D = paddle_left if velocity.x > 0.0 else paddle_right
+		if absf(ball.position.x - paddle.position.x) > 120.0 or now - _last_hit_fx_time < ONLINE_FX_COOLDOWN:
+			return
+		_last_hit_fx_time = now
+		SFX.play("paddle", 0.95 + ratio * 0.85)
+		ParticleEffects.spawn_paddle_hit(ball.global_position, ball.ball_color)
+		paddle.pulse()
+	elif signf(previous.y) != signf(velocity.y) and absf(velocity.y) > 1.0:
+		var near_top: bool = ball.position.y < Constants.HUD_HEIGHT + Constants.BALL_RADIUS + 40.0
+		var near_bottom: bool = ball.position.y > playfield_size.y - 10.0 - Constants.BALL_RADIUS - 40.0
+		if not (near_top or near_bottom) or now - _last_wall_fx_time < ONLINE_FX_COOLDOWN:
+			return
+		_last_wall_fx_time = now
+		SFX.play("wall", 0.9 + ratio * 0.35)
+		ParticleEffects.spawn_wall_bounce(ball.global_position)
 
 
 func _on_online_match_cancelled() -> void:
-	_online_snapshot_ready = false
+	_reset_online_prediction()
 	_set_match_visible(false)
