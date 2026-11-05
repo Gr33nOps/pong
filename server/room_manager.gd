@@ -4,9 +4,7 @@ extends RefCounted
 const CODE_ALPHABET := "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 const ROOM_CODE_LENGTH := 6
 const MAX_ROOMS := 512
-const MATCH_ROOM_SCRIPT = preload("res://match_room.gd")
-const QUAD_ROOM_SCRIPT = preload("res://quad_room.gd")
-const MODE_QUAD := "quad"
+const ARENA_ROOM_SCRIPT = preload("res://arena_room.gd")
 
 var rooms: Dictionary = {}
 var peer_rooms: Dictionary = {}
@@ -21,7 +19,7 @@ func configure(send_callback: Callable, close_callback: Callable) -> void:
 	_rng.randomize()
 
 
-func create_room(peer_id: int, mode: String = "") -> String:
+func create_room(peer_id: int, room_size: int = 4) -> String:
 	if peer_rooms.has(peer_id):
 		_send_error(peer_id, "ALREADY IN A ROOM")
 		return ""
@@ -29,8 +27,8 @@ func create_room(peer_id: int, mode: String = "") -> String:
 		_send_error(peer_id, "SERVER ROOM LIMIT REACHED")
 		return ""
 	var code := _new_code()
-	var room = QUAD_ROOM_SCRIPT.new() if mode == MODE_QUAD else MATCH_ROOM_SCRIPT.new()
-	room.configure(code, _send_callback, _close_callback)
+	var room = ARENA_ROOM_SCRIPT.new()
+	room.configure(code, _send_callback, _close_callback, room_size)
 	if not room.add_creator(peer_id):
 		_send_error(peer_id, "COULD NOT CREATE ROOM")
 		return ""
@@ -39,7 +37,7 @@ func create_room(peer_id: int, mode: String = "") -> String:
 	return code
 
 
-func join_room(peer_id: int, code: String, mode: String = "") -> bool:
+func join_room(peer_id: int, code: String) -> bool:
 	if peer_rooms.has(peer_id):
 		_send_error(peer_id, "ALREADY IN A ROOM")
 		return false
@@ -48,11 +46,7 @@ func join_room(peer_id: int, code: String, mode: String = "") -> bool:
 		_send_error(peer_id, "ROOM NOT FOUND")
 		return false
 	var room = rooms[normalized]
-	var room_is_quad: bool = room.has_method("is_quad")
-	if room_is_quad != (mode == MODE_QUAD):
-		_send_error(peer_id, "THAT CODE IS FOR A 4-PLAYER ROOM" if room_is_quad else "THAT CODE IS FOR A 2-PLAYER ROOM")
-		return false
-	var refusal: String = room.join_refusal() if room_is_quad else ("ROOM IS FULL" if room.is_full() else "")
+	var refusal: String = room.join_refusal()
 	if not refusal.is_empty():
 		_send_error(peer_id, refusal)
 		return false
@@ -89,12 +83,12 @@ func handle_message(peer_id: int, message: Dictionary) -> void:
 				reply["t"] = client_time
 			_send(peer_id, reply)
 		"create_room":
-			create_room(peer_id, str(message.get("mode", "")))
+			create_room(peer_id, int(message.get("size", 4)))
 		"join_room":
-			join_room(peer_id, str(message.get("code", "")), str(message.get("mode", "")))
+			join_room(peer_id, str(message.get("code", "")))
 		"leave_room":
 			leave_room(peer_id)
-		"input", "serve", "rematch", "start":
+		"input", "hit", "set_size", "rematch", "start":
 			if not peer_rooms.has(peer_id):
 				_send_error(peer_id, "JOIN A ROOM FIRST")
 				return

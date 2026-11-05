@@ -12,8 +12,6 @@ func _ready() -> void:
 
 
 func _ink_burst(world_position: Vector2, texture: Texture2D, size: float, lifetime: float = 0.28) -> void:
-	if not GameState.mode_selected:
-		return
 	var scene := get_tree().current_scene
 	if scene == null:
 		return
@@ -23,8 +21,9 @@ func _ink_burst(world_position: Vector2, texture: Texture2D, size: float, lifeti
 	sprite.modulate = Color(0.12, 0.12, 0.11, 0.82)
 	sprite.scale = Vector2(size * 0.72, size * 0.72)
 	sprite.z_index = 5
-	world_position.x = clampf(world_position.x, 28.0, get_viewport().get_visible_rect().size.x - 28.0)
-	world_position.y = clampf(world_position.y, Constants.HUD_HEIGHT + 22.0, get_viewport().get_visible_rect().size.y - 22.0)
+	var view := get_viewport().get_visible_rect().size
+	world_position.x = clampf(world_position.x, 28.0, view.x - 28.0)
+	world_position.y = clampf(world_position.y, 22.0, view.y - 22.0)
 	sprite.global_position = world_position
 	scene.add_child(sprite)
 	var tween := create_tween()

@@ -2,9 +2,9 @@
 
 <img src="logo.png" alt="Ink paddles and ball on a paper court" width="180">
 
-# PONG
+# Paddle Polygon
 
-**A paper-and-ink arcade game with aimed serves, lively rallies, local play, and private online rooms.**
+**Pong for 2 to 7 players: one paddle per side, a court that shrinks as players are knocked out, and a one-dimensional finale.**
 
 [![Play in browser](https://img.shields.io/badge/PLAY_IN_BROWSER-111111?style=for-the-badge)](https://gr33nops.github.io/pong/)
 [![Latest release](https://img.shields.io/github/v/release/Gr33nOps/pong?style=for-the-badge&color=111111)](https://github.com/Gr33nOps/pong/releases/latest)
@@ -16,53 +16,35 @@
 
 ## The game
 
-PONG keeps the immediate rules of the original and gives every screen a tactile sketchbook feel. The ball waits beside the serving paddle, serves can be aimed, paddle movement adds english, and long rallies grow faster and more dangerous. First to five wins.
+Every player defends one side of a regular polygon: three players play on a triangle, seven on a heptagon. Everyone starts with three lives, and letting the ball past your side costs one. When a player is knocked out, their side folds away and the court shrinks to the next shape down.
 
-![PONG paper-and-ink start menu](readme_media/menu.png)
+When only two players are left, the court collapses into a single line for a **1D Pong** finale. The ball runs back and forth along it, and you press Space while it is inside your hatched hit zone. The later you hit, the faster it flies back; swing too early and you are locked out for a moment. The zones shrink after every point. The last player standing wins.
 
-![PONG match on the paper court](readme_media/gameplay.png)
+Your own side is always drawn at the bottom of the screen.
 
 ## Play your way
 
 | Mode | Players | How it works |
 |---|---:|---|
-| Player vs CPU | 1 | Three difficulty levels with configurable sound and touch/controller support. |
-| Player vs Player | 2 local | Share a keyboard, controllers, or opposite sides of a touch screen. |
-| Online | 2 remote | Create a private six-character room, copy the code, and send it to your opponent. |
+| Play vs AI | 2–7 | You against 1–6 AI paddles, in your browser with no server involved. Easy, Normal or Hard AI. |
+| Play online | 2–7 | Create a room, pick how many players (the shape), and share the code. The host starts whenever ready; empty sides play as AI, and anyone who drops out is replaced by AI. |
 
-Choose **4 PLAYERS** on the first screen for a square court with one paddle on each wall. Everyone starts with five lives; let the ball past your wall and you lose one, and at zero your wall turns solid. The last player left wins. Four-player matches run on PC (keyboard and controllers):
-
-| 4-player mode | Players | How it works |
-|---|---:|---|
-| Player vs CPU | 1 | You play the left wall against three CPU paddles. |
-| Player vs Player | 1–4 on one PC | Each person presses their wall's keys to join (left W/S, right ↑/↓, top T/Y, bottom B/N), or presses A on a controller. Empty walls play as CPU. |
-| Online | up to 4 | Create a room and share the code. The host starts whenever ready; empty seats play as CPU, and anyone who drops out is replaced by a CPU. |
-
-The hosted online server may need a short wake-up after being idle. The lobby waits through that startup and shows clear connection, room, countdown, serve, disconnect, and rematch states.
-
-## What makes it different
-
-- Hand-drawn panels, controls, court markings, paddles, ball, and loading experience
-- Aimed serves from the paddle instead of automatic center-court launches
-- Paddle english, speed ramping, sharper edge returns, and shrinking paddles during long rallies
-- Server-authoritative online matches with private rooms, 40 Hz snapshots, and latency-compensated client prediction
-- Keyboard, controller, mouse, and touch input with context-aware instructions
-- Rally-sensitive sound, ink impact effects, motion trail, and screen shake
-- First to five with loser-serves-next rules
+The hosted online server may need a short wake-up after being idle.
 
 ## Controls
 
-| Action | Keyboard | Controller | Touch / mouse |
-|---|---|---|---|
-| Move | P1: W/S · P2: ↑/↓ | Left stick or D-pad | Drag your side of the court |
-| Aim serve | Move the serving paddle | Left stick | Drag before serving |
-| Serve / select | Space | A | Tap |
-| Pause / back | Esc | Start / Back | Pause button |
-| Mute | M | — | Pause menu |
+| Action | Keyboard | Controller |
+|---|---|---|
+| Move your paddle | ← / → or A / D | Left stick or D-pad |
+| Swing (line finale) | Space, ↑ or W | A |
+| Change a value in menus | ← / → | D-pad left / right |
+| Select | Space or Enter | A |
+| Pause / back | Esc | Start / Back |
+| Mute | M | — |
 
-In Online mode, either W/S or ↑/↓ controls your paddle.
+## How online stays smooth
 
-On phones, the browser build goes full screen and locks to landscape on your first tap where the browser allows it. Touching near your paddle grabs it where it is, and you can steer from the margins beside the court so your finger stays off the play area.
+The server runs every match. Each browser draws the ball one round trip ahead of the latest update, which is when its own paddle input reaches the server. It replays your own recent paddle movement when predicting returns, and corrections glide rather than jump. In the line finale, a swing is judged against where the ball was when you pressed, so a little network delay doesn't cost you the hit.
 
 ## Download
 
@@ -86,10 +68,14 @@ Requires Godot 4.7.1.
 Run the deterministic client checks:
 
 ```bash
-godot --headless --path . --script tests/smoke.gd
-godot --headless --path . --script tests/menu_layout_smoke.gd
-godot --headless --path . --script tests/online_lobby_smoke.gd
-godot --headless --path . --script tests/quad_smoke.gd
+godot --headless --path . --script tests/arena_smoke.gd
+godot --headless --path server --script res://arena_room_smoke.gd
+```
+
+The online check needs a local server running on port 9081 (`PORT=9081 godot --headless --path server --scene server_main.tscn`):
+
+```bash
+godot --headless --path . --script tests/arena_online_smoke.gd
 ```
 
 ## Build
@@ -102,17 +88,14 @@ godot --headless --path . --export-release "Web" ../pong-build/web/index.html
 godot --headless --path . --export-release "Android" ../pong-build/android/Pong.apk
 ```
 
-Every push to `main` validates gameplay, UI layout, room flow, the authoritative server, and a real two-client online lifecycle before deploying GitHub Pages. A `v*` tag builds and publishes the downloadable release artifacts.
+Every push to `main` validates the simulation, the scene, room flow, and a real online match (including a swing in the line finale) before deploying GitHub Pages. A `v*` tag builds and publishes the downloadable release artifacts.
 
 ## Project map
 
-- `main.gd`, `game_state.gd` — match orchestration, scoring, serve, and online state
-- `ball.gd`, `paddle.gd`, `ai.gd` — local gameplay simulation
-- `online_prediction.gd` — client-side forward simulation of the online ball
-- `quad.gd`, `quad_court.gd`, `quad_simulation.gd` — four-player square mode; `server/quad_simulation.gd` must stay identical to the client copy (a test checks this)
-- `serve.gd`, `pause.gd`, `game_over.gd` — paper-and-ink UI flows
-- `network_manager.gd` — WebSocket client, rooms, input, heartbeats, and snapshots
-- `server/` — authoritative headless match server
-- `tests/` — deterministic UI, gameplay, room, socket, and lifecycle checks
+- `arena_simulation.gd` — the rules: polygon court, paddles, corner bumpers, lives, shrinking, the line finale and the AI. `server/arena_simulation.gd` must stay identical to it (a test checks this)
+- `arena.gd`, `arena_court.gd` — menus, drawing, solo play and online prediction
+- `network_manager.gd` — WebSocket client, rooms, input, swings, heartbeats and snapshots
+- `server/` — authoritative headless server (`arena_room.gd`, `room_manager.gd`)
+- `tests/` — simulation, scene and online checks
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).

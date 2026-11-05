@@ -1,4 +1,4 @@
-# PONG Online Server
+# Paddle Polygon Online Server
 
 This directory contains the authoritative WebSocket server for online matches. It stores rooms in memory, uses six-character room codes, accepts input-only client messages, simulates the ball and paddles on the server at a fixed 120 Hz step, and broadcasts compact JSON snapshots at 40 Hz with Nagle's algorithm disabled. There are no accounts, database tables, or paid runtime dependencies.
 
@@ -20,8 +20,15 @@ The free service may sleep when idle. The client therefore keeps the explicit wa
 
 ## Protocol
 
-Clients send JSON messages containing `create_room`, `join_room`, `leave_room`, `input`, `serve`, `rematch`, or the `ping` keepalive. An `input` carries the client's locally predicted paddle position as `target_y`; the server moves its own paddle toward it under a speed cap, so clients never set positions, ball state, or scores directly. A `ping` may include a client timestamp `t`, which the `pong` reply echoes so the client can measure round-trip time. The server returns room events, connection events, and snapshots containing ball position and velocity, paddle positions and velocities, score, serve state, and match state.
+Every room is a polygon match for 2 to 7 players. The rules live in `arena_simulation.gd`, a verbatim copy of the client's file (a client test checks they match).
 
-Four-player rooms use the same connection. A client sends `create_room` or `join_room` with `"mode": "quad"`; codes only work for their own room type. The server answers with `quad_room` (the player's seat), keeps everyone updated with `quad_lobby`, starts on the host's `start` with CPU paddles in empty seats, and then streams `quad_snapshot` messages at 40 Hz. `server/quad_simulation.gd` is a verbatim copy of the client's `quad_simulation.gd`.
+Clients send:
+- `create_room` with `size` (2–7), and `join_room` with `code`
+- `set_size` and `start` (host only, before the match), `rematch` after it ends, and `leave_room`
+- `input` with `target_y`: the client's predicted paddle position along its wall. The server moves its paddle toward it under a speed cap, so clients never set positions, the ball, or lives directly.
+- `hit` with `tick`: a swing in the line finale, stamped with the server tick the player saw. A swing that arrives late is judged against the ball's recorded position at that tick; one that arrives early is held until that tick.
+- `ping` with an optional timestamp `t`, echoed in `pong` so the client can measure round-trip time.
 
-Clients draw the ball one round trip ahead of the latest snapshot, which is when their paddle input reaches the server, and replay their own recent paddle positions when predicting returns. Corrections from new snapshots fade out instead of snapping.
+The server answers with `arena_room` (your seat), keeps everyone updated with `arena_lobby` (size, filled seats, host), sends `arena_started` when the host starts, with AI in every empty seat, and then streams `arena_snapshot` messages at 40 Hz. A player who drops out mid-match is replaced by AI.
+
+Clients draw the ball one round trip ahead of the latest snapshot, which is when their own input reaches the server, and replay their own recent paddle positions when predicting returns. Corrections from new snapshots glide out instead of snapping.

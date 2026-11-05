@@ -14,9 +14,9 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="PONG"
+config/name="Paddle Polygon"
 config/version="1.3.3"
-run/main_scene="uid://ddvgkqvwq14t"
+run/main_scene="res://arena.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 boot_splash/bg_color=Color(1, 1, 1, 1)
 boot_splash/stretch_mode=0
@@ -26,10 +26,8 @@ config/icon="res://icon.svg"
 [autoload]
 
 Constants="*res://constants.gd"
-GameState="*res://game_state.gd"
 SFX="*res://sfx.gd"
 Players="*res://players.gd"
-ScreenShake="*res://screen_shake.gd"
 ParticleEffects="*res://particle_effects.gd"
 ArcadeUI="*res://arcade_ui.gd"
 NetworkManager="*res://network_manager.gd"

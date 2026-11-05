@@ -7,9 +7,9 @@
 		<meta name="mobile-web-app-capable" content="yes">
 		<meta name="apple-mobile-web-app-capable" content="yes">
 		<meta name="apple-mobile-web-app-status-bar-style" content="default">
-		<meta name="description" content="Play PONG, a paper-and-ink arcade game with local and private-room online multiplayer.">
+		<meta name="description" content="Paddle Polygon is Pong for 2 to 7 players: one paddle per side, a court that shrinks as players are knocked out, and a one-dimensional finale. Play AI or friends online.">
 		<meta property="og:title" content="$GODOT_PROJECT_NAME">
-		<meta property="og:description" content="Paper-and-ink Pong with aimed serves, lively rallies, and private online rooms.">
+		<meta property="og:description" content="2 to 7 players on a paper-and-ink polygon court. Knock-outs shrink the shape until the 1D Pong finale.">
 		<meta property="og:type" content="website">
 		<meta property="og:url" content="https://gr33nops.github.io/pong/">
 		<meta property="og:image" content="index.png">
@@ -151,10 +151,10 @@ body {
 
 #loader-title {
 	font-family: "Segoe Print", "Comic Sans MS", sans-serif;
-	font-size: clamp(42px, 9vw, 58px);
+	font-size: clamp(34px, 7vw, 48px);
 	font-weight: 700;
-	letter-spacing: 0.1em;
-	line-height: 1;
+	letter-spacing: 0.08em;
+	line-height: 1.05;
 }
 
 #loader-logo-window {
@@ -244,17 +244,17 @@ body {
 				<polyline points="44 37 44 43 50 43"></polyline>
 			</svg>
 			<div id="rotate-title">TURN SIDEWAYS</div>
-			<div id="rotate-copy">PONG plays in landscape. Rotate your phone, or tap below to play full screen.</div>
+			<div id="rotate-copy">Paddle Polygon plays in landscape. Rotate your phone, or tap below to play full screen.</div>
 			<button id="rotate-play" type="button">PLAY FULL SCREEN</button>
 		</div>
 
 		<div id="status" role="status" aria-live="polite">
 			<div id="status-card">
-				<div id="loader-title">PONG</div>
+				<div id="loader-title">PADDLE<br>POLYGON</div>
 				<div id="loader-logo-window" aria-hidden="true">
 					<img id="loader-logo" src="$GODOT_SPLASH" alt="">
 				</div>
-				<progress id="status-progress" aria-label="Loading PONG"></progress>
+				<progress id="status-progress" aria-label="Loading Paddle Polygon"></progress>
 			</div>
 			<div id="status-notice"></div>
 		</div>

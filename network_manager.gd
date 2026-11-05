@@ -1,18 +1,13 @@
 extends Node
+## WebSocket client for online polygon rooms: connection, rooms, input,
+## swings, heartbeats, round-trip timing and snapshots.
 
 signal connection_changed(state: int, message: String)
-signal room_changed(code: String, side: String, status: String)
-signal opponent_changed(connected: bool)
-signal match_ready
-signal rematch_started
-signal snapshot_received(snapshot: Dictionary)
 signal online_error(message: String)
-signal quad_room_joined(code: String, seat: int)
-signal quad_lobby_changed(lobby: Dictionary)
-signal quad_started
-signal quad_snapshot_received(snapshot: Dictionary)
-
-const MODE_QUAD := "quad"
+signal room_joined(code: String, seat: int)
+signal lobby_changed(lobby: Dictionary)
+signal match_started
+signal snapshot_received(snapshot: Dictionary)
 
 const STATE_DISCONNECTED := 0
 const STATE_CONNECTING := 1
@@ -24,8 +19,7 @@ var state := STATE_DISCONNECTED
 var socket: WebSocketPeer
 var server_url := ""
 var room_code := ""
-var player_side := ""
-var quad_seat := -1
+var seat := -1
 var status_message := ""
 var _connect_started := 0.0
 var _connection_timeout := 20.0
@@ -46,8 +40,7 @@ const INPUT_KEEPALIVE := 0.1
 
 
 func _ready() -> void:
-	# Online packets must continue to be polled while local pause and game-over
-	# overlays pause the rest of the scene tree (notably for rematch replies).
+	# Online packets must keep flowing while menus pause the rest of the tree.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
@@ -114,22 +107,15 @@ func disconnect_from_server() -> void:
 	_reset_connection("DISCONNECTED")
 
 
-func create_room(mode: String = "") -> void:
+func create_room(size: int) -> void:
 	if state != STATE_CONNECTED or not room_code.is_empty():
 		_emit_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
-	var message := {"type": "create_room"}
-	if not mode.is_empty():
-		message["mode"] = mode
-	if _send(message):
+	if _send({"type": "create_room", "size": size}):
 		_set_state(STATE_CONNECTED, "CREATING ROOM...")
 
 
-func request_start() -> void:
-	_send({"type": "start"})
-
-
-func join_room(code: String, mode: String = "") -> void:
+func join_room(code: String) -> void:
 	if state != STATE_CONNECTED or not room_code.is_empty():
 		_emit_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
@@ -139,10 +125,7 @@ func join_room(code: String, mode: String = "") -> void:
 	if normalized.length() != 6 or room_regex.search(normalized) == null:
 		_emit_error("ROOM CODE MUST BE SIX CHARACTERS")
 		return
-	var message := {"type": "join_room", "code": normalized}
-	if not mode.is_empty():
-		message["mode"] = mode
-	if _send(message):
+	if _send({"type": "join_room", "code": normalized}):
 		_set_state(STATE_CONNECTED, "JOINING ROOM %s..." % normalized)
 
 
@@ -151,16 +134,27 @@ func leave_room() -> void:
 		return
 	_send({"type": "leave_room"})
 	room_code = ""
-	player_side = ""
-	quad_seat = -1
+	seat = -1
 	_set_state(STATE_CONNECTED, "LEFT ROOM")
 
 
-func send_input(axis: float, target_y: float = -1.0) -> void:
+func set_room_size(size: int) -> void:
+	_send({"type": "set_size", "size": size})
+
+
+func request_start() -> void:
+	_send({"type": "start"})
+
+
+func request_rematch() -> void:
+	_send({"type": "rematch"})
+
+
+func send_input(axis: float, target: float = -1.0) -> void:
 	if state != STATE_PLAYING:
 		return
 	var clean_axis := snappedf(clampf(axis, -1.0, 1.0), 0.01)
-	var clean_target := snappedf(target_y, 0.1) if target_y >= 0.0 else -1.0
+	var clean_target := snappedf(target, 0.1) if target >= 0.0 else -1.0
 	var now := _now()
 	var changed := clean_axis != _last_sent_axis or absf(clean_target - _last_sent_target) >= 0.1
 	# Unchanged input is only repeated often enough to beat the server timeout.
@@ -172,25 +166,18 @@ func send_input(axis: float, target_y: float = -1.0) -> void:
 	_send({"type": "input", "axis": clean_axis, "target_y": clean_target})
 
 
-## Half the round trip, capped so a bad spike can't push prediction too far.
-func one_way_latency() -> float:
-	return clampf(rtt_seconds, 0.0, MAX_RTT) * 0.5
-
-
-func _now() -> float:
-	return Time.get_ticks_usec() / 1000000.0
-
-
-func request_serve(aim: float) -> void:
-	_send({"type": "serve", "aim": clampf(aim, -1.0, 1.0)})
-
-
-func request_rematch() -> void:
-	_send({"type": "rematch"})
+## A swing in the line finale, stamped with the server tick the player saw.
+func send_hit(at_tick: int) -> void:
+	if state == STATE_PLAYING:
+		_send({"type": "hit", "tick": at_tick})
 
 
 func connection_is_open() -> bool:
 	return socket != null and socket.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+
+func _now() -> float:
+	return Time.get_ticks_usec() / 1000000.0
 
 
 func _send(message: Dictionary) -> bool:
@@ -214,56 +201,30 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		return
 	var message: Dictionary = parsed
 	_heartbeat_elapsed = 0.0
-	var message_type := str(message.get("type", ""))
-	match message_type:
-		"room_created":
+	match str(message.get("type", "")):
+		"arena_room":
 			room_code = str(message.get("code", ""))
-			player_side = str(message.get("side", "left"))
-			_set_state(STATE_IN_ROOM, "ROOM CREATED")
-			room_changed.emit(room_code, player_side, "WAITING FOR OPPONENT...")
-		"room_joined":
-			room_code = str(message.get("code", ""))
-			player_side = str(message.get("side", "right"))
-			_set_state(STATE_IN_ROOM, "ROOM JOINED")
-			room_changed.emit(room_code, player_side, "WAITING FOR OPPONENT...")
-		"opponent_connected":
-			opponent_changed.emit(true)
-			_set_state(STATE_PLAYING, "OPPONENT CONNECTED")
-			match_ready.emit()
-		"snapshot":
-			snapshot_received.emit(message)
-		"opponent_disconnected":
-			opponent_changed.emit(false)
-			_set_state(STATE_IN_ROOM, "OPPONENT DISCONNECTED")
-		"rematch_started":
-			rematch_started.emit()
-		"quad_room":
-			room_code = str(message.get("code", ""))
-			quad_seat = int(message.get("seat", -1))
+			seat = int(message.get("seat", -1))
 			_set_state(STATE_IN_ROOM, "ROOM READY")
-			quad_room_joined.emit(room_code, quad_seat)
-		"quad_lobby":
-			quad_lobby_changed.emit(message)
-		"quad_started":
+			room_joined.emit(room_code, seat)
+		"arena_lobby":
+			seat = int(message.get("you", seat))
+			lobby_changed.emit(message)
+		"arena_started":
 			_set_state(STATE_PLAYING, "MATCH STARTED")
-			quad_started.emit()
-		"quad_snapshot":
-			quad_snapshot_received.emit(message)
+			match_started.emit()
+		"arena_snapshot":
+			snapshot_received.emit(message)
 		"error":
 			var server_message := str(message.get("message", "ONLINE ERROR"))
-			# Older hosted servers answer the application heartbeat as unknown.
-			# Treat that compatibility response as a successful keepalive.
 			if server_message != "UNKNOWN MESSAGE TYPE":
 				_emit_error(server_message)
 		"left_room":
 			room_code = ""
-			player_side = ""
-			quad_seat = -1
+			seat = -1
 			_set_state(STATE_CONNECTED, "LEFT ROOM")
 		"pong":
 			_record_rtt(message.get("t"))
-		_:
-			pass
 
 
 func _record_rtt(sent_at) -> void:
@@ -303,6 +264,5 @@ func _reset_connection(message: String) -> void:
 	_last_sent_axis = 0.0
 	_last_sent_target = -1.0
 	room_code = ""
-	player_side = ""
-	quad_seat = -1
+	seat = -1
 	_set_state(STATE_DISCONNECTED, message)
