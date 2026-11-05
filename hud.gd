@@ -36,6 +36,7 @@ func _make_pause_button() -> void:
 	pause_label = Label.new()
 	pause_label.size = Vector2(68.0, 30.0)
 	pause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pause_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pause_label.text = "PAUSE"
 	pause_label.add_theme_font_size_override("font_size", 16)
 	pause_label.add_theme_color_override("font_color", Color(0.08, 0.08, 0.075, 1.0))
@@ -53,9 +54,17 @@ func _layout_pause_button() -> void:
 	if pause_hit == null or pause_label == null:
 		return
 	var viewport_width := get_viewport().get_visible_rect().size.x
-	var x := maxf(16.0, viewport_width * 0.5 - 34.0)
-	pause_hit.position = Vector2(x, 17.0)
-	pause_label.position = Vector2(x, 21.0)
+	# Phones render the 1152px court at roughly half size, so the touch target
+	# needs to be larger to stay comfortably tappable.
+	var touch := GameState.is_touch_ui()
+	var button_size := Vector2(112.0, 52.0) if touch else Vector2(68.0, 38.0)
+	var x := maxf(16.0, viewport_width * 0.5 - button_size.x * 0.5)
+	var y := (Constants.HUD_HEIGHT - button_size.y) * 0.5
+	pause_hit.position = Vector2(x, y)
+	pause_hit.size = button_size
+	pause_label.position = Vector2(x, y)
+	pause_label.size = button_size
+	pause_label.add_theme_font_size_override("font_size", 22 if touch else 16)
 
 
 func _layout_scoreboard() -> void:
@@ -105,6 +114,7 @@ func _on_mode_changed(_mode: int) -> void:
 	if pause_hit:
 		pause_hit.visible = true
 		pause_label.visible = true
+		_layout_pause_button()
 
 
 func _on_serving_changed(_serving: bool) -> void:

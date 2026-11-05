@@ -1,6 +1,9 @@
 extends Node
 
 const DEFAULT_PORT := 9080
+# Headless Godot otherwise spins the main loop at 100% CPU, which gets small
+# hosted containers throttled and makes every match stutter.
+const SERVER_MAX_FPS := 240
 const ROOM_MANAGER_SCRIPT = preload("res://room_manager.gd")
 
 var tcp_server := TCPServer.new()
@@ -11,6 +14,7 @@ var port := DEFAULT_PORT
 
 
 func _ready() -> void:
+	Engine.max_fps = SERVER_MAX_FPS
 	port = _read_port()
 	rooms.configure(_send_to_peer, _close_peer)
 	var result := tcp_server.listen(port)
@@ -38,6 +42,8 @@ func _process(delta: float) -> void:
 func _accept_connections() -> void:
 	while tcp_server.is_connection_available():
 		var stream := tcp_server.take_connection()
+		# Small snapshot packets must not wait for Nagle/delayed-ACK batching.
+		stream.set_no_delay(true)
 		var peer := WebSocketPeer.new()
 		var result := peer.accept_stream(stream)
 		if result != OK:

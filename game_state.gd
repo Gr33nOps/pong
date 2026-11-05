@@ -30,6 +30,8 @@ var serve_toward_right := true
 var between_points := false
 var player_is_left := true
 var online_player_side := "left"
+## Which four-player mode the menu opened: "cpu", "local" or "online".
+var quad_mode := ""
 var _last_input_modality := "keyboard"
 var _online_last_point := ""
 

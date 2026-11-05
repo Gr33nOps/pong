@@ -7,6 +7,12 @@ signal match_ready
 signal rematch_started
 signal snapshot_received(snapshot: Dictionary)
 signal online_error(message: String)
+signal quad_room_joined(code: String, seat: int)
+signal quad_lobby_changed(lobby: Dictionary)
+signal quad_started
+signal quad_snapshot_received(snapshot: Dictionary)
+
+const MODE_QUAD := "quad"
 
 const STATE_DISCONNECTED := 0
 const STATE_CONNECTING := 1
@@ -19,13 +25,24 @@ var socket: WebSocketPeer
 var server_url := ""
 var room_code := ""
 var player_side := ""
+var quad_seat := -1
 var status_message := ""
 var _connect_started := 0.0
 var _connection_timeout := 20.0
 var _last_input_sent := 0.0
-var _input_send_interval := 1.0 / 60.0
+var _last_sent_axis := 0.0
+var _last_sent_target := -1.0
 var _heartbeat_elapsed := 0.0
+var _rtt_ping_elapsed := 0.0
+var _rtt_sampled := false
+var _no_delay_applied := false
+## Smoothed round-trip time to the server, used to lead online prediction.
+var rtt_seconds := DEFAULT_RTT
 const HEARTBEAT_INTERVAL := 10.0
+const RTT_PING_INTERVAL := 1.0
+const DEFAULT_RTT := 0.12
+const MAX_RTT := 1.0
+const INPUT_KEEPALIVE := 0.1
 
 
 func _ready() -> void:
@@ -40,11 +57,21 @@ func _process(delta: float) -> void:
 	socket.poll()
 	var ready := socket.get_ready_state()
 	if ready == WebSocketPeer.STATE_OPEN:
+		if not _no_delay_applied:
+			_no_delay_applied = true
+			if not OS.has_feature("web"):
+				socket.set_no_delay(true)
 		if state == STATE_CONNECTING:
 			_heartbeat_elapsed = 0.0
+			_rtt_ping_elapsed = RTT_PING_INTERVAL
 			_set_state(STATE_CONNECTED, "CONNECTED TO ONLINE SERVER")
 		_heartbeat_elapsed += delta
-		if _heartbeat_elapsed >= HEARTBEAT_INTERVAL:
+		_rtt_ping_elapsed += delta
+		if _rtt_ping_elapsed >= RTT_PING_INTERVAL:
+			_rtt_ping_elapsed = 0.0
+			_heartbeat_elapsed = 0.0
+			_send({"type": "ping", "t": _now()})
+		elif _heartbeat_elapsed >= HEARTBEAT_INTERVAL:
 			_heartbeat_elapsed = 0.0
 			_send({"type": "ping"})
 		while socket.get_available_packet_count() > 0:
@@ -70,6 +97,7 @@ func connect_to_server(url: String = "") -> void:
 	if socket != null:
 		disconnect_from_server()
 	socket = WebSocketPeer.new()
+	_no_delay_applied = false
 	var result := socket.connect_to_url(server_url)
 	if result != OK:
 		_reset_connection("COULDN'T START CONNECTION")
@@ -86,15 +114,22 @@ func disconnect_from_server() -> void:
 	_reset_connection("DISCONNECTED")
 
 
-func create_room() -> void:
+func create_room(mode: String = "") -> void:
 	if state != STATE_CONNECTED or not room_code.is_empty():
 		_emit_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
-	if _send({"type": "create_room"}):
+	var message := {"type": "create_room"}
+	if not mode.is_empty():
+		message["mode"] = mode
+	if _send(message):
 		_set_state(STATE_CONNECTED, "CREATING ROOM...")
 
 
-func join_room(code: String) -> void:
+func request_start() -> void:
+	_send({"type": "start"})
+
+
+func join_room(code: String, mode: String = "") -> void:
 	if state != STATE_CONNECTED or not room_code.is_empty():
 		_emit_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
@@ -104,7 +139,10 @@ func join_room(code: String) -> void:
 	if normalized.length() != 6 or room_regex.search(normalized) == null:
 		_emit_error("ROOM CODE MUST BE SIX CHARACTERS")
 		return
-	if _send({"type": "join_room", "code": normalized}):
+	var message := {"type": "join_room", "code": normalized}
+	if not mode.is_empty():
+		message["mode"] = mode
+	if _send(message):
 		_set_state(STATE_CONNECTED, "JOINING ROOM %s..." % normalized)
 
 
@@ -114,17 +152,33 @@ func leave_room() -> void:
 	_send({"type": "leave_room"})
 	room_code = ""
 	player_side = ""
+	quad_seat = -1
 	_set_state(STATE_CONNECTED, "LEFT ROOM")
 
 
 func send_input(axis: float, target_y: float = -1.0) -> void:
 	if state != STATE_PLAYING:
 		return
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - _last_input_sent < _input_send_interval:
+	var clean_axis := snappedf(clampf(axis, -1.0, 1.0), 0.01)
+	var clean_target := snappedf(target_y, 0.1) if target_y >= 0.0 else -1.0
+	var now := _now()
+	var changed := clean_axis != _last_sent_axis or absf(clean_target - _last_sent_target) >= 0.1
+	# Unchanged input is only repeated often enough to beat the server timeout.
+	if not changed and now - _last_input_sent < INPUT_KEEPALIVE:
 		return
 	_last_input_sent = now
-	_send({"type": "input", "axis": clampf(axis, -1.0, 1.0), "target_y": target_y})
+	_last_sent_axis = clean_axis
+	_last_sent_target = clean_target
+	_send({"type": "input", "axis": clean_axis, "target_y": clean_target})
+
+
+## Half the round trip, capped so a bad spike can't push prediction too far.
+func one_way_latency() -> float:
+	return clampf(rtt_seconds, 0.0, MAX_RTT) * 0.5
+
+
+func _now() -> float:
+	return Time.get_ticks_usec() / 1000000.0
 
 
 func request_serve(aim: float) -> void:
@@ -183,6 +237,18 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			_set_state(STATE_IN_ROOM, "OPPONENT DISCONNECTED")
 		"rematch_started":
 			rematch_started.emit()
+		"quad_room":
+			room_code = str(message.get("code", ""))
+			quad_seat = int(message.get("seat", -1))
+			_set_state(STATE_IN_ROOM, "ROOM READY")
+			quad_room_joined.emit(room_code, quad_seat)
+		"quad_lobby":
+			quad_lobby_changed.emit(message)
+		"quad_started":
+			_set_state(STATE_PLAYING, "MATCH STARTED")
+			quad_started.emit()
+		"quad_snapshot":
+			quad_snapshot_received.emit(message)
 		"error":
 			var server_message := str(message.get("message", "ONLINE ERROR"))
 			# Older hosted servers answer the application heartbeat as unknown.
@@ -192,11 +258,28 @@ func _handle_packet(packet: PackedByteArray) -> void:
 		"left_room":
 			room_code = ""
 			player_side = ""
+			quad_seat = -1
 			_set_state(STATE_CONNECTED, "LEFT ROOM")
 		"pong":
-			pass
+			_record_rtt(message.get("t"))
 		_:
 			pass
+
+
+func _record_rtt(sent_at) -> void:
+	if not (sent_at is float or sent_at is int):
+		return
+	var sample := _now() - float(sent_at)
+	if sample < 0.0 or sample > MAX_RTT * 3.0:
+		return
+	sample = minf(sample, MAX_RTT)
+	if not _rtt_sampled:
+		rtt_seconds = sample
+		_rtt_sampled = true
+		return
+	# Rise quickly to protect against misses, fall slowly to ignore one-off fast replies.
+	var weight := 0.35 if sample > rtt_seconds else 0.12
+	rtt_seconds = lerpf(rtt_seconds, sample, weight)
 
 
 func _set_state(next_state: int, message: String) -> void:
@@ -214,6 +297,12 @@ func _emit_error(message: String) -> void:
 func _reset_connection(message: String) -> void:
 	socket = null
 	_heartbeat_elapsed = 0.0
+	_rtt_ping_elapsed = 0.0
+	_rtt_sampled = false
+	rtt_seconds = DEFAULT_RTT
+	_last_sent_axis = 0.0
+	_last_sent_target = -1.0
 	room_code = ""
 	player_side = ""
+	quad_seat = -1
 	_set_state(STATE_DISCONNECTED, message)

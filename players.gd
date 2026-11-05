@@ -79,6 +79,10 @@ func get_axis(player: int) -> float:
 	return _shape_stick(Input.get_joy_axis(device, JOY_AXIS_LEFT_Y))
 
 
+func shape_stick(value: float) -> float:
+	return _shape_stick(value)
+
+
 func _shape_stick(value: float) -> float:
 	var magnitude := absf(value)
 	if magnitude <= Constants.GAMEPAD_DEADZONE:

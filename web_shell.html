@@ -2,8 +2,11 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
 		<meta name="theme-color" content="#f7f6f1">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="default">
 		<meta name="description" content="Play PONG, a paper-and-ink arcade game with local and private-room online multiplayer.">
 		<meta property="og:title" content="$GODOT_PROJECT_NAME">
 		<meta property="og:description" content="Paper-and-ink Pong with aimed serves, lively rallies, and private online rooms.">
@@ -17,6 +20,7 @@
 	color-scheme: light;
 	--ink: #1d1d1a;
 	--paper: #f7f6f1;
+	--court: #f6f6f6;
 }
 
 html, body, #canvas {
@@ -35,6 +39,81 @@ body {
 	background: var(--paper);
 	overflow: hidden;
 	touch-action: none;
+	overscroll-behavior: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* Paper strips cover the engine's black letterbox bars. They ignore pointers so
+   touches in the margins still reach the game and steer the paddle. */
+.court-bar {
+	position: fixed;
+	display: none;
+	background: var(--court);
+	pointer-events: none;
+	z-index: 5;
+}
+
+#rotate-prompt {
+	position: fixed;
+	inset: 0;
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 18px;
+	padding: 24px;
+	box-sizing: border-box;
+	background: var(--paper);
+	text-align: center;
+	z-index: 20;
+	font-family: "Segoe Print", "Comic Sans MS", sans-serif;
+}
+
+#rotate-icon {
+	width: 92px;
+	height: 92px;
+	animation: rotate-hint 2.4s ease-in-out infinite;
+}
+
+#rotate-title {
+	font-size: 26px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+#rotate-copy {
+	max-width: 280px;
+	font-family: system-ui, sans-serif;
+	font-size: 15px;
+	line-height: 1.45;
+}
+
+#rotate-play {
+	min-width: 200px;
+	min-height: 52px;
+	padding: 0 22px;
+	border: 2px solid var(--ink);
+	background: transparent;
+	color: var(--ink);
+	font: 700 17px system-ui, sans-serif;
+	letter-spacing: 0.08em;
+	touch-action: manipulation;
+}
+
+/* Phones and tablets held upright would shrink the 16:9 court to a thin strip. */
+@media (orientation: portrait) and (pointer: coarse) {
+	#rotate-prompt {
+		display: flex;
+	}
+}
+
+@keyframes rotate-hint {
+	0%, 20% { transform: rotate(0deg); }
+	50%, 70% { transform: rotate(-90deg); }
+	100% { transform: rotate(0deg); }
 }
 
 #canvas {
@@ -143,7 +222,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	#status-progress:indeterminate {
+	#status-progress:indeterminate,
+	#rotate-icon {
 		animation: none;
 	}
 }
@@ -153,6 +233,20 @@ body {
 	<body>
 		<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
 		<noscript>This game needs JavaScript enabled to run.</noscript>
+		<div class="court-bar" id="court-bar-a" aria-hidden="true"></div>
+		<div class="court-bar" id="court-bar-b" aria-hidden="true"></div>
+
+		<div id="rotate-prompt" role="dialog" aria-label="Rotate your device">
+			<svg id="rotate-icon" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="20" y="8" width="24" height="44" rx="4"></rect>
+				<line x1="29" y1="45" x2="35" y2="45"></line>
+				<path d="M50 30a18 18 0 0 1-6 13"></path>
+				<polyline points="44 37 44 43 50 43"></polyline>
+			</svg>
+			<div id="rotate-title">TURN SIDEWAYS</div>
+			<div id="rotate-copy">PONG plays in landscape. Rotate your phone, or tap below to play full screen.</div>
+			<button id="rotate-play" type="button">PLAY FULL SCREEN</button>
+		</div>
 
 		<div id="status" role="status" aria-live="polite">
 			<div id="status-card">
@@ -170,6 +264,85 @@ body {
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	// Matches the fixed 1152x648 court that Godot letterboxes with black bars.
+	const COURT_ASPECT = 1152 / 648;
+	const barA = document.getElementById('court-bar-a');
+	const barB = document.getElementById('court-bar-b');
+
+	function placeBar(bar, left, top, width, height) {
+		bar.style.left = left + 'px';
+		bar.style.top = top + 'px';
+		bar.style.width = width + 'px';
+		bar.style.height = height + 'px';
+		bar.style.display = width > 0 && height > 0 ? 'block' : 'none';
+	}
+
+	function layoutCourtBars() {
+		const w = window.innerWidth;
+		const h = window.innerHeight;
+		if (w / h > COURT_ASPECT) {
+			const bar = Math.ceil((w - h * COURT_ASPECT) / 2) + 1;
+			placeBar(barA, 0, 0, bar, h);
+			placeBar(barB, w - bar, 0, bar, h);
+		} else {
+			const bar = Math.ceil((h - w / COURT_ASPECT) / 2) + 1;
+			placeBar(barA, 0, 0, w, bar);
+			placeBar(barB, 0, h - bar, w, bar);
+		}
+	}
+
+	window.addEventListener('resize', layoutCourtBars);
+	window.addEventListener('orientationchange', layoutCourtBars);
+	layoutCourtBars();
+
+	const coarsePointer = window.matchMedia('(pointer: coarse)');
+	const root = document.documentElement;
+	let userLeftFullscreen = false;
+	let wasFullscreen = false;
+
+	function lockLandscape() {
+		if (screen.orientation && screen.orientation.lock) {
+			screen.orientation.lock('landscape').catch(() => {});
+		}
+	}
+
+	function enterFullscreen() {
+		if (!coarsePointer.matches || document.fullscreenElement || !root.requestFullscreen) {
+			return;
+		}
+		root.requestFullscreen({ navigationUI: 'hide' }).then(lockLandscape).catch(() => {});
+	}
+
+	document.addEventListener('fullscreenchange', () => {
+		if (document.fullscreenElement) {
+			wasFullscreen = true;
+		} else if (wasFullscreen) {
+			// Respect a deliberate exit; only the explicit button re-enters after that.
+			userLeftFullscreen = true;
+		}
+		layoutCourtBars();
+	});
+
+	// Phones hide the browser chrome only in fullscreen, which makes the court
+	// noticeably larger. Browsers require a user gesture, so use the first taps.
+	document.addEventListener('touchend', () => {
+		if (!userLeftFullscreen) {
+			enterFullscreen();
+		}
+	}, { passive: true });
+
+	const playButton = document.getElementById('rotate-play');
+	if (!root.requestFullscreen) {
+		// iPhone Safari has no element fullscreen; rotating is the only option there.
+		playButton.style.display = 'none';
+	}
+	playButton.addEventListener('click', () => {
+		userLeftFullscreen = false;
+		enterFullscreen();
+	});
+}());
 
 (function () {
 	const statusOverlay = document.getElementById('status');

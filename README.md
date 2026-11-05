@@ -30,6 +30,14 @@ PONG keeps the immediate rules of the original and gives every screen a tactile 
 | Player vs Player | 2 local | Share a keyboard, controllers, or opposite sides of a touch screen. |
 | Online | 2 remote | Create a private six-character room, copy the code, and send it to your opponent. |
 
+Choose **4 PLAYERS** on the first screen for a square court with one paddle on each wall. Everyone starts with five lives; let the ball past your wall and you lose one, and at zero your wall turns solid. The last player left wins. Four-player matches run on PC (keyboard and controllers):
+
+| 4-player mode | Players | How it works |
+|---|---:|---|
+| Player vs CPU | 1 | You play the left wall against three CPU paddles. |
+| Player vs Player | 1–4 on one PC | Each person presses their wall's keys to join (left W/S, right ↑/↓, top T/Y, bottom B/N), or presses A on a controller. Empty walls play as CPU. |
+| Online | up to 4 | Create a room and share the code. The host starts whenever ready; empty seats play as CPU, and anyone who drops out is replaced by a CPU. |
+
 The hosted online server may need a short wake-up after being idle. The lobby waits through that startup and shows clear connection, room, countdown, serve, disconnect, and rematch states.
 
 ## What makes it different
@@ -37,7 +45,7 @@ The hosted online server may need a short wake-up after being idle. The lobby wa
 - Hand-drawn panels, controls, court markings, paddles, ball, and loading experience
 - Aimed serves from the paddle instead of automatic center-court launches
 - Paddle english, speed ramping, sharper edge returns, and shrinking paddles during long rallies
-- Server-authoritative online matches with private rooms and smooth 30 Hz snapshots
+- Server-authoritative online matches with private rooms, 40 Hz snapshots, and latency-compensated client prediction
 - Keyboard, controller, mouse, and touch input with context-aware instructions
 - Rally-sensitive sound, ink impact effects, motion trail, and screen shake
 - First to five with loser-serves-next rules
@@ -53,6 +61,8 @@ The hosted online server may need a short wake-up after being idle. The lobby wa
 | Mute | M | — | Pause menu |
 
 In Online mode, either W/S or ↑/↓ controls your paddle.
+
+On phones, the browser build goes full screen and locks to landscape on your first tap where the browser allows it. Touching near your paddle grabs it where it is, and you can steer from the margins beside the court so your finger stays off the play area.
 
 ## Download
 
@@ -79,6 +89,7 @@ Run the deterministic client checks:
 godot --headless --path . --script tests/smoke.gd
 godot --headless --path . --script tests/menu_layout_smoke.gd
 godot --headless --path . --script tests/online_lobby_smoke.gd
+godot --headless --path . --script tests/quad_smoke.gd
 ```
 
 ## Build
@@ -97,6 +108,8 @@ Every push to `main` validates gameplay, UI layout, room flow, the authoritative
 
 - `main.gd`, `game_state.gd` — match orchestration, scoring, serve, and online state
 - `ball.gd`, `paddle.gd`, `ai.gd` — local gameplay simulation
+- `online_prediction.gd` — client-side forward simulation of the online ball
+- `quad.gd`, `quad_court.gd`, `quad_simulation.gd` — four-player square mode; `server/quad_simulation.gd` must stay identical to the client copy (a test checks this)
 - `serve.gd`, `pause.gd`, `game_over.gd` — paper-and-ink UI flows
 - `network_manager.gd` — WebSocket client, rooms, input, heartbeats, and snapshots
 - `server/` — authoritative headless match server
