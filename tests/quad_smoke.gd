@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_test_server_copy_matches()
 	await _test_cpu_scene()
 	await _test_local_join_scene()
+	await _test_failed_connection_clears_request()
 	if failures.is_empty():
 		print("PONG four-player smoke: passed")
 		quit(0)
@@ -151,6 +152,15 @@ func _test_local_join_scene() -> void:
 	_check(scene._seat_names[QuadSimulation.LEFT] == "P1" and scene._seat_names[QuadSimulation.BOTTOM] == "P2" and scene._seat_names[QuadSimulation.RIGHT] == "P3", "keys claim their own wall and a controller takes the next free one")
 	scene._handle_key(KEY_SPACE)
 	_check(scene.phase == scene.Phase.PLAYING and scene.sim.cpu == [false, false, true, false], "unclaimed walls are played by the CPU")
+	scene.free()
+
+
+func _test_failed_connection_clears_request() -> void:
+	var scene = await _open_scene("online")
+	scene._pending_action = "create"
+	scene._status.text = "CREATING ROOM..."
+	scene._on_connection_changed(0, "COULDN'T CONNECT. SERVER MAY BE WAKING UP")
+	_check(scene._pending_action.is_empty() and scene._status.text.begins_with("COULDN'T CONNECT"), "a failed connection shows why and lets the player retry")
 	scene.free()
 
 

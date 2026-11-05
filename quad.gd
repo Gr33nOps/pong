@@ -778,8 +778,14 @@ func _on_code_gui(event: InputEvent) -> void:
 func _on_connection_changed(state: int, message: String) -> void:
 	if mode != "online":
 		return
-	if state == NetworkManager.STATE_DISCONNECTED and phase != Phase.ONLINE_MENU:
-		_enter_online_menu(message)
+	if state == NetworkManager.STATE_DISCONNECTED:
+		# A failed or dropped connection clears any waiting request so the
+		# player sees why and can press CREATE or JOIN again.
+		_pending_action = ""
+		if phase != Phase.ONLINE_MENU:
+			_enter_online_menu(message)
+		else:
+			_status.text = message
 		return
 	if phase == Phase.ONLINE_MENU or phase == Phase.ONLINE_JOIN:
 		if state == NetworkManager.STATE_CONNECTED and not _pending_action.is_empty():
