@@ -139,6 +139,32 @@ func reset_match(cpu_seats: Array) -> void:
 	events.clear()
 
 
+## Copies another match's current state into this one, ready to play forward
+## (online prediction uses this on a scratch copy of the server's match).
+func copy_from(other) -> void:
+	seat_count = other.seat_count
+	lives = other.lives.duplicate()
+	order = other.order.duplicate()
+	zone = other.zone.duplicate()
+	cpu = other.cpu.duplicate()
+	paddle_pos = other.paddle_pos.duplicate()
+	paddle_prev = other.paddle_pos.duplicate()
+	paddle_vel = other.paddle_vel.duplicate()
+	_hit_lock.clear()
+	for _seat in seat_count:
+		_hit_lock.append(0.0)
+	state = STATE_PLAY
+	ball_pos = other.ball_pos
+	ball_vel = other.ball_vel
+	hits = other.hits
+
+
+## Lets a seat swing again right away (clears the early-swing lockout).
+func allow_swing(seat: int) -> void:
+	if seat >= 0 and seat < _hit_lock.size():
+		_hit_lock[seat] = 0.0
+
+
 # --- geometry -----------------------------------------------------------------
 
 func wall_count() -> int:

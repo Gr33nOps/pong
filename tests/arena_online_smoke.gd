@@ -4,6 +4,8 @@ extends SceneTree
 ## the server, the ball must draw smoothly); round two is the line finale (a
 ## well-timed swing must return the ball on the server).
 
+const ArenaSimulation = preload("res://scripts/arena_simulation.gd")
+
 var host := WebSocketPeer.new()
 var scene: Node
 var url := ""
@@ -31,8 +33,8 @@ func _initialize() -> void:
 	if url.is_empty():
 		url = "ws://127.0.0.1:9081"
 	OS.set_environment("PONG_SERVER_URL", url)
-	get_root().get_node("SFX").muted = true
-	scene = load("res://arena.tscn").instantiate()
+	get_root().get_node("Sound").muted = true
+	scene = load("res://scenes/arena.tscn").instantiate()
 	get_root().add_child(scene)
 	await process_frame
 	_begin_round(3)
@@ -51,7 +53,7 @@ func _begin_round(size: int) -> void:
 	if host.connect_to_url(url) != OK:
 		_finish(false, "host connection start failed")
 		return
-	scene._enter_online_menu()
+	scene.show_online_menu()
 
 
 func _process(delta: float) -> bool:
@@ -61,11 +63,11 @@ func _process(delta: float) -> bool:
 		host_requested = true
 		host.send_text(JSON.stringify({"type": "create_room", "size": round_size}))
 	_read_host_packets()
-	var network = get_root().get_node("NetworkManager")
+	var network = get_root().get_node("Network")
 	if not room_code.is_empty() and not join_sent and network.state == network.STATE_CONNECTED:
 		join_sent = true
-		scene._code_input.text = room_code.to_lower()
-		scene._submit_join()
+		scene.menu.code_box.text = room_code.to_lower()
+		scene._join_typed_code()
 	if host_players >= 2 and scene.phase == scene.Phase.ONLINE_ROOM and not start_sent:
 		start_sent = true
 		host.send_text(JSON.stringify({"type": "start"}))
@@ -75,13 +77,13 @@ func _process(delta: float) -> bool:
 
 
 func _triangle_round() -> bool:
-	if scene.phase == scene.Phase.PLAYING and scene._have_snapshot and key_down_at < 0.0:
+	if scene.phase == scene.Phase.PLAYING and scene.online_view.have_snapshot and key_down_at < 0.0:
 		key_down_at = elapsed
 		_press_key(KEY_LEFT, true)
 	if key_down_at > 0.0 and elapsed - key_down_at > 2.5:
 		_press_key(KEY_LEFT, false)
 		var paddles = latest_snapshot.get("paddles", [])
-		var middle: float = scene.ArenaSimulation.side_length(3) * 0.5
+		var middle: float = ArenaSimulation.side_length(3) * 0.5
 		var moved: bool = paddles is Array and paddles.size() == 3 and float(paddles[1]) > middle + 40.0
 		if not moved:
 			return _finish(false, "the joined player's paddle input did not reach the server (%s)" % [paddles])
@@ -91,7 +93,7 @@ func _triangle_round() -> bool:
 			return _finish(false, "the ball jumped %.1f px beyond its speed in one frame" % worst_jump)
 		first_round_passed = true
 		host.close()
-		scene._enter_title()
+		scene.show_title()
 		_begin_round(2)
 		return false
 	if elapsed - round_started_at > 20.0:
@@ -100,8 +102,8 @@ func _triangle_round() -> bool:
 
 
 func _line_round() -> bool:
-	if scene.phase == scene.Phase.PLAYING and scene._have_snapshot and scene.sim.is_line() and scene.sim.state == "play" and not swung:
-		var predicted: Vector2 = scene._predict_ball(scene._now(), 0.0)["pos"]
+	if scene.phase == scene.Phase.PLAYING and scene.online_view.have_snapshot and scene.sim.is_line() and scene.sim.state == "play" and not swung:
+		var predicted: Vector2 = scene.online_view.predict_ball(Time.get_ticks_usec() / 1000000.0, 0.0)["position"]
 		var sim = scene.sim
 		var end: float = sim.line_end(scene.my_seat)
 		var toward: bool = sim.ball_vel.x < 0.0 if end < 0.0 else sim.ball_vel.x > 0.0
@@ -109,14 +111,14 @@ func _line_round() -> bool:
 		if toward and depth < sim.zone[scene.my_seat] * 0.6:
 			swung = true
 			swing_tick = sim.tick_number
-			scene._swing()
+			scene.swing()
 	if swung and not latest_snapshot.is_empty() and int(latest_snapshot.get("tick", 0)) > swing_tick + 20:
 		var ball = latest_snapshot.get("ball", [])
 		var lives = latest_snapshot.get("lives", [])
 		var my_end: float = scene.sim.line_end(scene.my_seat)
 		var away: bool = float(ball[2]) > 0.0 if my_end < 0.0 else float(ball[2]) < 0.0
 		returned = away or int(latest_snapshot.get("hits", 0)) > 0
-		if int(lives[scene.my_seat]) < scene.ArenaSimulation.STARTING_LIVES:
+		if int(lives[scene.my_seat]) < ArenaSimulation.STARTING_LIVES:
 			return _finish(false, "the timed swing missed: the player lost a life")
 		if not returned:
 			return _finish(false, "the timed swing did not return the ball")
@@ -129,11 +131,11 @@ func _line_round() -> bool:
 func _physics_process(delta: float) -> bool:
 	if scene == null or not is_instance_valid(scene) or scene.phase != scene.Phase.PLAYING or round_size != 3:
 		return false
-	var ball_position: Vector2 = scene._ball.position
-	if scene.sim.state == "play" and scene._ball.visible:
+	var ball_position: Vector2 = scene.court.ball.position
+	if scene.sim.state == "play" and scene.court.ball.visible:
 		ball_seen = true
 		if last_ball != Vector2.INF:
-			worst_jump = maxf(worst_jump, ball_position.distance_to(last_ball) - scene.ArenaSimulation.MAX_SPEED * delta)
+			worst_jump = maxf(worst_jump, ball_position.distance_to(last_ball) - ArenaSimulation.MAX_SPEED * delta)
 		last_ball = ball_position
 	else:
 		last_ball = Vector2.INF
@@ -175,7 +177,7 @@ func _host_swings_back(snapshot: Dictionary) -> void:
 	var zones = snapshot.get("zones", [])
 	if not (ball is Array and ball.size() == 4 and zones is Array and zones.size() == 2):
 		return
-	var end: float = -scene.ArenaSimulation.LINE_LENGTH * 0.5
+	var end: float = -ArenaSimulation.LINE_LENGTH * 0.5
 	if float(ball[2]) < 0.0 and float(ball[0]) - end < float(zones[0]) * 0.5:
 		host.send_text(JSON.stringify({"type": "hit", "tick": -1}))
 

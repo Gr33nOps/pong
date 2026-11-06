@@ -8,7 +8,7 @@ var sent: Array = []
 
 func _initialize() -> void:
 	var manager = ROOM_MANAGER_SCRIPT.new()
-	manager.configure(func(peer_id: int, message: Dictionary) -> void: sent.append([peer_id, message]), func(_peer_id: int) -> void: pass)
+	manager.configure(func(peer_id: int, message: Dictionary) -> void: sent.append([peer_id, message]))
 	var code: String = manager.create_room(1, 5)
 	var room = manager.rooms[code]
 	_check(room.size == 5 and _last_of(1, "arena_room").get("seat", -1) == 0, "the host creates a five-sided room and takes the first seat")
@@ -49,7 +49,7 @@ func _initialize() -> void:
 
 func _test_held_hit() -> void:
 	var manager = ROOM_MANAGER_SCRIPT.new()
-	manager.configure(func(_peer_id: int, _message: Dictionary) -> void: pass, func(_peer_id: int) -> void: pass)
+	manager.configure(func(_peer_id: int, _message: Dictionary) -> void: pass)
 	var code: String = manager.create_room(1, 2)
 	manager.join_room(2, code)
 	manager.handle_message(1, {"type": "start"})

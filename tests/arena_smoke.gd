@@ -1,8 +1,9 @@
 extends SceneTree
 
-const ArenaSimulation = preload("res://arena_simulation.gd")
+const ArenaSimulation = preload("res://scripts/arena_simulation.gd")
 
 var failures: Array[String] = []
+var scene_checks_finished := false
 
 
 func _initialize() -> void:
@@ -17,6 +18,7 @@ func _initialize() -> void:
 	_test_snapshot_round_trip()
 	_test_server_copy_matches()
 	await _test_scene_flow()
+	_check(scene_checks_finished, "the scene checks ran to the end (a script error stops them early)")
 	if failures.is_empty():
 		print("PONG arena smoke: passed")
 		quit(0)
@@ -173,59 +175,62 @@ func _test_snapshot_round_trip() -> void:
 
 
 func _test_server_copy_matches() -> void:
-	var client_copy := FileAccess.get_file_as_string("res://arena_simulation.gd")
+	var client_copy := FileAccess.get_file_as_string("res://scripts/arena_simulation.gd")
 	var server_copy := FileAccess.get_file_as_string("res://server/arena_simulation.gd")
 	_check(not client_copy.is_empty() and client_copy == server_copy, "client and server share an identical arena simulation")
 
 
 func _test_scene_flow() -> void:
-	get_root().get_node("SFX").muted = true
-	var scene: Node = load("res://arena.tscn").instantiate()
+	get_root().get_node("Sound").muted = true
+	var scene: Node = load("res://scenes/arena.tscn").instantiate()
 	get_root().add_child(scene)
 	await process_frame
-	_check(scene.phase == scene.Phase.TITLE and scene._options == ["solo", "online"], "the game opens on PLAY VS AI and PLAY ONLINE")
-	_check(scene._title.text == "PADDLE POLYGON" and ProjectSettings.get_setting("application/config/name") == "Paddle Polygon", "the game is called Paddle Polygon")
-	scene._activate("solo")
+	var menu = scene.menu
+	var court = scene.court
+	_check(scene.phase == scene.Phase.TITLE and menu.options == ["solo", "online"], "the game opens on PLAY VS AI and PLAY ONLINE")
+	_check(menu.title.text == "PADDLE POLYGON" and ProjectSettings.get_setting("application/config/name") == "Paddle Polygon", "the game is called Paddle Polygon")
+	scene._on_menu_choice("solo", 1)
 	scene.solo_players = 6
-	scene._activate("players", 1)
-	_check(scene.solo_players == 7 and scene._option_labels[0].text.contains("7"), "the solo setup picks up to seven players")
-	scene._activate("players", 1)
+	scene._on_menu_choice("players", 1)
+	_check(scene.solo_players == 7 and menu.button_labels[0].text.contains("7"), "the solo setup picks up to seven players")
+	scene._on_menu_choice("players", 1)
 	_check(scene.solo_players == 2, "the player count wraps from seven back to two")
 	scene.solo_players = 7
-	scene._activate("go")
+	scene._on_menu_choice("go", 1)
 	_check(scene.phase == scene.Phase.PLAYING and scene.sim.seat_count == 7 and scene.sim.cpu.count(true) == 6, "you play against six AI on a heptagon")
 	for _i in 150:
 		scene._physics_process(1.0 / 60.0)
 	var visible_paddles := 0
-	for paddle in scene._paddles:
+	for paddle in court.paddles:
 		visible_paddles += 1 if paddle.visible else 0
-	_check(visible_paddles == scene.sim.wall_count() and scene._ball.visible, "every wall shows its paddle and the ball is drawn")
-	var bottom: Vector2 = scene._paddles[scene.sim.wall_of(0)].position
-	_check(bottom.y > scene.CENTER.y + 150.0 and absf(bottom.x - scene.CENTER.x) < 140.0, "your own paddle is drawn at the bottom")
+	_check(visible_paddles == scene.sim.wall_count() and court.ball.visible, "every wall shows its paddle and the ball is drawn")
+	var bottom: Vector2 = court.paddles[scene.sim.wall_of(0)].position
+	_check(bottom.y > court.CENTER.y + 150.0 and absf(bottom.x - court.CENTER.x) < 140.0, "your own paddle is drawn at the bottom")
 	var order_before: Array = scene.sim.order.duplicate()
-	var corners_before: PackedVector2Array = scene._screen_corners(order_before.size(), scene._view_rotation)
+	var corners_before: PackedVector2Array = court.corners_on_screen(order_before.size())
 	var victim: int = order_before[3]
 	scene.sim.lives[victim] = 1
 	scene.sim._lose_life(victim)
-	scene._start_morph(order_before, corners_before)
-	scene._render(Vector2.ZERO, 1.0 / 60.0)
-	_check(scene._court.corners.size() == order_before.size(), "the court starts folding from the old shape")
+	court.start_fold(scene.sim, order_before, corners_before)
+	var paddles := func(seat: int) -> float: return scene.sim.paddle_pos[seat]
+	scene.draw_frame(Vector2.ZERO, paddles, 1.0 / 60.0)
+	_check(court.lines.corners.size() == order_before.size(), "the court starts folding from the old shape")
 	for _i in 60:
-		scene._render(Vector2.ZERO, 1.0 / 60.0)
-	_check(scene._court.corners.size() == order_before.size() - 1, "a knockout folds the court into the next polygon")
-	scene._go_to_title()
+		scene.draw_frame(Vector2.ZERO, paddles, 1.0 / 60.0)
+	_check(court.lines.corners.size() == order_before.size() - 1, "a knockout folds the court into the next polygon")
+	scene.show_title()
 	scene.solo_players = 2
-	scene._start_solo()
+	scene.start_solo_match()
 	scene.sim.state = ArenaSimulation.STATE_PLAY
 	var end: float = scene.sim.line_end(0)
 	scene.sim.ball_pos = Vector2(end + 40.0, 0.0)
 	scene.sim.ball_vel = Vector2(-500.0, 0.0)
-	scene._handle_key(KEY_SPACE)
+	scene.handle_key(KEY_SPACE)
 	_check(scene.sim.ball_vel.x > 0.0, "Space swings in the line finale")
-	scene._handle_key(KEY_ESCAPE)
+	scene.handle_key(KEY_ESCAPE)
 	_check(scene.phase == scene.Phase.PAUSED, "Esc pauses a solo match")
 	scene.free()
-
+	scene_checks_finished = true
 
 func _check(condition: bool, message: String) -> void:
 	if not condition:

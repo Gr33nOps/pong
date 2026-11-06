@@ -1,11 +1,9 @@
-# Godot 4+ specific ignores
+# Godot editor cache
 .godot/
-/android/
 
-# Build artifacts
+# Exported builds (the folder itself stays so Godot ignores what's inside)
+/build/*
+!/build/.gdignore
 *.exe
 *.pck
 *.tmp
-/pong/*
-!/pong/
-!/pong/.gdignore

@@ -21,13 +21,11 @@ var _snapshot_timer := 0.0
 var _sim_accumulator := 0.0
 var _held_hits: Array[Vector2i] = []
 var _send_callback: Callable
-var _close_callback: Callable
 
 
-func configure(room_code: String, send_callback: Callable, close_callback: Callable, room_size: int = 4) -> void:
+func configure(room_code: String, send_callback: Callable, room_size: int = 4) -> void:
 	code = room_code
 	_send_callback = send_callback
-	_close_callback = close_callback
 	_resize(room_size)
 
 

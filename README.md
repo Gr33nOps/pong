@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" alt="Ink paddles and ball on a paper court" width="180">
+<img src="assets/art/logo.png" alt="Ink paddles and ball on a paper court" width="180">
 
 # Paddle Polygon
 
@@ -52,10 +52,9 @@ The [latest release](https://github.com/Gr33nOps/pong/releases/latest) includes:
 
 - Windows x64 archive
 - Browser-ready Web archive for hosts such as itch.io
-- Android arm64 sideload APK
 - SHA-256 checksums for every download
 
-Windows builds are currently unsigned, so SmartScreen may show an unknown-publisher warning. The Android download is debug-signed for direct testing and sideloading.
+Windows builds are currently unsigned, so SmartScreen may show an unknown-publisher warning.
 
 ## Run from source
 
@@ -80,22 +79,34 @@ godot --headless --path . --script tests/arena_online_smoke.gd
 
 ## Build
 
-Export presets are committed for Windows, Web, and Android:
+Export presets are committed for Windows and Web. Builds go into `build/`, which git ignores:
 
 ```bash
-godot --headless --path . --export-release "Windows Desktop" ../pong-build/pong.exe
-godot --headless --path . --export-release "Web" ../pong-build/web/index.html
-godot --headless --path . --export-release "Android" ../pong-build/android/Pong.apk
+godot --headless --path . --export-release "Windows Desktop" build/windows/paddle-polygon.exe
+godot --headless --path . --export-release "Web" build/web/index.html
 ```
 
 Every push to `main` validates the simulation, the scene, room flow, and a real online match (including a swing in the line finale) before deploying GitHub Pages. A `v*` tag builds and publishes the downloadable release artifacts.
 
 ## Project map
 
-- `arena_simulation.gd` — the rules: polygon court, paddles, corner bumpers, lives, shrinking, the line finale and the AI. `server/arena_simulation.gd` must stay identical to it (a test checks this)
-- `arena.gd`, `arena_court.gd` — menus, drawing, solo play and online prediction
-- `network_manager.gd` — WebSocket client, rooms, input, swings, heartbeats and snapshots
-- `server/` — authoritative headless server (`arena_room.gd`, `room_manager.gd`)
-- `tests/` — simulation, scene and online checks
+```text
+assets/              art, sounds, the font and the ink UI theme
+scenes/arena.tscn    the game's only scene
+scripts/
+  arena.gd             game flow: menus, input, starting matches
+  arena_simulation.gd  the rules: court, paddles, lives, shrinking, line finale, AI
+  court_view.gd        draws the court, paddles, ball and lives
+  court_lines.gd       draws the ink lines of the court
+  menu_overlay.gd      the paper menus
+  online_view.gd       hides network delay in online matches
+  autoload/            always-loaded helpers: Network, Sound, Settings, InkEffects, InkFont
+  ui/                  ink-style buttons and panels
+server/              the online server (its own Godot project)
+tests/               automated checks
+web/web_shell.html   the web page around the game (loading screen)
+```
+
+`server/arena_simulation.gd` is a copy of `scripts/arena_simulation.gd`, so the server and the game play by exactly the same rules. If you change one, copy it over the other; the tests fail if they differ.
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).

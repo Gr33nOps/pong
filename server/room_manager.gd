@@ -9,13 +9,11 @@ const ARENA_ROOM_SCRIPT = preload("res://arena_room.gd")
 var rooms: Dictionary = {}
 var peer_rooms: Dictionary = {}
 var _send_callback: Callable
-var _close_callback: Callable
 var _rng := RandomNumberGenerator.new()
 
 
-func configure(send_callback: Callable, close_callback: Callable) -> void:
+func configure(send_callback: Callable) -> void:
 	_send_callback = send_callback
-	_close_callback = close_callback
 	_rng.randomize()
 
 
@@ -28,7 +26,7 @@ func create_room(peer_id: int, room_size: int = 4) -> String:
 		return ""
 	var code := _new_code()
 	var room = ARENA_ROOM_SCRIPT.new()
-	room.configure(code, _send_callback, _close_callback, room_size)
+	room.configure(code, _send_callback, room_size)
 	if not room.add_creator(peer_id):
 		_send_error(peer_id, "COULD NOT CREATE ROOM")
 		return ""
