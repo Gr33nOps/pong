@@ -67,8 +67,7 @@ func _test_one_miss_knocks_out() -> void:
 	for _i in 40:
 		sim.tick(1.0 / 120.0)
 	_check(sim.order == [0, 1, 3] and sim.wall_count() == 3, "one miss knocks the player out and the square becomes a triangle")
-	_check(sim.events.any(func(event: Dictionary) -> bool: return event["type"] == "out" and event["wall"] == 2), "the knockout reports which wall disappeared")
-	_check(sim.state == ArenaSimulation.STATE_COUNTDOWN and sim.order.has(sim.serve_seat), "play goes on with a serve to a player still in")
+	_check(sim.state == ArenaSimulation.STATE_COUNTDOWN, "play goes on after a short pause")
 
 
 func _test_leaving_knocks_out() -> void:
@@ -83,7 +82,7 @@ func _test_line_finale_hits() -> void:
 	var sim := _sim(2)
 	_check(sim.is_line(), "two players play the line finale")
 	var end := sim.line_end(0)
-	sim.ball_pos = Vector2(end + sim.zone[0] * 0.8, 0.0)
+	sim.ball_pos = Vector2(end + ArenaSimulation.ZONE_LENGTH * 0.8, 0.0)
 	sim.ball_vel = Vector2(-500.0, 0.0)
 	_check(sim.press_hit(0), "a swing inside your zone returns the ball")
 	var early_speed := sim.ball_vel.x

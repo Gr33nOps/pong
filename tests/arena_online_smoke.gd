@@ -129,7 +129,7 @@ func _line_round() -> bool:
 		var end: float = sim.line_end(scene.my_seat)
 		var toward: bool = sim.ball_vel.x < 0.0 if end < 0.0 else sim.ball_vel.x > 0.0
 		var depth := absf(end - predicted.x)
-		if toward and depth < sim.zone[scene.my_seat] * 0.6:
+		if toward and depth < ArenaSimulation.ZONE_LENGTH * 0.6:
 			swung = true
 			swing_tick = sim.tick_number
 			scene.swing()
@@ -204,11 +204,10 @@ func _host_swings_back(snapshot: Dictionary) -> void:
 	if round_size != 2 or str(snapshot.get("state", "")) != "play":
 		return
 	var ball = snapshot.get("ball", [])
-	var zones = snapshot.get("zones", [])
-	if not (ball is Array and ball.size() == 4 and zones is Array and zones.size() == 2):
+	if not (ball is Array and ball.size() == 4):
 		return
 	var end: float = -ArenaSimulation.LINE_LENGTH * 0.5
-	if float(ball[2]) < 0.0 and float(ball[0]) - end < float(zones[0]) * 0.5:
+	if float(ball[2]) < 0.0 and float(ball[0]) - end < ArenaSimulation.ZONE_LENGTH * 0.5:
 		host.send_text(JSON.stringify({"type": "hit", "tick": -1}))
 
 

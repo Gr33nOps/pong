@@ -101,7 +101,7 @@ scripts/
   court_lines.gd       draws the ink lines of the court
   menu_overlay.gd      the paper menus
   online_view.gd       hides network delay in online matches
-  autoload/            always-loaded helpers: Network, Sound, Settings, InkEffects, InkFont
+  autoload/            always-loaded helpers: Network, Sound, Settings, InkEffects
   ui/                  ink-style buttons and panels
 server/              the online server (its own Godot project)
 tests/               automated checks

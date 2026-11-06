@@ -11,7 +11,6 @@ signal text_entered
 
 const INK_BUTTON_SCRIPT = preload("res://scripts/ui/ink_button.gd")
 const INK_PANEL_SCRIPT = preload("res://scripts/ui/ink_panel.gd")
-const INK_THEME = preload("res://assets/ink_theme.tres")
 const INK := Color(0.12, 0.12, 0.11, 1.0)
 const MAX_BUTTONS := 4
 const BUTTON_LEFT := 336.0
@@ -42,7 +41,6 @@ func _ready() -> void:
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.theme = INK_THEME
 	add_child(_root)
 
 	_dimmer = ColorRect.new()

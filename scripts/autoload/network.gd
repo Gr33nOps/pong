@@ -5,7 +5,7 @@ extends Node
 
 signal connection_changed(state: int, message: String)
 signal online_error(message: String)
-signal room_joined(code: String, seat: int)
+signal room_joined
 signal lobby_changed(lobby: Dictionary)
 signal match_started(names: Array)
 signal snapshot_received(snapshot: Dictionary)
@@ -36,7 +36,6 @@ var _connect_timeout := 45.0
 var _ping_elapsed := 0.0
 var _rtt_measured := false
 var _last_input_time := 0.0
-var _last_axis := 0.0
 var _last_target := -1.0
 
 
@@ -101,11 +100,6 @@ func join_room(code: String, player_name: String) -> void:
 		_report_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
 	var clean := code.strip_edges().to_upper()
-	var six_letters := RegEx.new()
-	six_letters.compile("^[A-Z0-9]{6}$")
-	if six_letters.search(clean) == null:
-		_report_error("ROOM CODE MUST BE SIX CHARACTERS")
-		return
 	if _send({"type": "join_room", "code": clean, "name": player_name}):
 		_set_state(STATE_CONNECTED, "JOINING ROOM %s..." % clean)
 
@@ -124,19 +118,17 @@ func start_match() -> void:
 
 
 ## Sends where our paddle is. Only sends when it changed, or as a keepalive.
-func send_paddle(axis: float, position: float) -> void:
+func send_paddle(position: float) -> void:
 	if state != STATE_PLAYING:
 		return
-	axis = snappedf(clampf(axis, -1.0, 1.0), 0.01)
 	position = snappedf(position, 0.1)
 	var now := _now()
-	var changed := axis != _last_axis or absf(position - _last_target) >= 0.1
+	var changed := absf(position - _last_target) >= 0.1
 	if not changed and now - _last_input_time < INPUT_KEEPALIVE:
 		return
 	_last_input_time = now
-	_last_axis = axis
 	_last_target = position
-	_send({"type": "input", "axis": axis, "target_y": position})
+	_send({"type": "input", "target_y": position})
 
 
 ## A swing in the line finale, stamped with the server tick the player saw.
@@ -169,7 +161,7 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			room_code = str(message.get("code", ""))
 			seat = int(message.get("seat", -1))
 			_set_state(STATE_IN_ROOM, "ROOM READY")
-			room_joined.emit(room_code, seat)
+			room_joined.emit()
 		"arena_lobby":
 			seat = int(message.get("you", seat))
 			if not message.get("started", false) and state == STATE_PLAYING:
@@ -233,7 +225,6 @@ func _reset(message: String) -> void:
 	_ping_elapsed = 0.0
 	_rtt_measured = false
 	rtt_seconds = DEFAULT_RTT
-	_last_axis = 0.0
 	_last_target = -1.0
 	room_code = ""
 	seat = -1

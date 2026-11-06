@@ -24,7 +24,6 @@ config/icon="res://assets/art/icon.svg"
 Settings="*res://scripts/autoload/settings.gd"
 Sound="*res://scripts/autoload/sound.gd"
 InkEffects="*res://scripts/autoload/ink_effects.gd"
-InkFont="*res://scripts/autoload/ink_font.gd"
 Network="*res://scripts/autoload/network.gd"
 
 [display]
@@ -33,6 +32,10 @@ window/size/window_width_override=1152
 window/size/window_height_override=648
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
+
+[gui]
+
+theme/custom="res://assets/ink_theme.tres"
 
 [rendering]
 

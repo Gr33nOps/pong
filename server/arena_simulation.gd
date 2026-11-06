@@ -1,17 +1,19 @@
 extends RefCounted
-## Polygon Pong for 2-10 players. Each player defends one wall of a regular
-## polygon. Miss the ball once and you are out: your wall disappears and the
-## court shrinks to the next polygon; with two players left it collapses to a
-## line for a timing-based 1D Pong finale. The last player left wins.
+## The rules of Paddle Polygon, for 2 to 10 players.
+##
+## Each player defends one wall of a regular polygon. Miss the ball once and
+## you are out: your wall disappears and the court shrinks to the next
+## polygon. With two players left it becomes a line for a timing-based 1D
+## Pong finale. The last player left wins.
 ##
 ## The server runs the real match with this file (server/arena_simulation.gd is
-## an identical copy, checked by a test). The game uses it too, to predict
-## the ball between server updates.
+## an identical copy, checked by a test). The game uses it too, to predict the
+## ball between server updates.
 
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 10
 
-# Polygon court, in local units around the court centre.
+# Polygon court, in units around the court centre.
 const RADIUS := 270.0
 const BALL_RADIUS := 10.0
 const PADDLE_THICKNESS := 14.0
@@ -29,7 +31,8 @@ const SERVE_SPREAD_DEG := 22.0
 
 # Line finale.
 const LINE_LENGTH := 880.0
-const ZONE_START := 150.0
+## How far from each end you can hit the ball.
+const ZONE_LENGTH := 150.0
 const LINE_START_SPEED := 420.0
 const LINE_MAX_SPEED := 1150.0
 const LINE_SPEED_STEP := 1.03
@@ -39,6 +42,7 @@ const HIT_HISTORY_SECONDS := 0.5
 
 const START_DELAY := 1.6
 const SHRINK_DELAY := 1.8
+## A paddle stops if its player sends nothing for this long.
 const INPUT_TIMEOUT := 0.3
 const STEP_DISTANCE := 4.0
 const MAX_SUBSTEPS := 64
@@ -56,23 +60,20 @@ var order: Array[int] = []
 var paddle_pos: Array[float] = []
 var paddle_prev: Array[float] = []
 var paddle_vel: Array[float] = []
-var zone: Array[float] = []
 var ball_pos := Vector2.ZERO
 var ball_vel := Vector2.ZERO
+## Returns since the last serve.
 var hits := 0
 var winner := -1
-var last_loser := -1
-var serve_seat := 0
 var tick_number := 0
 var rng := RandomNumberGenerator.new()
-## Things that happened during the last ticks, for sound and effects.
+## Hits and bounces during the last ticks, for sounds and ink splats.
 var events: Array[Dictionary] = []
-var _axis: Array[float] = []
 var _target: Array[float] = []
 var _input_age: Array[float] = []
 var _hit_lock: Array[float] = []
 var _line_history: Array[Vector3] = []
-var _last_goal_tick := -1
+var _last_out_tick := -1
 
 
 func _init() -> void:
@@ -86,8 +87,6 @@ func reset_match(players: int) -> void:
 	paddle_pos.clear()
 	paddle_prev.clear()
 	paddle_vel.clear()
-	zone.clear()
-	_axis.clear()
 	_target.clear()
 	_input_age.clear()
 	_hit_lock.clear()
@@ -96,8 +95,6 @@ func reset_match(players: int) -> void:
 		paddle_pos.append(0.0)
 		paddle_prev.append(0.0)
 		paddle_vel.append(0.0)
-		zone.append(ZONE_START)
-		_axis.append(0.0)
 		_target.append(-1.0)
 		_input_age.append(0.0)
 		_hit_lock.append(0.0)
@@ -106,13 +103,11 @@ func reset_match(players: int) -> void:
 	ball_vel = Vector2.ZERO
 	hits = 0
 	winner = -1
-	last_loser = -1
 	tick_number = 0
-	_last_goal_tick = -1
+	_last_out_tick = -1
 	_line_history.clear()
 	state = STATE_COUNTDOWN
 	timer = START_DELAY
-	serve_seat = order[rng.randi_range(0, order.size() - 1)]
 	events.clear()
 
 
@@ -121,7 +116,6 @@ func reset_match(players: int) -> void:
 func copy_from(other) -> void:
 	seat_count = other.seat_count
 	order = other.order.duplicate()
-	zone = other.zone.duplicate()
 	paddle_pos = other.paddle_pos.duplicate()
 	paddle_prev = other.paddle_pos.duplicate()
 	paddle_vel = other.paddle_vel.duplicate()
@@ -199,19 +193,12 @@ func line_end(seat: int) -> float:
 
 # --- input --------------------------------------------------------------------
 
-func set_axis(seat: int, axis: float) -> void:
-	if seat < 0 or seat >= seat_count:
-		return
-	_axis[seat] = clampf(axis, -1.0, 1.0)
-	_target[seat] = -1.0
-	_input_age[seat] = 0.0
-
-
+## Where a player wants their paddle along their wall.
 func set_target(seat: int, target: float) -> void:
 	if seat < 0 or seat >= seat_count:
 		return
 	var walls := maxi(wall_count(), 3)
-	_target[seat] = clampf(target, paddle_min(walls), paddle_max(walls)) if target >= 0.0 else -1.0
+	_target[seat] = clampf(target, paddle_min(walls), paddle_max(walls))
 	_input_age[seat] = 0.0
 
 
@@ -225,7 +212,7 @@ func press_hit(seat: int, at_tick: int = -1) -> bool:
 	var ticks_back := 0
 	if at_tick >= 0 and at_tick < tick_number:
 		ticks_back = mini(tick_number - at_tick, int(HIT_HISTORY_SECONDS * SIM_RATE))
-		if at_tick <= _last_goal_tick:
+		if at_tick <= _last_out_tick:
 			return false
 		var past := _history_at(tick_number - ticks_back)
 		if past != Vector3.INF:
@@ -236,12 +223,13 @@ func press_hit(seat: int, at_tick: int = -1) -> bool:
 	var end := line_end(seat)
 	var toward := vx < 0.0 if end < 0.0 else vx > 0.0
 	var depth := absf(end - x)
-	var inside := toward and depth <= zone[seat] + BALL_RADIUS and (x >= end if end < 0.0 else x <= end)
+	var inside := toward and depth <= ZONE_LENGTH + BALL_RADIUS and (x >= end if end < 0.0 else x <= end)
 	if not inside:
 		_hit_lock[seat] = WHIFF_LOCK
 		events.append({"type": "whiff", "seat": seat})
 		return false
-	var bonus := 1.0 + DEPTH_BONUS * clampf(1.0 - depth / maxf(zone[seat], 1.0), 0.0, 1.0)
+	# The deeper (later) the hit, the faster the ball flies back.
+	var bonus := 1.0 + DEPTH_BONUS * clampf(1.0 - depth / ZONE_LENGTH, 0.0, 1.0)
 	var speed := minf(absf(vx) * LINE_SPEED_STEP * bonus, LINE_MAX_SPEED)
 	var away := 1.0 if end < 0.0 else -1.0
 	ball_vel = Vector2(away * speed, 0.0)
@@ -249,6 +237,25 @@ func press_hit(seat: int, at_tick: int = -1) -> bool:
 	hits += 1
 	events.append({"type": "paddle", "seat": seat, "x": ball_pos.x, "y": 0.0})
 	return true
+
+
+## Takes a player out of the match (they missed, or left the room). Their wall
+## disappears and the court shrinks; the last player left wins.
+func knock_out(seat: int) -> void:
+	if not is_alive(seat) or state == STATE_OVER:
+		return
+	_last_out_tick = tick_number
+	ball_pos = Vector2.ZERO
+	ball_vel = Vector2.ZERO
+	_line_history.clear()
+	order.erase(seat)
+	if order.size() <= 1:
+		state = STATE_OVER
+		winner = order[0] if order.size() == 1 else -1
+		return
+	_center_paddles()
+	state = STATE_COUNTDOWN
+	timer = SHRINK_DELAY
 
 
 # --- simulation ---------------------------------------------------------------
@@ -290,7 +297,7 @@ func advance_ball(delta: float, apply_goals: bool) -> bool:
 		var out_wall := _exited_wall()
 		if out_wall >= 0:
 			if apply_goals:
-				_missed(order[out_wall])
+				knock_out(order[out_wall])
 			return false
 	return true
 
@@ -302,13 +309,109 @@ func advance_line(delta: float, apply_goals: bool) -> bool:
 	var right := order[1]
 	if ball_pos.x < -LINE_LENGTH * 0.5 - BALL_RADIUS * 2.0:
 		if apply_goals:
-			_missed(left)
+			knock_out(left)
 		return false
 	if ball_pos.x > LINE_LENGTH * 0.5 + BALL_RADIUS * 2.0:
 		if apply_goals:
-			_missed(right)
+			knock_out(right)
 		return false
 	return true
+
+
+# --- snapshots (what the server sends 40 times a second) ----------------------
+
+func snapshot() -> Dictionary:
+	var paddles := []
+	var velocities := []
+	for seat in seat_count:
+		paddles.append(snappedf(paddle_pos[seat], 0.01))
+		velocities.append(snappedf(paddle_vel[seat], 0.1))
+	return {
+		"type": "arena_snapshot",
+		"tick": tick_number,
+		"state": state,
+		"seats": seat_count,
+		"order": order.duplicate(),
+		"ball": [snappedf(ball_pos.x, 0.01), snappedf(ball_pos.y, 0.01), snappedf(ball_vel.x, 0.01), snappedf(ball_vel.y, 0.01)],
+		"paddles": paddles,
+		"pvel": velocities,
+		"hits": hits,
+		"winner": winner,
+	}
+
+
+func apply_snapshot(data: Dictionary) -> void:
+	var players := int(data.get("seats", seat_count))
+	if players != seat_count:
+		reset_match(players)
+	state = str(data.get("state", state))
+	var remote_order = data.get("order", [])
+	if remote_order is Array:
+		order.clear()
+		for seat in remote_order:
+			order.append(int(seat))
+	var ball = data.get("ball", [])
+	if ball is Array and ball.size() == 4:
+		ball_pos = Vector2(float(ball[0]), float(ball[1]))
+		ball_vel = Vector2(float(ball[2]), float(ball[3]))
+	_read_floats(data.get("paddles", []), paddle_pos)
+	_read_floats(data.get("pvel", []), paddle_vel)
+	for seat in seat_count:
+		paddle_prev[seat] = paddle_pos[seat]
+	hits = int(data.get("hits", hits))
+	winner = int(data.get("winner", winner))
+	tick_number = int(data.get("tick", tick_number))
+
+
+func _read_floats(source, target: Array[float]) -> void:
+	if not source is Array:
+		return
+	for seat in mini(source.size(), target.size()):
+		target[seat] = float(source[seat])
+
+
+# --- inside the simulation ----------------------------------------------------
+
+func _center_paddles() -> void:
+	var walls := maxi(wall_count(), 3)
+	for seat in seat_count:
+		paddle_pos[seat] = side_length(walls) * 0.5
+		paddle_prev[seat] = paddle_pos[seat]
+		paddle_vel[seat] = 0.0
+		_target[seat] = -1.0
+
+
+func _update_paddle(seat: int, delta: float) -> void:
+	var before := paddle_pos[seat]
+	paddle_prev[seat] = before
+	if wall_of(seat) == -1:
+		paddle_vel[seat] = 0.0
+		return
+	_input_age[seat] += delta
+	if _input_age[seat] > INPUT_TIMEOUT:
+		_target[seat] = -1.0
+	var next := before
+	if _target[seat] >= 0.0:
+		next = move_toward(before, _target[seat], PADDLE_SPEED * TARGET_CATCH_UP * delta)
+	var walls := wall_count()
+	paddle_pos[seat] = clampf(next, paddle_min(walls), paddle_max(walls))
+	paddle_vel[seat] = (paddle_pos[seat] - before) / delta if delta > 0.0 else 0.0
+
+
+## Serves from the middle toward a random player who is still in.
+func _serve() -> void:
+	var to_seat := order[rng.randi_range(0, order.size() - 1)]
+	hits = 0
+	state = STATE_PLAY
+	ball_pos = Vector2.ZERO
+	if is_line():
+		var direction := -1.0 if line_end(to_seat) < 0.0 else 1.0
+		ball_vel = Vector2(direction * LINE_START_SPEED, 0.0)
+	else:
+		var frame := wall_frame(wall_of(to_seat), wall_count())
+		var spread := deg_to_rad(SERVE_SPREAD_DEG)
+		var angle := rng.randf_range(spread * 0.35, spread) * (1.0 if rng.randf() < 0.5 else -1.0)
+		ball_vel = (-frame[2]).rotated(angle) * START_SPEED
 
 
 func _advance_line(delta: float) -> void:
@@ -323,114 +426,6 @@ func _history_at(at_tick: int) -> Vector3:
 		if int(entry.z) == at_tick:
 			return entry
 	return Vector3.INF
-
-
-func snapshot() -> Dictionary:
-	var paddles := []
-	var velocities := []
-	var zones := []
-	for seat in seat_count:
-		paddles.append(snappedf(paddle_pos[seat], 0.01))
-		velocities.append(snappedf(paddle_vel[seat], 0.1))
-		zones.append(snappedf(zone[seat], 0.1))
-	return {
-		"type": "arena_snapshot",
-		"tick": tick_number,
-		"state": state,
-		"timer": snappedf(timer, 0.01),
-		"order": order.duplicate(),
-		"ball": [snappedf(ball_pos.x, 0.01), snappedf(ball_pos.y, 0.01), snappedf(ball_vel.x, 0.01), snappedf(ball_vel.y, 0.01)],
-		"paddles": paddles,
-		"pvel": velocities,
-		"zones": zones,
-		"seats": seat_count,
-		"winner": winner,
-		"loser": last_loser,
-		"serve": serve_seat,
-		"hits": hits,
-	}
-
-
-func apply_snapshot(data: Dictionary) -> void:
-	var players := int(data.get("seats", seat_count))
-	if players != seat_count:
-		reset_match(players)
-	state = str(data.get("state", state))
-	timer = float(data.get("timer", timer))
-	var remote_order = data.get("order", [])
-	if remote_order is Array:
-		order.clear()
-		for seat in remote_order:
-			order.append(int(seat))
-	var ball = data.get("ball", [])
-	if ball is Array and ball.size() == 4:
-		ball_pos = Vector2(float(ball[0]), float(ball[1]))
-		ball_vel = Vector2(float(ball[2]), float(ball[3]))
-	_read_floats(data.get("paddles", []), paddle_pos)
-	_read_floats(data.get("pvel", []), paddle_vel)
-	_read_floats(data.get("zones", []), zone)
-	for seat in seat_count:
-		paddle_prev[seat] = paddle_pos[seat]
-	winner = int(data.get("winner", winner))
-	last_loser = int(data.get("loser", last_loser))
-	serve_seat = int(data.get("serve", serve_seat))
-	hits = int(data.get("hits", hits))
-	tick_number = int(data.get("tick", tick_number))
-
-
-func _read_floats(source, target: Array[float]) -> void:
-	if not source is Array:
-		return
-	for seat in mini(source.size(), target.size()):
-		target[seat] = float(source[seat])
-
-
-func _center_paddles() -> void:
-	var walls := maxi(wall_count(), 3)
-	for seat in seat_count:
-		paddle_pos[seat] = side_length(walls) * 0.5
-		paddle_prev[seat] = paddle_pos[seat]
-		paddle_vel[seat] = 0.0
-		_target[seat] = -1.0
-
-
-func _update_paddle(seat: int, delta: float) -> void:
-	var before := paddle_pos[seat]
-	paddle_prev[seat] = before
-	var wall := wall_of(seat)
-	if wall == -1:
-		paddle_vel[seat] = 0.0
-		return
-	var walls := wall_count()
-	var next := before
-	# No word from this player for a moment: the paddle stops.
-	_input_age[seat] += delta
-	if _input_age[seat] > INPUT_TIMEOUT:
-		_axis[seat] = 0.0
-		_target[seat] = -1.0
-	if _target[seat] >= 0.0:
-		next = move_toward(before, _target[seat], PADDLE_SPEED * TARGET_CATCH_UP * delta)
-	else:
-		next = before + _axis[seat] * PADDLE_SPEED * delta
-	paddle_pos[seat] = clampf(next, paddle_min(walls), paddle_max(walls))
-	paddle_vel[seat] = (paddle_pos[seat] - before) / delta if delta > 0.0 else 0.0
-
-
-func _serve() -> void:
-	if not is_alive(serve_seat):
-		serve_seat = order[rng.randi_range(0, order.size() - 1)]
-	hits = 0
-	state = STATE_PLAY
-	ball_pos = Vector2.ZERO
-	if is_line():
-		var direction := -1.0 if line_end(serve_seat) < 0.0 else 1.0
-		ball_vel = Vector2(direction * LINE_START_SPEED, 0.0)
-	else:
-		var frame := wall_frame(wall_of(serve_seat), wall_count())
-		var spread := deg_to_rad(SERVE_SPREAD_DEG)
-		var angle := rng.randf_range(spread * 0.35, spread) * (1.0 if rng.randf() < 0.5 else -1.0)
-		ball_vel = (-frame[2]).rotated(angle) * START_SPEED
-	events.append({"type": "serve", "seat": serve_seat})
 
 
 func _bounce_corners() -> void:
@@ -472,6 +467,7 @@ func _hit_paddle(wall: int, previous: Vector2) -> bool:
 	var half := paddle_length(walls) * 0.5
 	if absf(contact_u - center) > half + BALL_RADIUS:
 		return false
+	# Hitting near a paddle's end sends the ball off at a sharper angle.
 	var hit := clampf((contact_u - center) / half, -1.0, 1.0)
 	var angle := hit * deg_to_rad(MAX_BOUNCE_ANGLE_DEG)
 	var speed := minf(ball_vel.length() * SPEED_INCREMENT * lerpf(1.05, 0.97, absf(hit)), MAX_SPEED)
@@ -504,32 +500,3 @@ func _exited_wall() -> int:
 			worst = v
 			result = wall
 	return result
-
-
-## The ball got past this player.
-func _missed(seat: int) -> void:
-	events.append({"type": "goal", "seat": seat, "x": ball_pos.x, "y": ball_pos.y})
-	knock_out(seat)
-
-
-## Takes a player out of the match (they missed, or left the room). Their wall
-## disappears and the court shrinks; the last player left wins.
-func knock_out(seat: int) -> void:
-	if not is_alive(seat) or state == STATE_OVER:
-		return
-	last_loser = seat
-	_last_goal_tick = tick_number
-	ball_pos = Vector2.ZERO
-	ball_vel = Vector2.ZERO
-	_line_history.clear()
-	events.append({"type": "out", "seat": seat, "wall": wall_of(seat)})
-	order.erase(seat)
-	if order.size() <= 1:
-		state = STATE_OVER
-		winner = order[0] if order.size() == 1 else -1
-		events.append({"type": "win", "seat": winner})
-		return
-	_center_paddles()
-	state = STATE_COUNTDOWN
-	timer = SHRINK_DELAY
-	serve_seat = order[rng.randi_range(0, order.size() - 1)]
