@@ -42,10 +42,6 @@ func play(sound_name: String, pitch: float = 1.0) -> void:
 		player.play()
 
 
-func play_point() -> void:
-	play("point")
-
-
 func play_win() -> void:
 	play("win_low", 0.95)
 	play("win", 1.1)

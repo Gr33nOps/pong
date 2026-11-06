@@ -10,10 +10,10 @@ const WOBBLE := [0.0, 0.7, -0.45, 0.55, -0.6, 0.35, 0.0]
 var corners := PackedVector2Array()
 var corner_radius := 20.0
 var polygon_alpha := 1.0
-## Line finale: screen-space ends and each end's hit-zone length (left, right).
+## Line finale: screen-space ends and the hit-zone length at each end.
 var line_from := Vector2.ZERO
 var line_to := Vector2.ZERO
-var line_zones := Vector2.ZERO
+var zone_length := 0.0
 var line_alpha := 0.0
 ## Briefly darkens a hit zone after a swing: x = left, y = right.
 var zone_flash := Vector2.ZERO
@@ -55,7 +55,7 @@ func _draw_line_court() -> void:
 	for end in 2:
 		var tip := line_from if end == 0 else line_to
 		var inward := direction if end == 0 else -direction
-		var length := line_zones.x if end == 0 else line_zones.y
+		var length := zone_length
 		var flash := zone_flash.x if end == 0 else zone_flash.y
 		var band := PackedVector2Array([
 			tip + normal * 14.0,

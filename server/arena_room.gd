@@ -89,11 +89,7 @@ func handle_message(peer_id: int, message: Dictionary) -> bool:
 	match str(message.get("type", "")):
 		"input":
 			if started:
-				var target := float(message.get("target_y", -1.0))
-				if target >= 0.0:
-					simulation.set_target(seat, target)
-				else:
-					simulation.set_axis(seat, float(message.get("axis", 0.0)))
+				simulation.set_target(seat, float(message.get("target_y", 0.0)))
 		"hit":
 			if started:
 				_queue_hit(seat, int(message.get("tick", -1)))

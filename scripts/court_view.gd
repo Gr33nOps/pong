@@ -8,7 +8,6 @@ extends Node2D
 
 const ArenaSimulation = preload("res://scripts/arena_simulation.gd")
 const CourtLines = preload("res://scripts/court_lines.gd")
-const INK_THEME = preload("res://assets/ink_theme.tres")
 const PAPER_TEXTURE = preload("res://assets/art/paper-court.png")
 const PADDLE_TEXTURE = preload("res://assets/art/paddle-ink.png")
 const BALL_TEXTURE = preload("res://assets/art/ball-ink.png")
@@ -71,7 +70,6 @@ func _ready() -> void:
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.theme = INK_THEME
 	layer.add_child(root)
 	for _seat in ArenaSimulation.MAX_PLAYERS:
 		var player_name := _make_label(20, Vector2(140.0, 28.0))
@@ -154,6 +152,10 @@ func is_folding() -> bool:
 ## Draws one frame. paddle_position(seat) says where each paddle is along its
 ## wall (the online view's predictions).
 func draw_match(sim: ArenaSimulation, my_seat: int, player_names: Array[String], ball_position: Vector2, paddle_position: Callable, hint: String, delta: float) -> void:
+	# Only the winner is left: there's no court to draw behind the winner screen.
+	if sim.wall_count() < 2:
+		hide_match()
+		return
 	_turn_view_to(sim, my_seat)
 	swing_flash = maxf(swing_flash - delta * 4.0, 0.0)
 	fold_progress = minf(fold_progress + delta / FOLD_SECONDS, 1.0)
@@ -165,7 +167,7 @@ func draw_match(sim: ArenaSimulation, my_seat: int, player_names: Array[String],
 	else:
 		_place_polygon_paddles(sim, paddle_position)
 	ball.position = to_screen(sim, ball_position)
-	ball.visible = sim.state != ArenaSimulation.STATE_OVER and not is_folding()
+	ball.visible = not is_folding()
 	_place_labels(sim, player_names)
 	hint_label.text = hint
 	hint_label.visible = not hint.is_empty()
@@ -214,8 +216,7 @@ func _update_line_finale(sim: ArenaSimulation, my_seat: int) -> void:
 	lines.line_from = CENTER + Vector2(-half, 0.0)
 	lines.line_to = CENTER + Vector2(half, 0.0)
 	var left_seat := sim.order[0] if line_flip > 0.0 else sim.order[1]
-	var right_seat := sim.order[1] if line_flip > 0.0 else sim.order[0]
-	lines.line_zones = Vector2(sim.zone[left_seat], sim.zone[right_seat]) * line_reveal
+	lines.zone_length = ArenaSimulation.ZONE_LENGTH * line_reveal
 	var mine_is_left := left_seat == my_seat
 	lines.zone_flash = Vector2(swing_flash, 0.0) if mine_is_left else Vector2(0.0, swing_flash)
 	lines.line_alpha = line_reveal

@@ -369,9 +369,10 @@ func _on_online_error(message: String) -> void:
 		menu.status.text = message
 
 
-func _on_room_joined(_code: String, seat: int) -> void:
+## The server put us in a room; the full list of names follows right after.
+func _on_room_joined() -> void:
 	invite_code = ""
-	room_host = seat
+	room_host = Network.seat
 	room_names = [Settings.player_name()]
 	menu.cursor = 0
 	show_room()
@@ -455,7 +456,7 @@ func _on_snapshot(data: Dictionary) -> void:
 		return
 	if sim.wall_count() != change["order_before"].size():
 		court.start_fold(sim, change["order_before"], corners_before)
-		Sound.play_point()
+		Sound.play("point")
 		InkEffects.point_lost(CourtView.CENTER)
 	if sim.state == ArenaSimulation.STATE_OVER and phase != Phase.OVER:
 		show_game_over(sim.winner)

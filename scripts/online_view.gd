@@ -123,7 +123,7 @@ func move_my_paddle(axis: float, delta: float) -> void:
 				_my_paddle = lerpf(_my_paddle, server_position, 1.0 - exp(-RESYNC_RATE * delta))
 	_my_paddle_speed = (_my_paddle - before) / delta if delta > 0.0 else 0.0
 	_remember_my_paddle(now)
-	Network.send_paddle(axis, _my_paddle)
+	Network.send_paddle(_my_paddle)
 
 
 ## Fades out corrections a little more each frame.
