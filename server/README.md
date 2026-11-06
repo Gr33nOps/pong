@@ -20,10 +20,10 @@ The free service may sleep when idle. The client therefore keeps the explicit wa
 
 ## Protocol
 
-Every room is a polygon match for 2 to 7 players. The rules live in `arena_simulation.gd`, a verbatim copy of the client's file (a client test checks they match).
+Every room is a polygon match for 2 to 10 players. The rules live in `arena_simulation.gd`, a verbatim copy of the client's file (a client test checks they match).
 
 Clients send:
-- `create_room` with `size` (2–7), and `join_room` with `code`
+- `create_room` with `size` (2–10), and `join_room` with `code`
 - `set_size` and `start` (host only, before the match), `rematch` after it ends, and `leave_room`
 - `input` with `target_y`: the client's predicted paddle position along its wall. The server moves its paddle toward it under a speed cap, so clients never set positions, the ball, or lives directly.
 - `hit` with `tick`: a swing in the line finale, stamped with the server tick the player saw. A swing that arrives late is judged against the ball's recorded position at that tick; one that arrives early is held until that tick.

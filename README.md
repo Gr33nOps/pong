@@ -4,7 +4,7 @@
 
 # Paddle Polygon
 
-**Pong for 2 to 7 players: one paddle per side, a court that shrinks as players are knocked out, and a one-dimensional finale.**
+**Pong for 2 to 10 players: one paddle per side, a court that shrinks as players are knocked out, and a one-dimensional finale.**
 
 [![Play in browser](https://img.shields.io/badge/PLAY_IN_BROWSER-111111?style=for-the-badge)](https://gr33nops.github.io/pong/)
 [![Latest release](https://img.shields.io/github/v/release/Gr33nOps/pong?style=for-the-badge&color=111111)](https://github.com/Gr33nOps/pong/releases/latest)
@@ -16,7 +16,7 @@
 
 ## The game
 
-Every player defends one side of a regular polygon: three players play on a triangle, seven on a heptagon. Let the ball past your side once and you are out: your side folds away and the court shrinks to the next shape down.
+Every player defends one side of a regular polygon: three players play on a triangle, ten on a decagon. Let the ball past your side once and you are out: your side folds away and the court shrinks to the next shape down.
 
 When only two players are left, the court collapses into a single line for a **1D Pong** finale. The ball runs back and forth along it, and you press Space while it is inside your hatched hit zone. The later you hit, the faster it flies back; swing too early and you are locked out for a moment. Whoever misses first loses, and the last player standing wins.
 
@@ -26,8 +26,8 @@ Your own side is always drawn at the bottom of the screen.
 
 | Mode | Players | How it works |
 |---|---:|---|
-| Play vs AI | 2–7 | You against 1–6 AI paddles, in your browser with no server involved. Easy, Normal or Hard AI. |
-| Play online | 2–7 | Create a room, pick how many players (the shape), and share the code. The host starts whenever ready; empty sides play as AI, and anyone who drops out is replaced by AI. |
+| Play vs AI | 2–10 | You against 1–9 AI paddles, in your browser with no server involved. Easy, Normal or Hard AI. |
+| Play online | 2–10 | Create a room, pick how many players (the shape), and share the code. The host starts whenever ready; empty sides play as AI, and anyone who drops out is replaced by AI. |
 
 The hosted online server may need a short wake-up after being idle.
 

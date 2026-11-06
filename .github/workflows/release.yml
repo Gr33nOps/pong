@@ -93,7 +93,7 @@ jobs:
           cat > RELEASE_NOTES.md <<EOF
           # Paddle Polygon v${VERSION}
 
-          Pong for 2 to 7 players. Every player defends one side of a polygon court; knockouts fold the court into the next shape, down to a one-dimensional finale. Play against AI or with friends online.
+          Pong for 2 to 10 players. Every player defends one side of a polygon court; knockouts fold the court into the next shape, down to a one-dimensional finale. Play against AI or with friends online.
 
           ## Downloads
 

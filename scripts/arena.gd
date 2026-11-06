@@ -1,5 +1,5 @@
 extends Node2D
-## Paddle Polygon: Pong for 2 to 7 players.
+## Paddle Polygon: Pong for 2 to 10 players.
 ##
 ## This script runs the game flow: which screen is showing, what your keys
 ## do, and starting matches. The other scripts do the actual work:
@@ -15,7 +15,7 @@ const OnlineView = preload("res://scripts/online_view.gd")
 
 enum Phase { TITLE, SOLO_SETUP, ONLINE_MENU, ONLINE_JOIN, ONLINE_ROOM, PLAYING, PAUSED, OVER }
 
-const SHAPE_NAMES := ["1D LINE", "TRIANGLE", "SQUARE", "PENTAGON", "HEXAGON", "HEPTAGON"]
+const SHAPE_NAMES := ["1D LINE", "TRIANGLE", "SQUARE", "PENTAGON", "HEXAGON", "HEPTAGON", "OCTAGON", "NONAGON", "DECAGON"]
 const SKILLS := [ArenaSimulation.SKILL_EASY, ArenaSimulation.SKILL_NORMAL, ArenaSimulation.SKILL_HARD]
 const SKILL_NAMES := ["EASY", "NORMAL", "HARD"]
 const STICK_DEADZONE := 0.18
@@ -69,7 +69,7 @@ func show_title() -> void:
 	if Network.state != Network.STATE_DISCONNECTED:
 		Network.disconnect_from_server()
 	menu.open("", "", [["solo", "PLAY VS AI"], ["online", "PLAY ONLINE"]], "UP/DOWN MOVE   SPACE SELECT")
-	menu.show_big_title("PADDLE POLYGON", "2 TO 7 PLAYERS   ONE PADDLE PER SIDE")
+	menu.show_big_title("PADDLE POLYGON", "2 TO 10 PLAYERS   ONE PADDLE PER SIDE")
 	court.show_preview(5)
 
 
@@ -95,7 +95,7 @@ func show_online_menu(message: String = "") -> void:
 	if Network.state == Network.STATE_DISCONNECTED:
 		Network.connect_to_server()
 	var status := message if not message.is_empty() else Network.status_message
-	menu.open("ONLINE", status, [["create", "CREATE ROOM"], ["join", "JOIN ROOM"], ["back", "BACK"]], "UP TO 7 PLAYERS   EMPTY SIDES PLAY AS AI")
+	menu.open("ONLINE", status, [["create", "CREATE ROOM"], ["join", "JOIN ROOM"], ["back", "BACK"]], "UP TO 10 PLAYERS   EMPTY SIDES PLAY AS AI")
 	court.show_preview(4)
 
 
@@ -155,7 +155,7 @@ func _shape_name(players: int) -> String:
 	return SHAPE_NAMES[clampi(players - 2, 0, SHAPE_NAMES.size() - 1)]
 
 
-## Player counts go 2, 3, ... 7 and then wrap back to 2.
+## Player counts go 2, 3, ... 10 and then wrap back to 2.
 func _wrap_players(count: int) -> int:
 	var span := ArenaSimulation.MAX_PLAYERS - ArenaSimulation.MIN_PLAYERS + 1
 	return ArenaSimulation.MIN_PLAYERS + posmod(count - ArenaSimulation.MIN_PLAYERS, span)

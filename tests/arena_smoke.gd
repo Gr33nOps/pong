@@ -39,13 +39,13 @@ func _sim(players: int) -> ArenaSimulation:
 
 func _test_geometry() -> void:
 	var ok := true
-	for walls in range(3, 8):
+	for walls in range(3, 11):
 		for index in walls:
 			ok = ok and is_equal_approx(ArenaSimulation.vertex(index, walls).length(), ArenaSimulation.RADIUS)
 		var bottom := (ArenaSimulation.vertex(0, walls) + ArenaSimulation.vertex(1, walls)) * 0.5
 		ok = ok and absf(bottom.x) < 0.01 and bottom.y > 0.0
 		ok = ok and ArenaSimulation.paddle_min(walls) < ArenaSimulation.paddle_max(walls)
-	_check(ok, "every polygon from 3 to 7 sides has wall 0 at the bottom and room for a paddle")
+	_check(ok, "every polygon from 3 to 10 sides has wall 0 at the bottom and room for a paddle")
 
 
 func _test_paddle_return() -> void:
@@ -128,7 +128,7 @@ func _test_late_swing_is_judged_in_the_past() -> void:
 func _test_cpu_matches_finish() -> void:
 	var ok := true
 	var saw_line := false
-	for players in [2, 3, 5, 7]:
+	for players in [2, 3, 5, 7, 10]:
 		var sim := ArenaSimulation.new()
 		sim.rng.seed = 11 + players
 		var flags := []
@@ -145,7 +145,7 @@ func _test_cpu_matches_finish() -> void:
 				ok = false
 				break
 		ok = ok and sim.state == ArenaSimulation.STATE_OVER and sim.winner >= 0 and sim.order.size() == 1
-	_check(ok, "all-CPU matches of 2, 3, 5 and 7 players end with one winner")
+	_check(ok, "all-CPU matches of 2, 3, 5, 7 and 10 players end with one winner")
 	_check(saw_line, "matches finish through the line finale")
 
 
@@ -179,14 +179,14 @@ func _test_scene_flow() -> void:
 	_check(scene.phase == scene.Phase.TITLE and menu.options == ["solo", "online"], "the game opens on PLAY VS AI and PLAY ONLINE")
 	_check(menu.title.text == "PADDLE POLYGON" and ProjectSettings.get_setting("application/config/name") == "Paddle Polygon", "the game is called Paddle Polygon")
 	scene._on_menu_choice("solo", 1)
-	scene.solo_players = 6
+	scene.solo_players = 9
 	scene._on_menu_choice("players", 1)
-	_check(scene.solo_players == 7 and menu.button_labels[0].text.contains("7"), "the solo setup picks up to seven players")
+	_check(scene.solo_players == 10 and menu.button_labels[0].text.contains("10"), "the solo setup picks up to ten players")
 	scene._on_menu_choice("players", 1)
-	_check(scene.solo_players == 2, "the player count wraps from seven back to two")
-	scene.solo_players = 7
+	_check(scene.solo_players == 2, "the player count wraps from ten back to two")
+	scene.solo_players = 10
 	scene._on_menu_choice("go", 1)
-	_check(scene.phase == scene.Phase.PLAYING and scene.sim.seat_count == 7 and scene.sim.cpu.count(true) == 6, "you play against six AI on a heptagon")
+	_check(scene.phase == scene.Phase.PLAYING and scene.sim.seat_count == 10 and scene.sim.cpu.count(true) == 9, "you play against nine AI on a decagon")
 	for _i in 150:
 		scene._physics_process(1.0 / 60.0)
 	var visible_paddles := 0

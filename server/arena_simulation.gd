@@ -1,5 +1,5 @@
 extends RefCounted
-## Polygon Pong for 2-7 players. Each player defends one wall of a regular
+## Polygon Pong for 2-10 players. Each player defends one wall of a regular
 ## polygon. Miss the ball once and you are out: your wall disappears and the
 ## court shrinks to the next polygon; with two players left it collapses to a
 ## line for a timing-based 1D Pong finale. The same file runs on the client (solo play and online
@@ -7,7 +7,7 @@ extends RefCounted
 ## the two copies identical.
 
 const MIN_PLAYERS := 2
-const MAX_PLAYERS := 7
+const MAX_PLAYERS := 10
 ## One miss and you are out.
 const STARTING_LIVES := 1
 

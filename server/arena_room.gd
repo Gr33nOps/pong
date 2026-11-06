@@ -1,6 +1,6 @@
 class_name ArenaRoom
 extends RefCounted
-## Online polygon room. The host picks how many sides (2-7), people take seats
+## Online polygon room. The host picks how many sides (2-10), people take seats
 ## in join order, and the host starts; AI paddles fill every empty seat and take
 ## over from anyone who drops out mid-match.
 
