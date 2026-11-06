@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## The paper menus: a title, a status line, a text box (for your name or a
-## room code), a list of players, up to four ink buttons and a hint at the
-## bottom.
+## room code), a list of players, a loading animation, up to four ink buttons
+## and a hint at the bottom.
 ##
 ## It doesn't decide anything itself. When a button is used it emits
 ## `chosen(id)`; pressing Enter in the text box emits `text_entered`.
@@ -11,6 +11,7 @@ signal text_entered
 
 const INK_BUTTON_SCRIPT = preload("res://scripts/ui/ink_button.gd")
 const INK_PANEL_SCRIPT = preload("res://scripts/ui/ink_panel.gd")
+const INK_SPINNER_SCRIPT = preload("res://scripts/ui/ink_spinner.gd")
 const INK := Color(0.12, 0.12, 0.11, 1.0)
 const MAX_BUTTONS := 4
 const BUTTON_LEFT := 336.0
@@ -33,6 +34,7 @@ var button_labels: Array[Label] = []
 var _root: Control
 var _dimmer: ColorRect
 var _text_frame: Panel
+var _spinner: Control
 var _buttons: Array[Panel] = []
 
 
@@ -81,6 +83,12 @@ func _ready() -> void:
 	text_box.text_submitted.connect(func(_text: String) -> void: text_entered.emit())
 	_root.add_child(text_box)
 
+	_spinner = Control.new()
+	_spinner.set_script(INK_SPINNER_SCRIPT)
+	_spinner.position = Vector2(516.0, 226.0)
+	_spinner.size = Vector2(120.0, 120.0)
+	_root.add_child(_spinner)
+
 	for index in MAX_BUTTONS:
 		var button := Panel.new()
 		button.set_script(INK_BUTTON_SCRIPT)
@@ -126,6 +134,7 @@ func open(heading: String, status_text: String, buttons: Array, hint_text: Strin
 	_text_frame.visible = false
 	text_box.visible = false
 	text_box.release_focus()
+	_spinner.visible = false
 	options.clear()
 	for index in MAX_BUTTONS:
 		var shown := index < buttons.size()
@@ -162,6 +171,13 @@ func show_text_box(placeholder: String, max_length: int, text: String = "") -> v
 	text_box.grab_focus()
 
 
+## A waiting screen: what's happening, the loading animation and CANCEL.
+func show_loading(heading: String, detail: String) -> void:
+	cursor = 0
+	open(heading, detail, [["cancel", "CANCEL"]], "ESC CANCEL", 390.0)
+	_spinner.visible = true
+
+
 func show_players(text: String) -> void:
 	players.visible = true
 	players.text = text
@@ -184,10 +200,6 @@ func move_cursor(step: int) -> void:
 func press() -> void:
 	if not options.is_empty():
 		chosen.emit(options[cursor])
-
-
-func selected() -> String:
-	return options[cursor] if not options.is_empty() else ""
 
 
 func _highlight_cursor() -> void:

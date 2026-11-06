@@ -12,6 +12,9 @@
 		<meta property="og:image" content="index.png">
 		<meta name="twitter:card" content="summary_large_image">
 		<title>$GODOT_PROJECT_NAME</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap">
 		<style>
 :root {
 	color-scheme: light;
@@ -67,7 +70,14 @@ body {
 		radial-gradient(circle at 72% 64%, rgba(30, 30, 26, 0.025) 0 0.8px, transparent 1px),
 		linear-gradient(92deg, rgba(255, 255, 255, 0.45), transparent 42%, rgba(30, 30, 26, 0.018));
 	background-size: 19px 17px, 23px 21px, 100% 100%;
+	font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", sans-serif;
 	z-index: 10;
+	transition: opacity 350ms ease;
+}
+
+#status.done {
+	opacity: 0;
+	pointer-events: none;
 }
 
 #status-card {
@@ -80,11 +90,15 @@ body {
 }
 
 #loader-title {
-	font-family: "Segoe Print", "Comic Sans MS", sans-serif;
-	font-size: clamp(34px, 7vw, 48px);
-	font-weight: 700;
+	font-size: clamp(40px, 8vw, 58px);
 	letter-spacing: 0.08em;
 	line-height: 1.05;
+}
+
+#status-text {
+	margin-top: -8px;
+	font-size: 20px;
+	letter-spacing: 0.08em;
 }
 
 #loader-logo-window {
@@ -172,6 +186,7 @@ body {
 					<img id="loader-logo" src="$GODOT_SPLASH" alt="">
 				</div>
 				<progress id="status-progress" aria-label="Loading Paddle Polygon"></progress>
+				<div id="status-text">LOADING</div>
 			</div>
 			<div id="status-notice"></div>
 		</div>
@@ -219,6 +234,7 @@ const engine = new Engine(GODOT_CONFIG);
 	const loading = document.getElementById('status');
 	const card = document.getElementById('status-card');
 	const progress = document.getElementById('status-progress');
+	const text = document.getElementById('status-text');
 	const notice = document.getElementById('status-notice');
 
 	function showError(error) {
@@ -244,12 +260,17 @@ const engine = new Engine(GODOT_CONFIG);
 			if (current > 0 && total > 0) {
 				progress.value = current;
 				progress.max = total;
+				text.textContent = current < total ? 'LOADING ' + Math.floor(current / total * 100) + '%' : 'STARTING';
 			} else {
 				progress.removeAttribute('value');
 				progress.removeAttribute('max');
+				text.textContent = 'LOADING';
 			}
 		},
-	}).then(() => loading.remove(), showError);
+	}).then(() => {
+		loading.classList.add('done');
+		setTimeout(() => loading.remove(), 400);
+	}, showError);
 }());
 		</script>
 	</body>

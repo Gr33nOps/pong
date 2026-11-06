@@ -2,7 +2,7 @@
 
 ## Patrick Hand
 
-`assets/fonts/PatrickHand-Regular.ttf` is Patrick Hand by Patrick Wagesreiter, distributed through Google Fonts under the SIL Open Font License, version 1.1. The font may be embedded and redistributed with the game. Source and license: <https://github.com/google/fonts/tree/main/ofl/patrickhand>.
+`assets/fonts/PatrickHand-Regular.ttf` is Patrick Hand by Patrick Wagesreiter, distributed through Google Fonts under the SIL Open Font License, version 1.1. The font may be embedded and redistributed with the game. Source and license: <https://github.com/google/fonts/tree/main/ofl/patrickhand>. The web version's loading page loads the same font from Google Fonts (fonts.googleapis.com).
 
 ## Godot Engine
 
