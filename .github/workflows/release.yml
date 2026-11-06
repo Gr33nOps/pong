@@ -6,7 +6,6 @@ on:
 
 env:
   GODOT_VERSION: 4.7.1
-  EXPORT_NAME: pong
 
 defaults:
   run:
@@ -48,8 +47,6 @@ jobs:
           sed -i -E "s/^config\/version=.*/config\/version=\"$VERSION\"/" project.godot
           sed -i -E "s/^application\/file_version=.*/application\/file_version=\"$VERSION\"/" export_presets.cfg
           sed -i -E "s/^application\/product_version=.*/application\/product_version=\"$VERSION\"/" export_presets.cfg
-          sed -i -E "s/^version\/name=.*/version\/name=\"$VERSION\"/" export_presets.cfg
-          sed -i -E "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/" export_presets.cfg
 
       - name: Import resources
         run: godot --headless --verbose --editor --quit
@@ -57,25 +54,20 @@ jobs:
       - name: Run deterministic client and Online tests
         run: |
           set -euo pipefail
-          for test in tests/smoke.gd tests/menu_layout_smoke.gd tests/online_lobby_smoke.gd; do
-            godot --headless --path . --script "$test"
-          done
-          godot --headless --path server --script res://match_lifecycle_smoke.gd
-          godot --headless --path server --script res://room_rejoin_smoke.gd
+          godot --headless --path . --script tests/arena_smoke.gd
+          godot --headless --path server --script res://arena_room_smoke.gd
           PORT=9081 godot --headless --path server --scene server_main.tscn >/tmp/pong-server.log 2>&1 &
           server_pid=$!
           cleanup() { kill "$server_pid" 2>/dev/null || true; }
           trap cleanup EXIT
           sleep 1
-          for test in tests/server_smoke.gd tests/server_multiclient_smoke.gd tests/online_match_lifecycle_smoke.gd tests/online_connection_smoke.gd; do
-            godot --headless --path . --script "$test"
-          done
+          godot --headless --path . --script tests/arena_online_smoke.gd
 
       - name: Export Windows Desktop
         run: |
           set -euo pipefail
           mkdir -p /tmp/pong/windows
-          godot --headless --verbose --path . --export-release "Windows Desktop" /tmp/pong/windows/pong.exe
+          godot --headless --verbose --path . --export-release "Windows Desktop" /tmp/pong/windows/paddle-polygon.exe
 
       - name: Export Web
         run: |
@@ -89,45 +81,19 @@ jobs:
             exit 1
           fi
 
-      - name: Export Android sideload APK
-        run: |
-          set -euo pipefail
-          # Use Godot's built-in APK template; Play Store/Gradle signing is intentionally not configured.
-          sed -i 's#gradle_build/use_gradle_build=true#gradle_build/use_gradle_build=false#' export_presets.cfg
-          sed -i 's#gradle_build/min_sdk="29"#gradle_build/min_sdk=""#' export_presets.cfg
-          sed -i 's#gradle_build/target_sdk="36"#gradle_build/target_sdk=""#' export_presets.cfg
-          sed -i 's#keystore/debug_user="androiddebugkey"#keystore/debug_user=""#' export_presets.cfg
-          sed -i 's#keystore/debug_password="android"#keystore/debug_password=""#' export_presets.cfg
-          mkdir -p /tmp/pong/android
-          godot --headless --verbose --path . --export-debug "Android" /tmp/pong/android/pong.apk
-
       - name: Package release archives
         run: |
           set -euo pipefail
-          WINDOWS_ARCHIVE="Pong-v${VERSION}-Windows-x64.zip"
-          WEB_ARCHIVE="Pong-v${VERSION}-Web-itch.zip"
-          ANDROID_APK="Pong-v${VERSION}-Android-arm64-debug.apk"
+          WINDOWS_ARCHIVE="Paddle-Polygon-v${VERSION}-Windows-x64.zip"
+          WEB_ARCHIVE="Paddle-Polygon-v${VERSION}-Web-itch.zip"
           cd /tmp/pong/windows && zip -q -r "$GITHUB_WORKSPACE/$WINDOWS_ARCHIVE" .
           cd /tmp/pong/web && zip -q -r "$GITHUB_WORKSPACE/$WEB_ARCHIVE" .
-          cp /tmp/pong/android/pong.apk "$GITHUB_WORKSPACE/$ANDROID_APK"
           cd "$GITHUB_WORKSPACE"
-          sha256sum "$WINDOWS_ARCHIVE" "$WEB_ARCHIVE" "$ANDROID_APK" > SHA256SUMS.txt
+          sha256sum "$WINDOWS_ARCHIVE" "$WEB_ARCHIVE" > SHA256SUMS.txt
           cat > RELEASE_NOTES.md <<EOF
-          # PONG v${VERSION}
+          # Paddle Polygon v${VERSION}
 
-          This release rebuilds the Online match lifecycle and improves the feel of network play from room creation through rematch.
-
-          ## What changed
-
-          - Matches now continue correctly after every point instead of getting stuck before the next serve.
-          - Serve prompts identify whose turn it is and reject input from the wrong player.
-          - Snapshot smoothing makes ball and paddle motion feel steadier at the server update rate.
-          - Room creation and joining wait for sleeping servers and prevent duplicate requests.
-          - Room-code copying now uses the browser clipboard correctly in the Web build.
-          - The Web build now opens with a responsive paper-and-ink loading screen instead of a generic browser progress bar.
-          - Heartbeats keep waiting rooms connected, while stale movement input now stops safely.
-          - Online pause, leave, disconnect, game-over, and two-player rematch states transition cleanly.
-          - Automated tests now play a real two-client match through room creation, scoring, and the next serve.
+          Pong for 2 to 7 players. Every player defends one side of a polygon court; knockouts fold the court into the next shape, down to a one-dimensional finale. Play against AI or with friends online.
 
           ## Downloads
 
@@ -135,26 +101,20 @@ jobs:
           |---|---|---|
           | Windows x64 | \`$WINDOWS_ARCHIVE\` | Extract and run the included executable. |
           | Web | \`$WEB_ARCHIVE\` | Browser-ready archive with \`index.html\` at its root. |
-          | Android arm64 | \`$ANDROID_APK\` | Debug-signed APK intended for direct sideloading. |
 
           SHA-256 hashes for all downloads are provided in \`SHA256SUMS.txt\`.
 
-          ## Online multiplayer
+          ## Online play
 
-          Choose **Online**, create a room, then share the six-character code with the second player. The hosted server may take a moment to wake after being idle.
-
-          ## Verification
-
-          Gameplay, menu layout, Online lobby, live server connection, two-client room flow, disconnect/rejoin, main-scene startup, and release exports were validated with Godot ${GODOT_VERSION}.
+          Choose **PLAY ONLINE**, create a room, pick how many players, and share the six-character code. Empty sides play as AI. The hosted server may take a moment to wake after being idle.
           EOF
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          name: PONG v${{ env.VERSION }}
+          name: Paddle Polygon v${{ env.VERSION }}
           body_path: RELEASE_NOTES.md
           files: |
-            Pong-v${{ env.VERSION }}-Windows-x64.zip
-            Pong-v${{ env.VERSION }}-Web-itch.zip
-            Pong-v${{ env.VERSION }}-Android-arm64-debug.apk
+            Paddle-Polygon-v${{ env.VERSION }}-Windows-x64.zip
+            Paddle-Polygon-v${{ env.VERSION }}-Web-itch.zip
             SHA256SUMS.txt
