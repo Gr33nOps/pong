@@ -202,10 +202,6 @@ func press() -> void:
 		chosen.emit(options[cursor])
 
 
-func selected() -> String:
-	return options[cursor] if not options.is_empty() else ""
-
-
 func _highlight_cursor() -> void:
 	for index in _buttons.size():
 		_buttons[index].set("selected", index == cursor and index < options.size())
