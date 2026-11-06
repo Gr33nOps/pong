@@ -1,14 +1,15 @@
 extends RefCounted
 ## Polygon Pong for 2-7 players. Each player defends one wall of a regular
-## polygon. A knocked-out player's wall disappears and the court shrinks to the
-## next polygon; with two players left it collapses to a line for a timing-based
-## 1D Pong finale. The same file runs on the client (solo play and online
+## polygon. Miss the ball once and you are out: your wall disappears and the
+## court shrinks to the next polygon; with two players left it collapses to a
+## line for a timing-based 1D Pong finale. The same file runs on the client (solo play and online
 ## prediction) and on the server as server/arena_simulation.gd; a test keeps
 ## the two copies identical.
 
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 7
-const STARTING_LIVES := 3
+## One miss and you are out.
+const STARTING_LIVES := 1
 
 # Polygon court, in local units around the court centre.
 const RADIUS := 270.0
@@ -29,8 +30,6 @@ const SERVE_SPREAD_DEG := 22.0
 # Line finale.
 const LINE_LENGTH := 880.0
 const ZONE_START := 150.0
-const ZONE_MIN := 60.0
-const ZONE_SHRINK := 15.0
 const LINE_START_SPEED := 420.0
 const LINE_MAX_SPEED := 1150.0
 const LINE_SPEED_STEP := 1.03
@@ -639,8 +638,5 @@ func _lose_life(seat: int) -> void:
 			return
 		_center_paddles()
 		timer = SHRINK_DELAY
-	elif was_line:
-		for player in order:
-			zone[player] = maxf(zone[player] - ZONE_SHRINK, ZONE_MIN)
 	serve_seat = seat if is_alive(seat) else order[rng.randi_range(0, order.size() - 1)]
 	state = STATE_COUNTDOWN

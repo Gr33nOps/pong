@@ -398,15 +398,15 @@ func _react_to(events: Array) -> void:
 				if int(event.get("seat", -1)) == my_seat:
 					Sound.play("nav", 0.7)
 			"goal":
-				_life_lost(int(event.get("seat", -1)), where)
+				_player_out(where)
 			"win":
 				show_game_over(int(event.get("seat", -1)))
 
 
-func _life_lost(seat: int, where: Vector2) -> void:
+## Someone missed the ball and is out.
+func _player_out(where: Vector2) -> void:
 	Sound.play_point()
 	InkEffects.point_lost(where)
-	court.pop_lives(seat)
 
 
 # --- online lobby -------------------------------------------------------------
@@ -521,10 +521,7 @@ func _on_snapshot(data: Dictionary) -> void:
 		return
 	if sim.wall_count() != change["order_before"].size():
 		court.start_fold(sim, change["order_before"], corners_before)
-	var lives_before: Array = change["lives_before"]
-	for seat in mini(lives_before.size(), sim.seat_count):
-		if sim.lives[seat] < int(lives_before[seat]):
-			_life_lost(seat, CourtView.CENTER)
+		_player_out(CourtView.CENTER)
 	if sim.state == ArenaSimulation.STATE_OVER and phase != Phase.OVER:
 		show_game_over(sim.winner)
 
