@@ -1,14 +1,13 @@
 extends CanvasLayer
-## The paper menus: a title, a status line, up to four ink buttons, a room
-## code (or a box to type one) and a hint at the bottom.
+## The paper menus: a title, a status line, a text box (for your name or a
+## room code), a list of players, up to four ink buttons and a hint at the
+## bottom.
 ##
 ## It doesn't decide anything itself. When a button is used it emits
-## `chosen(id, direction)`: direction is 1 for select / right and -1 for left
-## (used by buttons that hold a value, like "PLAYERS < 4 >").
+## `chosen(id)`; pressing Enter in the text box emits `text_entered`.
 
-signal chosen(id: String, direction: int)
-signal code_clicked
-signal code_entered
+signal chosen(id: String)
+signal text_entered
 
 const INK_BUTTON_SCRIPT = preload("res://scripts/ui/ink_button.gd")
 const INK_PANEL_SCRIPT = preload("res://scripts/ui/ink_panel.gd")
@@ -27,14 +26,14 @@ var cursor := 0
 var title: Label
 var subtitle: Label
 var status: Label
-var code: Label
-var code_box: LineEdit
+var players: Label
+var text_box: LineEdit
 var hint: Label
 var button_labels: Array[Label] = []
 
 var _root: Control
 var _dimmer: ColorRect
-var _code_frame: Panel
+var _text_frame: Panel
 var _buttons: Array[Panel] = []
 
 
@@ -61,36 +60,28 @@ func _ready() -> void:
 	status.size = Vector2(700.0, 52.0)
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	code = _add_label(40)
-	code.position = Vector2(376.0, 210.0)
-	code.size = Vector2(400.0, 56.0)
-	code.mouse_filter = Control.MOUSE_FILTER_STOP
-	code.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	code.tooltip_text = "COPY ROOM CODE"
-	code.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			code_clicked.emit()
-	)
+	players = _add_label(22)
+	players.position = Vector2(176.0, 206.0)
+	players.size = Vector2(800.0, 74.0)
+	players.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_code_frame = Panel.new()
-	_code_frame.set_script(INK_PANEL_SCRIPT)
-	_code_frame.position = Vector2(396.0, 214.0)
-	_code_frame.size = Vector2(360.0, 56.0)
-	_root.add_child(_code_frame)
-	code_box = LineEdit.new()
-	code_box.position = Vector2(396.0, 216.0)
-	code_box.size = Vector2(360.0, 52.0)
-	code_box.max_length = 6
-	code_box.placeholder_text = "6-CHARACTER CODE"
-	code_box.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	code_box.add_theme_font_size_override("font_size", 24)
-	code_box.add_theme_color_override("font_color", INK)
-	code_box.add_theme_color_override("font_placeholder_color", Color(0.35, 0.35, 0.34, 1.0))
-	code_box.add_theme_color_override("caret_color", INK)
-	code_box.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-	code_box.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	code_box.text_submitted.connect(func(_text: String) -> void: code_entered.emit())
-	_root.add_child(code_box)
+	_text_frame = Panel.new()
+	_text_frame.set_script(INK_PANEL_SCRIPT)
+	_text_frame.position = Vector2(396.0, 214.0)
+	_text_frame.size = Vector2(360.0, 56.0)
+	_root.add_child(_text_frame)
+	text_box = LineEdit.new()
+	text_box.position = Vector2(396.0, 216.0)
+	text_box.size = Vector2(360.0, 52.0)
+	text_box.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text_box.add_theme_font_size_override("font_size", 24)
+	text_box.add_theme_color_override("font_color", INK)
+	text_box.add_theme_color_override("font_placeholder_color", Color(0.35, 0.35, 0.34, 1.0))
+	text_box.add_theme_color_override("caret_color", INK)
+	text_box.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	text_box.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	text_box.text_submitted.connect(func(_text: String) -> void: text_entered.emit())
+	_root.add_child(text_box)
 
 	for index in MAX_BUTTONS:
 		var button := Panel.new()
@@ -133,9 +124,10 @@ func open(heading: String, status_text: String, buttons: Array, hint_text: Strin
 	status.size = Vector2(700.0, 52.0)
 	status.text = status_text
 	hint.text = hint_text
-	code.visible = false
-	_code_frame.visible = false
-	code_box.visible = false
+	players.visible = false
+	_text_frame.visible = false
+	text_box.visible = false
+	text_box.release_focus()
 	options.clear()
 	for index in MAX_BUTTONS:
 		var shown := index < buttons.size()
@@ -161,21 +153,25 @@ func show_big_title(text: String, subtitle_text: String) -> void:
 	subtitle.text = subtitle_text
 
 
-func show_code(room_code: String) -> void:
-	code.visible = true
-	code.text = room_code
+## Shows the text box with a hint inside it ("YOUR NAME", "ROOM CODE").
+func show_text_box(placeholder: String, max_length: int, text: String = "") -> void:
+	_text_frame.visible = true
+	text_box.visible = true
+	text_box.placeholder_text = placeholder
+	text_box.max_length = max_length
+	text_box.text = text
+	text_box.caret_column = text.length()
+	text_box.grab_focus()
 
 
-func show_code_box() -> void:
-	_code_frame.visible = true
-	code_box.visible = true
-	code_box.text = ""
-	code_box.grab_focus()
+func show_players(text: String) -> void:
+	players.visible = true
+	players.text = text
 
 
 func close() -> void:
 	_root.visible = false
-	code_box.release_focus()
+	text_box.release_focus()
 
 
 func move_cursor(step: int) -> void:
@@ -187,9 +183,9 @@ func move_cursor(step: int) -> void:
 
 
 ## Uses the highlighted button (Space / Enter / controller A).
-func press(direction: int = 1) -> void:
+func press() -> void:
 	if not options.is_empty():
-		chosen.emit(options[cursor], direction)
+		chosen.emit(options[cursor])
 
 
 func selected() -> String:
@@ -207,10 +203,7 @@ func _on_button_input(event: InputEvent, index: int) -> void:
 	if event is InputEventMouseMotion and cursor != index:
 		cursor = index
 		_highlight_cursor()
-	elif event is InputEventMouseButton and event.pressed:
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		cursor = index
 		_highlight_cursor()
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			chosen.emit(options[index], 1)
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			chosen.emit(options[index], -1)
+		chosen.emit(options[index])

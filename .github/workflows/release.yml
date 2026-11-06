@@ -93,7 +93,7 @@ jobs:
           cat > RELEASE_NOTES.md <<EOF
           # Paddle Polygon v${VERSION}
 
-          Pong for 2 to 7 players. Every player defends one side of a polygon court; knockouts fold the court into the next shape, down to a one-dimensional finale. Play against AI or with friends online.
+          Online Pong for 2 to 10 friends. Every player defends one side of a polygon court; one miss knocks you out and the court folds into the next shape, down to a one-dimensional finale.
 
           ## Downloads
 
@@ -106,7 +106,7 @@ jobs:
 
           ## Online play
 
-          Choose **PLAY ONLINE**, create a room, pick how many players, and share the six-character code. Empty sides play as AI. The hosted server may take a moment to wake after being idle.
+          Press **PLAY**, type your name, create a room and send your friends the invite link or the six-character code. The court has one side per person. The hosted server may take a moment to wake after being idle.
           EOF
 
       - name: Create GitHub Release

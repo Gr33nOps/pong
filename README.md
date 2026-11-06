@@ -4,7 +4,7 @@
 
 # Paddle Polygon
 
-**Pong for 2 to 7 players: one paddle per side, a court that shrinks as players are knocked out, and a one-dimensional finale.**
+**Online Pong for 2 to 10 friends: one paddle per side, a court that shrinks as players are knocked out, and a one-dimensional finale.**
 
 [![Play in browser](https://img.shields.io/badge/PLAY_IN_BROWSER-111111?style=for-the-badge)](https://gr33nops.github.io/pong/)
 [![Latest release](https://img.shields.io/github/v/release/Gr33nOps/pong?style=for-the-badge&color=111111)](https://github.com/Gr33nOps/pong/releases/latest)
@@ -16,20 +16,20 @@
 
 ## The game
 
-Every player defends one side of a regular polygon: three players play on a triangle, seven on a heptagon. Let the ball past your side once and you are out: your side folds away and the court shrinks to the next shape down.
+Everyone in the room defends one side of a regular polygon: three friends play on a triangle, ten on a decagon. Let the ball past your side once and you are out: your side folds away, the court shrinks to the next shape down, and you watch the rest of the match.
 
 When only two players are left, the court collapses into a single line for a **1D Pong** finale. The ball runs back and forth along it, and you press Space while it is inside your hatched hit zone. The later you hit, the faster it flies back; swing too early and you are locked out for a moment. Whoever misses first loses, and the last player standing wins.
 
-Your own side is always drawn at the bottom of the screen.
+Your own side is always drawn at the bottom of the screen, and every side shows its player's name.
 
-## Play your way
+## Play with friends
 
-| Mode | Players | How it works |
-|---|---:|---|
-| Play vs AI | 2–7 | You against 1–6 AI paddles, in your browser with no server involved. Easy, Normal or Hard AI. |
-| Play online | 2–7 | Create a room, pick how many players (the shape), and share the code. The host starts whenever ready; empty sides play as AI, and anyone who drops out is replaced by AI. |
+1. Press **PLAY** and type your name.
+2. **CREATE ROOM**, then press **INVITE FRIENDS** to copy a link (or **COPY CODE** for the six-character code) and send it to your friends.
+3. Friends open the link, or press **JOIN ROOM** and type the code. The court grows one side for each person who joins, up to ten.
+4. When everyone is in, the host presses **START MATCH**. After the match everyone goes back to the room for another round.
 
-The hosted online server may need a short wake-up after being idle.
+If someone leaves during a match they are knocked out and the rest play on. The hosted server may need a short wake-up after being idle.
 
 ## Controls
 
@@ -37,11 +37,10 @@ The hosted online server may need a short wake-up after being idle.
 |---|---|---|
 | Move your paddle | ← / → or A / D | Left stick or D-pad |
 | Swing (line finale) | Space, ↑ or W | A |
-| Change a value in menus | ← / → | D-pad left / right |
+| Move in menus | ↑ / ↓ | D-pad up / down |
 | Select | Space or Enter | A |
-| Pause / back | Esc | Start / Back |
+| Menu / back | Esc | Start / Back / B |
 | Mute | M | — |
-
 ## How online stays smooth
 
 The server runs every match. Each browser draws the ball one round trip ahead of the latest update, which is when its own paddle input reaches the server. It replays your own recent paddle movement when predicting returns, and corrections glide rather than jump. In the line finale, a swing is judged against where the ball was when you pressed, so a little network delay doesn't cost you the hit.
@@ -63,6 +62,8 @@ Requires Godot 4.7.1.
 1. Clone the repository.
 2. Open the directory containing `project.godot` in Godot.
 3. Press **F5**.
+
+The game connects to the hosted server. To play against your own server instead, start it (`godot --headless --path server --scene server_main.tscn`, port 9080) and set `PONG_SERVER_URL=ws://127.0.0.1:9080` before launching the game. Open two or more copies of the game to fill a room.
 
 Run the deterministic client checks:
 
@@ -94,8 +95,8 @@ Every push to `main` validates the simulation, the scene, room flow, and a real 
 assets/              art, sounds, the font and the ink UI theme
 scenes/arena.tscn    the game's only scene
 scripts/
-  arena.gd             game flow: menus, input, starting matches
-  arena_simulation.gd  the rules: court, paddles, knockouts, shrinking, line finale, AI
+  arena.gd             game flow: menus, rooms, invites, input
+  arena_simulation.gd  the rules: court, paddles, knockouts, shrinking, line finale
   court_view.gd        draws the court, paddles, ball and player names
   court_lines.gd       draws the ink lines of the court
   menu_overlay.gd      the paper menus

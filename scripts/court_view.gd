@@ -110,10 +110,7 @@ func _make_label(font_size: int, label_size: Vector2) -> Label:
 ## Shows an empty court of the given size behind the menus.
 func show_preview(players: int) -> void:
 	var preview := ArenaSimulation.new()
-	var everyone_ai := []
-	for _seat in players:
-		everyone_ai.append(true)
-	preview.reset_match(everyone_ai)
+	preview.reset_match(players)
 	view_rotation = 0.0
 	line_flip = 1.0
 	line_reveal = 1.0
@@ -155,7 +152,7 @@ func is_folding() -> bool:
 
 
 ## Draws one frame. paddle_position(seat) says where each paddle is along its
-## wall (solo play reads the simulation; online play uses its predictions).
+## wall (the online view's predictions).
 func draw_match(sim: ArenaSimulation, my_seat: int, player_names: Array[String], ball_position: Vector2, paddle_position: Callable, hint: String, delta: float) -> void:
 	_turn_view_to(sim, my_seat)
 	swing_flash = maxf(swing_flash - delta * 4.0, 0.0)

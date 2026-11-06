@@ -7,7 +7,7 @@ signal connection_changed(state: int, message: String)
 signal online_error(message: String)
 signal room_joined(code: String, seat: int)
 signal lobby_changed(lobby: Dictionary)
-signal match_started
+signal match_started(names: Array)
 signal snapshot_received(snapshot: Dictionary)
 
 const STATE_DISCONNECTED := 0
@@ -88,15 +88,15 @@ func disconnect_from_server() -> void:
 	_reset("DISCONNECTED")
 
 
-func create_room(size: int) -> void:
+func create_room(player_name: String) -> void:
 	if state != STATE_CONNECTED or not room_code.is_empty():
 		_report_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
-	if _send({"type": "create_room", "size": size}):
+	if _send({"type": "create_room", "name": player_name}):
 		_set_state(STATE_CONNECTED, "CREATING ROOM...")
 
 
-func join_room(code: String) -> void:
+func join_room(code: String, player_name: String) -> void:
 	if state != STATE_CONNECTED or not room_code.is_empty():
 		_report_error("FINISH THE CURRENT ONLINE ACTION FIRST")
 		return
@@ -106,7 +106,7 @@ func join_room(code: String) -> void:
 	if six_letters.search(clean) == null:
 		_report_error("ROOM CODE MUST BE SIX CHARACTERS")
 		return
-	if _send({"type": "join_room", "code": clean}):
+	if _send({"type": "join_room", "code": clean, "name": player_name}):
 		_set_state(STATE_CONNECTED, "JOINING ROOM %s..." % clean)
 
 
@@ -119,16 +119,8 @@ func leave_room() -> void:
 	_set_state(STATE_CONNECTED, "LEFT ROOM")
 
 
-func set_room_size(size: int) -> void:
-	_send({"type": "set_size", "size": size})
-
-
 func start_match() -> void:
 	_send({"type": "start"})
-
-
-func ask_for_rematch() -> void:
-	_send({"type": "rematch"})
 
 
 ## Sends where our paddle is. Only sends when it changed, or as a keepalive.
@@ -180,10 +172,13 @@ func _handle_packet(packet: PackedByteArray) -> void:
 			room_joined.emit(room_code, seat)
 		"arena_lobby":
 			seat = int(message.get("you", seat))
+			if not message.get("started", false) and state == STATE_PLAYING:
+				_set_state(STATE_IN_ROOM, "MATCH OVER")
 			lobby_changed.emit(message)
 		"arena_started":
 			_set_state(STATE_PLAYING, "MATCH STARTED")
-			match_started.emit()
+			var names = message.get("names", [])
+			match_started.emit(names if names is Array else [])
 		"arena_snapshot":
 			snapshot_received.emit(message)
 		"left_room":

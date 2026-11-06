@@ -17,7 +17,7 @@ func configure(send_callback: Callable) -> void:
 	_rng.randomize()
 
 
-func create_room(peer_id: int, room_size: int = 4) -> String:
+func create_room(peer_id: int, player_name: String) -> String:
 	if peer_rooms.has(peer_id):
 		_send_error(peer_id, "ALREADY IN A ROOM")
 		return ""
@@ -26,8 +26,8 @@ func create_room(peer_id: int, room_size: int = 4) -> String:
 		return ""
 	var code := _new_code()
 	var room = ARENA_ROOM_SCRIPT.new()
-	room.configure(code, _send_callback, room_size)
-	if not room.add_creator(peer_id):
+	room.configure(code, _send_callback)
+	if not room.add_player(peer_id, player_name):
 		_send_error(peer_id, "COULD NOT CREATE ROOM")
 		return ""
 	rooms[code] = room
@@ -35,7 +35,7 @@ func create_room(peer_id: int, room_size: int = 4) -> String:
 	return code
 
 
-func join_room(peer_id: int, code: String) -> bool:
+func join_room(peer_id: int, code: String, player_name: String) -> bool:
 	if peer_rooms.has(peer_id):
 		_send_error(peer_id, "ALREADY IN A ROOM")
 		return false
@@ -48,7 +48,7 @@ func join_room(peer_id: int, code: String) -> bool:
 	if not refusal.is_empty():
 		_send_error(peer_id, refusal)
 		return false
-	if not room.add_joiner(peer_id):
+	if not room.add_player(peer_id, player_name):
 		_send_error(peer_id, "COULD NOT JOIN ROOM")
 		return false
 	peer_rooms[peer_id] = normalized
@@ -81,12 +81,12 @@ func handle_message(peer_id: int, message: Dictionary) -> void:
 				reply["t"] = client_time
 			_send(peer_id, reply)
 		"create_room":
-			create_room(peer_id, int(message.get("size", 4)))
+			create_room(peer_id, str(message.get("name", "")))
 		"join_room":
-			join_room(peer_id, str(message.get("code", "")))
+			join_room(peer_id, str(message.get("code", "")), str(message.get("name", "")))
 		"leave_room":
 			leave_room(peer_id)
-		"input", "hit", "set_size", "rematch", "start":
+		"input", "hit", "start":
 			if not peer_rooms.has(peer_id):
 				_send_error(peer_id, "JOIN A ROOM FIRST")
 				return

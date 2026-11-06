@@ -1,33 +1,35 @@
 extends SceneTree
-## Drives the real arena scene against a local server. A raw socket hosts each
-## room; the scene joins it. Round one is a triangle (paddle input must reach
+## Drives the real game scene against a local server. Raw sockets play the
+## friends: one creates each room, the scene types a name and joins with the
+## code. Round one is a triangle with a third friend (paddle input must reach
 ## the server, the ball must draw smoothly); round two is the line finale (a
 ## well-timed swing must return the ball on the server).
 
 const ArenaSimulation = preload("res://scripts/arena_simulation.gd")
 
 var host := WebSocketPeer.new()
+var friend := WebSocketPeer.new()
 var scene: Node
 var url := ""
 var round_size := 3
 var elapsed := 0.0
 var round_started_at := 0.0
 var host_requested := false
+var friend_requested := false
 var room_code := ""
 var join_sent := false
 var start_sent := false
 var key_down_at := -1.0
-var host_players := 0
+var people_in_room := 0
 var latest_snapshot: Dictionary = {}
 var ball_seen := false
 var last_ball := Vector2.INF
 var worst_jump := 0.0
 var swing_tick := -1
 var swung := false
-var returned := false
-var first_round_passed := false
 var paddle_moved := false
 var last_paddles: Variant = []
+var saved_name := ""
 
 
 func _initialize() -> void:
@@ -36,6 +38,7 @@ func _initialize() -> void:
 		url = "ws://127.0.0.1:9081"
 	OS.set_environment("PONG_SERVER_URL", url)
 	get_root().get_node("Sound").muted = true
+	saved_name = get_root().get_node("Settings").player_name()
 	scene = load("res://scenes/arena.tscn").instantiate()
 	get_root().add_child(scene)
 	await process_frame
@@ -46,31 +49,42 @@ func _begin_round(size: int) -> void:
 	round_size = size
 	round_started_at = elapsed
 	host = WebSocketPeer.new()
+	friend = WebSocketPeer.new()
 	host_requested = false
+	friend_requested = false
 	room_code = ""
 	join_sent = false
 	start_sent = false
-	host_players = 0
+	people_in_room = 0
 	latest_snapshot = {}
 	if host.connect_to_url(url) != OK:
 		_finish(false, "host connection start failed")
 		return
-	scene.show_online_menu()
+	if size == 3 and friend.connect_to_url(url) != OK:
+		_finish(false, "friend connection start failed")
+		return
+	scene.show_play_menu()
+	scene.menu.text_box.text = "tester"
 
 
 func _process(delta: float) -> bool:
 	elapsed += delta
 	host.poll()
+	friend.poll()
 	if host.get_ready_state() == WebSocketPeer.STATE_OPEN and not host_requested:
 		host_requested = true
-		host.send_text(JSON.stringify({"type": "create_room", "size": round_size}))
+		host.send_text(JSON.stringify({"type": "create_room", "name": "host"}))
 	_read_host_packets()
-	var network = get_root().get_node("Network")
-	if not room_code.is_empty() and not join_sent and network.state == network.STATE_CONNECTED:
+	_read_friend_packets()
+	if not room_code.is_empty() and round_size == 3 and not friend_requested and friend.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		friend_requested = true
+		friend.send_text(JSON.stringify({"type": "join_room", "code": room_code, "name": "friend"}))
+	if not room_code.is_empty() and not join_sent and (round_size == 2 or people_in_room >= 2):
 		join_sent = true
-		scene.menu.code_box.text = room_code.to_lower()
+		scene._on_menu_choice("join")
+		scene.menu.text_box.text = room_code.to_lower()
 		scene._join_typed_code()
-	if host_players >= 2 and scene.phase == scene.Phase.ONLINE_ROOM and not start_sent:
+	if people_in_room >= round_size and scene.phase == scene.Phase.ROOM and not start_sent:
 		start_sent = true
 		host.send_text(JSON.stringify({"type": "start"}))
 	if round_size == 3:
@@ -84,9 +98,10 @@ func _triangle_round() -> bool:
 		_press_key(KEY_LEFT, true)
 	# Noted as soon as the server shows it: a knockout re-centres every paddle.
 	var paddles = latest_snapshot.get("paddles", [])
+	var mine: int = scene.my_seat
 	if key_down_at > 0.0 and paddles is Array and paddles.size() == 3:
 		last_paddles = paddles
-		paddle_moved = paddle_moved or float(paddles[1]) > ArenaSimulation.side_length(3) * 0.5 + 40.0
+		paddle_moved = paddle_moved or float(paddles[mine]) > ArenaSimulation.side_length(3) * 0.5 + 40.0
 	if key_down_at > 0.0 and elapsed - key_down_at > 2.5:
 		_press_key(KEY_LEFT, false)
 		if not paddle_moved:
@@ -95,9 +110,11 @@ func _triangle_round() -> bool:
 			return _finish(false, "the served ball was never drawn")
 		if worst_jump > 6.0:
 			return _finish(false, "the ball jumped %.1f px beyond its speed in one frame" % worst_jump)
-		first_round_passed = true
+		if scene.player_names != ["HOST", "FRIEND", "TESTER"]:
+			return _finish(false, "the match didn't get everyone's names (%s)" % [scene.player_names])
 		host.close()
-		scene.show_title()
+		friend.close()
+		get_root().get_node("Network").leave_room()
 		_begin_round(2)
 		return false
 	if elapsed - round_started_at > 20.0:
@@ -118,11 +135,15 @@ func _line_round() -> bool:
 			scene.swing()
 	if swung and not latest_snapshot.is_empty() and int(latest_snapshot.get("tick", 0)) > swing_tick + 20:
 		var ball = latest_snapshot.get("ball", [])
-		var lives = latest_snapshot.get("lives", [])
+		var order = latest_snapshot.get("order", [])
 		var my_end: float = scene.sim.line_end(scene.my_seat)
 		var away: bool = float(ball[2]) > 0.0 if my_end < 0.0 else float(ball[2]) < 0.0
-		returned = away or int(latest_snapshot.get("hits", 0)) > 0
-		if int(lives[scene.my_seat]) < ArenaSimulation.STARTING_LIVES:
+		var returned: bool = away or int(latest_snapshot.get("hits", 0)) > 0
+		# JSON numbers arrive as decimals (1.0), so compare them as whole numbers.
+		var still_in := false
+		for seat in order:
+			still_in = still_in or int(seat) == scene.my_seat
+		if not still_in:
 			return _finish(false, "the timed swing missed: the player was knocked out")
 		if not returned:
 			return _finish(false, "the timed swing did not return the ball")
@@ -164,16 +185,21 @@ func _read_host_packets() -> void:
 			"arena_room":
 				room_code = str(parsed.get("code", ""))
 			"arena_lobby":
-				host_players = 0
-				for human in parsed.get("seats", []):
-					host_players += 1 if human else 0
+				people_in_room = parsed.get("names", []).size()
 			"arena_snapshot":
 				latest_snapshot = parsed
 				_host_swings_back(parsed)
 
 
+func _read_friend_packets() -> void:
+	if friend.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return
+	while friend.get_available_packet_count() > 0:
+		friend.get_packet()
+
+
 ## In the line round the host (seat 0, left end) returns balls that reach its
-## zone, so serves don't all go to an idle host who loses every point.
+## zone, so serves don't all go to an idle host who loses at once.
 func _host_swings_back(snapshot: Dictionary) -> void:
 	if round_size != 2 or str(snapshot.get("state", "")) != "play":
 		return
@@ -192,6 +218,8 @@ func _finish(passed: bool, reason: String) -> bool:
 	else:
 		print("PONG arena online smoke: FAILED - " + reason)
 	host.close()
+	friend.close()
+	get_root().get_node("Settings").save_player_name(saved_name)
 	if is_instance_valid(scene):
 		scene.free()
 	quit(0 if passed else 1)
