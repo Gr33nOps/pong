@@ -9,8 +9,7 @@ var scene_checks_finished := false
 func _initialize() -> void:
 	_test_geometry()
 	_test_paddle_return()
-	_test_goal_and_serve()
-	_test_knockout_shrinks_court()
+	_test_one_miss_knocks_out()
 	_test_line_finale_hits()
 	_test_early_swing_locks()
 	_test_late_swing_is_judged_in_the_past()
@@ -60,29 +59,17 @@ func _test_paddle_return() -> void:
 	_check(sim.ball_vel.dot(frame[2]) > 0.0 and sim.hits == 1, "a pentagon paddle returns a ball aimed at its centre")
 
 
-func _test_goal_and_serve() -> void:
+func _test_one_miss_knocks_out() -> void:
 	var sim := _sim(4)
-	var frame := ArenaSimulation.wall_frame(0, 4)
-	sim.paddle_pos[0] = ArenaSimulation.paddle_max(4)
-	sim.ball_pos = frame[0] + frame[1] * ArenaSimulation.paddle_min(4) + frame[2] * 60.0
-	sim.ball_vel = -frame[2] * 600.0
-	for _i in 40:
-		sim.tick(1.0 / 120.0)
-	_check(sim.lives[0] == ArenaSimulation.STARTING_LIVES - 1, "a missed ball costs that wall's player a life")
-	_check(sim.state == ArenaSimulation.STATE_COUNTDOWN and sim.serve_seat == 0, "the next serve goes to the player who lost the life")
-
-
-func _test_knockout_shrinks_court() -> void:
-	var sim := _sim(4)
-	sim.lives[2] = 1
 	var frame := ArenaSimulation.wall_frame(2, 4)
 	sim.paddle_pos[2] = ArenaSimulation.paddle_max(4)
 	sim.ball_pos = frame[0] + frame[1] * ArenaSimulation.paddle_min(4) + frame[2] * 60.0
 	sim.ball_vel = -frame[2] * 600.0
 	for _i in 40:
 		sim.tick(1.0 / 120.0)
-	_check(sim.order == [0, 1, 3] and sim.wall_count() == 3, "a knocked-out player's wall disappears and the square becomes a triangle")
+	_check(sim.order == [0, 1, 3] and sim.wall_count() == 3, "one miss knocks the player out and the square becomes a triangle")
 	_check(sim.events.any(func(event: Dictionary) -> bool: return event["type"] == "out" and event["wall"] == 2), "the knockout reports which wall disappeared")
+	_check(sim.state == ArenaSimulation.STATE_COUNTDOWN and sim.order.has(sim.serve_seat), "play goes on with a serve to a player still in")
 
 
 func _test_line_finale_hits() -> void:
@@ -119,6 +106,8 @@ func _test_late_swing_is_judged_in_the_past() -> void:
 	sim.ball_vel = Vector2(-500.0, 0.0)
 	var pressed_at := 0
 	for i in 30:
+		if sim.state != ArenaSimulation.STATE_PLAY:
+			break
 		sim._advance_line(1.0 / 120.0)
 		sim.tick_number += 1
 		if i == 0:
@@ -208,9 +197,7 @@ func _test_scene_flow() -> void:
 	_check(bottom.y > court.CENTER.y + 150.0 and absf(bottom.x - court.CENTER.x) < 140.0, "your own paddle is drawn at the bottom")
 	var order_before: Array = scene.sim.order.duplicate()
 	var corners_before: PackedVector2Array = court.corners_on_screen(order_before.size())
-	var victim: int = order_before[3]
-	scene.sim.lives[victim] = 1
-	scene.sim._lose_life(victim)
+	scene.sim._lose_life(order_before[3])
 	court.start_fold(scene.sim, order_before, corners_before)
 	var paddles := func(seat: int) -> float: return scene.sim.paddle_pos[seat]
 	scene.draw_frame(Vector2.ZERO, paddles, 1.0 / 60.0)

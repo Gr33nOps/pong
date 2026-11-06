@@ -26,6 +26,8 @@ var swing_tick := -1
 var swung := false
 var returned := false
 var first_round_passed := false
+var paddle_moved := false
+var last_paddles: Variant = []
 
 
 func _initialize() -> void:
@@ -80,13 +82,15 @@ func _triangle_round() -> bool:
 	if scene.phase == scene.Phase.PLAYING and scene.online_view.have_snapshot and key_down_at < 0.0:
 		key_down_at = elapsed
 		_press_key(KEY_LEFT, true)
+	# Noted as soon as the server shows it: a knockout re-centres every paddle.
+	var paddles = latest_snapshot.get("paddles", [])
+	if key_down_at > 0.0 and paddles is Array and paddles.size() == 3:
+		last_paddles = paddles
+		paddle_moved = paddle_moved or float(paddles[1]) > ArenaSimulation.side_length(3) * 0.5 + 40.0
 	if key_down_at > 0.0 and elapsed - key_down_at > 2.5:
 		_press_key(KEY_LEFT, false)
-		var paddles = latest_snapshot.get("paddles", [])
-		var middle: float = ArenaSimulation.side_length(3) * 0.5
-		var moved: bool = paddles is Array and paddles.size() == 3 and float(paddles[1]) > middle + 40.0
-		if not moved:
-			return _finish(false, "the joined player's paddle input did not reach the server (%s)" % [paddles])
+		if not paddle_moved:
+			return _finish(false, "the joined player's paddle input did not reach the server (%s)" % [last_paddles])
 		if not ball_seen:
 			return _finish(false, "the served ball was never drawn")
 		if worst_jump > 6.0:
@@ -119,7 +123,7 @@ func _line_round() -> bool:
 		var away: bool = float(ball[2]) > 0.0 if my_end < 0.0 else float(ball[2]) < 0.0
 		returned = away or int(latest_snapshot.get("hits", 0)) > 0
 		if int(lives[scene.my_seat]) < ArenaSimulation.STARTING_LIVES:
-			return _finish(false, "the timed swing missed: the player lost a life")
+			return _finish(false, "the timed swing missed: the player was knocked out")
 		if not returned:
 			return _finish(false, "the timed swing did not return the ball")
 		return _finish(true, "")

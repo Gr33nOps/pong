@@ -16,9 +16,9 @@
 
 ## The game
 
-Every player defends one side of a regular polygon: three players play on a triangle, seven on a heptagon. Everyone starts with three lives, and letting the ball past your side costs one. When a player is knocked out, their side folds away and the court shrinks to the next shape down.
+Every player defends one side of a regular polygon: three players play on a triangle, seven on a heptagon. Let the ball past your side once and you are out: your side folds away and the court shrinks to the next shape down.
 
-When only two players are left, the court collapses into a single line for a **1D Pong** finale. The ball runs back and forth along it, and you press Space while it is inside your hatched hit zone. The later you hit, the faster it flies back; swing too early and you are locked out for a moment. The zones shrink after every point. The last player standing wins.
+When only two players are left, the court collapses into a single line for a **1D Pong** finale. The ball runs back and forth along it, and you press Space while it is inside your hatched hit zone. The later you hit, the faster it flies back; swing too early and you are locked out for a moment. Whoever misses first loses, and the last player standing wins.
 
 Your own side is always drawn at the bottom of the screen.
 
@@ -95,8 +95,8 @@ assets/              art, sounds, the font and the ink UI theme
 scenes/arena.tscn    the game's only scene
 scripts/
   arena.gd             game flow: menus, input, starting matches
-  arena_simulation.gd  the rules: court, paddles, lives, shrinking, line finale, AI
-  court_view.gd        draws the court, paddles, ball and lives
+  arena_simulation.gd  the rules: court, paddles, knockouts, shrinking, line finale, AI
+  court_view.gd        draws the court, paddles, ball and player names
   court_lines.gd       draws the ink lines of the court
   menu_overlay.gd      the paper menus
   online_view.gd       hides network delay in online matches

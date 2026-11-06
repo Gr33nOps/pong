@@ -58,7 +58,7 @@ func start(seat: int) -> void:
 
 
 ## Takes in a new snapshot. Returns what changed so the game can react:
-## {"first": bool, "lives_before": Array, "order_before": Array}
+## {"first": bool, "order_before": Array}
 func take_snapshot(data: Dictionary) -> Dictionary:
 	var now := _now()
 	var was_playing := sim.state == ArenaSimulation.STATE_PLAY
@@ -72,7 +72,7 @@ func take_snapshot(data: Dictionary) -> Dictionary:
 			shown_ball = predict_ball(now, 0.0)["position"]
 		for seat in sim.seat_count:
 			shown_paddles.append(_other_paddle(seat, now) + _paddle_correction[seat])
-	var change := {"first": not have_snapshot, "lives_before": sim.lives.duplicate(), "order_before": sim.order.duplicate()}
+	var change := {"first": not have_snapshot, "order_before": sim.order.duplicate()}
 
 	sim.apply_snapshot(data)
 	_snapshot_time = now

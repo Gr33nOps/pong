@@ -1,6 +1,6 @@
 extends Node2D
-## Draws the match: paper background, court lines, paddles, ball, lives and
-## the one-line hint. It never changes the game; it only shows a simulation.
+## Draws the match: paper background, court lines, paddles, ball, player names
+## and the one-line hint. It never changes the game; it only shows a simulation.
 ##
 ## Your own wall is always turned to the bottom of the screen. When a player
 ## is knocked out, the old shape folds into the new one, and the last
@@ -24,7 +24,6 @@ const LINE_PADDLE_LENGTH := 70.0
 var lines: Node2D
 var paddles: Array[Sprite2D] = []
 var ball: Sprite2D
-var lives_labels: Array[Label] = []
 var name_labels: Array[Label] = []
 var hint_label: Label
 
@@ -75,10 +74,7 @@ func _ready() -> void:
 	root.theme = INK_THEME
 	layer.add_child(root)
 	for _seat in ArenaSimulation.MAX_PLAYERS:
-		var lives := _make_label(34, Vector2(140.0, 40.0))
-		root.add_child(lives)
-		lives_labels.append(lives)
-		var player_name := _make_label(15, Vector2(140.0, 20.0))
+		var player_name := _make_label(20, Vector2(140.0, 28.0))
 		root.add_child(player_name)
 		name_labels.append(player_name)
 	hint_label = _make_label(16, Vector2(800.0, 24.0))
@@ -130,9 +126,8 @@ func hide_match() -> void:
 	for paddle in paddles:
 		paddle.visible = false
 	ball.visible = false
-	for index in lives_labels.size():
-		lives_labels[index].visible = false
-		name_labels[index].visible = false
+	for label in name_labels:
+		label.visible = false
 	hint_label.visible = false
 
 
@@ -195,16 +190,6 @@ func corners_on_screen(walls: int) -> PackedVector2Array:
 
 func flash_swing() -> void:
 	swing_flash = 1.0
-
-
-## Makes a player's lives number jump when they lose one.
-func pop_lives(seat: int) -> void:
-	if seat < 0 or seat >= lives_labels.size():
-		return
-	var label := lives_labels[seat]
-	label.pivot_offset = label.size * 0.5
-	label.scale = Vector2.ONE * 1.3
-	create_tween().tween_property(label, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _turn_view_to(sim: ArenaSimulation, my_seat: int) -> void:
@@ -289,14 +274,12 @@ func _place_line_paddles(sim: ArenaSimulation) -> void:
 		paddle.visible = line_reveal > 0.5
 
 
-## Puts each player's lives and name just outside their wall.
+## Puts each player's name just outside their wall.
 func _place_labels(sim: ArenaSimulation, player_names: Array[String]) -> void:
-	for seat in lives_labels.size():
-		var lives := lives_labels[seat]
+	for seat in name_labels.size():
 		var player_name := name_labels[seat]
 		var wall := sim.wall_of(seat) if seat < sim.seat_count else -1
 		var shown := wall != -1 and not is_folding()
-		lives.visible = shown
 		player_name.visible = shown
 		if not shown:
 			continue
@@ -308,8 +291,6 @@ func _place_labels(sim: ArenaSimulation, player_names: Array[String]) -> void:
 			var walls := sim.wall_count()
 			var wall_middle := (ArenaSimulation.vertex(wall, walls) + ArenaSimulation.vertex(wall + 1, walls)) * 0.5
 			var outward := wall_middle.rotated(view_rotation)
-			spot = CENTER + outward + outward.normalized() * 40.0
-		lives.text = str(sim.lives[seat])
+			spot = CENTER + outward + outward.normalized() * 34.0
 		player_name.text = player_names[seat] if seat < player_names.size() else ""
-		lives.position = spot - Vector2(lives.size.x * 0.5, lives.size.y * 0.5 + 8.0)
-		player_name.position = spot + Vector2(-player_name.size.x * 0.5, 14.0)
+		player_name.position = spot - player_name.size * 0.5
