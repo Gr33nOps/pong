@@ -59,7 +59,7 @@ func _process(delta: float) -> void:
 			while _socket.get_available_packet_count() > 0:
 				_handle_packet(_socket.get_packet())
 		WebSocketPeer.STATE_CLOSED:
-			_reset("CONNECTION CLOSED (%d)" % _socket.get_close_code())
+			_reset("COULDN'T REACH THE SERVER. TRY AGAIN" if state == STATE_CONNECTING else "LOST CONNECTION TO THE SERVER")
 		_:
 			if state == STATE_CONNECTING and _now() - _connect_started > _connect_timeout:
 				_reset("LOCAL SERVER NOT RUNNING. START server/server_main.tscn" if _is_local() else "COULDN'T CONNECT. SERVER MAY BE WAKING UP")

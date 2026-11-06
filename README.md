@@ -25,7 +25,7 @@ Your own side is always drawn at the bottom of the screen, and every side shows 
 ## Play with friends
 
 1. Press **PLAY** and type your name.
-2. **CREATE ROOM**, then press **INVITE FRIENDS** to copy a link (or **COPY CODE** for the six-character code) and send it to your friends.
+2. **CREATE ROOM**, then press **COPY INVITE LINK** and send the link to your friends (they can also type the six-character room code under **JOIN ROOM**).
 3. Friends open the link, or press **JOIN ROOM** and type the code. The court grows one side for each person who joins, up to ten.
 4. When everyone is in, the host presses **START MATCH**. After the match everyone goes back to the room for another round.
 

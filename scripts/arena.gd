@@ -8,18 +8,21 @@ extends Node2D
 ##   menu_overlay.gd     - the menus
 ##   online_view.gd      - hiding network delay
 ##
-## Screens: TITLE -> PLAY (your name, create or join) -> ROOM (code, invite,
-## who's in) -> the match -> OVER (who won) -> back to the ROOM.
+## Screens: TITLE -> PLAY (your name, create or join) -> LOADING (waiting for
+## the server) -> ROOM (code, invite link, who's in) -> the match -> OVER (who
+## won) -> back to the ROOM.
 
 const ArenaSimulation = preload("res://scripts/arena_simulation.gd")
 const CourtView = preload("res://scripts/court_view.gd")
 const MenuOverlay = preload("res://scripts/menu_overlay.gd")
 const OnlineView = preload("res://scripts/online_view.gd")
 
-enum Phase { TITLE, PLAY, JOIN, ROOM, PLAYING, PAUSED, OVER }
+enum Phase { TITLE, PLAY, JOIN, LOADING, ROOM, PLAYING, PAUSED, OVER }
 
 const SHAPE_NAMES := ["1D LINE", "TRIANGLE", "SQUARE", "PENTAGON", "HEXAGON", "HEPTAGON", "OCTAGON", "NONAGON", "DECAGON"]
 const STICK_DEADZONE := 0.18
+## After this long still connecting, the loading screen explains why.
+const SLOW_CONNECT_SECONDS := 4.0
 
 var phase := Phase.TITLE
 ## A copy of the server's match, kept up to date by the online view.
@@ -34,6 +37,9 @@ var room_host := -1
 var invite_code := ""
 var _waiting_for := ""
 var _join_code := ""
+## The screen to go back to if loading is cancelled or fails.
+var _loading_from := Phase.PLAY
+var _loading_time := 0.0
 
 var court: CourtView
 var menu: MenuOverlay
@@ -82,7 +88,9 @@ func show_play_menu(message: String = "") -> void:
 	menu.cursor = 0
 	if Network.state == Network.STATE_DISCONNECTED:
 		Network.connect_to_server()
-	var status := message if not message.is_empty() else Network.status_message
+	var status := message
+	if status.is_empty() and Network.state != Network.STATE_CONNECTED:
+		status = Network.status_message
 	var buttons := [["create", "CREATE ROOM"], ["join", "JOIN ROOM"], ["back", "BACK"]]
 	if not invite_code.is_empty():
 		buttons = [["join_invite", "JOIN ROOM %s" % invite_code], ["back", "BACK"]]
@@ -91,11 +99,20 @@ func show_play_menu(message: String = "") -> void:
 	court.show_preview(4)
 
 
-func show_join_screen() -> void:
+func show_join_screen(message: String = "", code: String = "") -> void:
 	phase = Phase.JOIN
 	menu.cursor = 0
-	menu.open("JOIN ROOM", "TYPE THE ROOM CODE YOUR FRIEND SENT YOU", [["join_code", "JOIN"], ["back", "BACK"]])
-	menu.show_text_box("ROOM CODE", 6)
+	var status := message if not message.is_empty() else "TYPE THE ROOM CODE YOUR FRIEND SENT YOU"
+	menu.open("JOIN ROOM", status, [["join_code", "JOIN"], ["back", "BACK"]])
+	menu.show_text_box("ROOM CODE", 6, code)
+
+
+## Waiting for the server to make or find the room.
+func show_loading(heading: String) -> void:
+	_loading_from = phase if phase == Phase.JOIN else Phase.PLAY
+	_loading_time = 0.0
+	phase = Phase.LOADING
+	menu.show_loading(heading, _loading_detail())
 
 
 func show_room() -> void:
@@ -105,15 +122,14 @@ func show_room() -> void:
 	var buttons := []
 	if i_am_host:
 		buttons.append(["start", "START MATCH"])
-	buttons.append(["invite", "INVITE FRIENDS"])
-	buttons.append(["copy", "COPY CODE"])
+	buttons.append(["link", "COPY INVITE LINK"])
 	buttons.append(["leave", "LEAVE ROOM"])
 	var status := "1 PLAYER" if count == 1 else "%d PLAYERS   %s" % [count, _shape_name(count)]
 	if i_am_host:
 		status += "   START WHEN EVERYONE IS IN" if count >= 2 else "   INVITE AT LEAST ONE FRIEND"
 	else:
 		status += "   WAITING FOR %s TO START" % _room_name(room_host)
-	menu.open("ROOM  %s" % Network.room_code, status, buttons, "SEND THE CODE OR INVITE LINK TO YOUR FRIENDS", 290.0)
+	menu.open("ROOM  %s" % Network.room_code, status, buttons, "COPY THE LINK AND SEND IT TO YOUR FRIENDS", 300.0)
 	menu.show_players(_players_text())
 	court.show_preview(clampi(count, ArenaSimulation.MIN_PLAYERS, ArenaSimulation.MAX_PLAYERS))
 
@@ -139,6 +155,14 @@ func show_game_over(winner: int) -> void:
 		heading = "%s WINS" % player_names[winner]
 	menu.cursor = 0
 	menu.open(heading, "", [["room", "BACK TO ROOM"], ["leave", "LEAVE ROOM"]])
+
+
+func _loading_detail() -> String:
+	if Network.state != Network.STATE_CONNECTING:
+		return ""
+	if _loading_time < SLOW_CONNECT_SECONDS:
+		return "CONNECTING TO THE SERVER"
+	return "WAKING UP THE SERVER\nTHIS CAN TAKE UP TO A MINUTE"
 
 
 func _shape_name(players: int) -> String:
@@ -185,10 +209,8 @@ func _on_menu_choice(id: String) -> void:
 			Sound.play("confirm")
 			Network.start_match()
 			menu.status.text = "STARTING..."
-		"invite":
-			_copy_text(Settings.invite_link(Network.room_code), "INVITE LINK COPIED. SEND IT TO YOUR FRIENDS")
-		"copy":
-			_copy_text(Network.room_code, "ROOM CODE COPIED")
+		"link":
+			_copy_invite_link()
 		"leave":
 			Sound.play("nav")
 			Network.leave_room()
@@ -199,7 +221,7 @@ func _on_menu_choice(id: String) -> void:
 		"room":
 			Sound.play("confirm")
 			show_room()
-		"back":
+		"back", "cancel":
 			Sound.play("nav")
 			_go_back()
 
@@ -207,6 +229,9 @@ func _on_menu_choice(id: String) -> void:
 ## Esc / controller Start: one step back.
 func _go_back() -> void:
 	match phase:
+		Phase.LOADING:
+			_waiting_for = ""
+			_leave_loading("")
 		Phase.PLAYING:
 			pause()
 		Phase.PAUSED:
@@ -304,10 +329,18 @@ func swing() -> void:
 func _ask_server(action: String) -> void:
 	Sound.play("confirm")
 	_waiting_for = action
-	menu.status.text = "JOINING ROOM..." if action == "join" else "CREATING ROOM..."
 	if Network.state == Network.STATE_DISCONNECTED:
 		Network.connect_to_server()
+	show_loading("JOINING ROOM %s" % _join_code if action == "join" else "CREATING ROOM")
 	_send_waiting_request()
+
+
+## Back to the screen the loading started from, with a message if it failed.
+func _leave_loading(message: String) -> void:
+	if _loading_from == Phase.JOIN:
+		show_join_screen(message, _join_code)
+	else:
+		show_play_menu(message)
 
 
 func _send_waiting_request() -> void:
@@ -335,15 +368,22 @@ func _join_typed_code() -> void:
 	_join_room(typed)
 
 
-func _copy_text(text: String, done_message: String) -> void:
+func _copy_invite_link() -> void:
 	if Network.room_code.is_empty():
 		return
 	Sound.play("confirm")
+	var link := Settings.invite_link(Network.room_code)
 	if OS.has_feature("web"):
-		JavaScriptBridge.eval("navigator.clipboard.writeText(%s)" % JSON.stringify(text))
+		JavaScriptBridge.eval("navigator.clipboard.writeText(%s)" % JSON.stringify(link))
 	else:
-		DisplayServer.clipboard_set(text)
-	menu.status.text = done_message
+		DisplayServer.clipboard_set(link)
+	menu.status.text = "LINK COPIED. SEND IT TO YOUR FRIENDS"
+
+
+func _process(delta: float) -> void:
+	if phase == Phase.LOADING:
+		_loading_time += delta
+		menu.status.text = _loading_detail()
 
 
 func _on_connection_changed(state: int, message: String) -> void:
@@ -356,21 +396,27 @@ func _on_connection_changed(state: int, message: String) -> void:
 			menu.status.text = message
 		else:
 			show_play_menu(message)
-	elif phase in [Phase.PLAY, Phase.JOIN]:
-		if state == Network.STATE_CONNECTED and not _waiting_for.is_empty():
+	elif phase == Phase.LOADING:
+		if state == Network.STATE_CONNECTED:
 			_send_waiting_request()
-		elif _waiting_for.is_empty() and not message.is_empty():
-			menu.status.text = message
+	elif phase == Phase.PLAY and not message.is_empty():
+		menu.status.text = message
 
 
 func _on_online_error(message: String) -> void:
 	_waiting_for = ""
-	if phase in [Phase.PLAY, Phase.JOIN, Phase.ROOM, Phase.OVER]:
+	if phase == Phase.LOADING:
+		_leave_loading(message)
+	elif phase in [Phase.PLAY, Phase.JOIN, Phase.ROOM, Phase.OVER]:
 		menu.status.text = message
 
 
 ## The server put us in a room; the full list of names follows right after.
 func _on_room_joined() -> void:
+	if phase != Phase.LOADING:
+		# The player cancelled while the server was making the room.
+		Network.leave_room()
+		return
 	invite_code = ""
 	room_host = Network.seat
 	room_names = [Settings.player_name()]
