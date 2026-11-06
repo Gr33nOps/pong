@@ -1,8 +1,53 @@
 extends Node
-## Saved settings (just "muted" for now) and which online server to use.
+## Saved settings (your name, mute), which online server to use, and invite
+## links (a link like ...?room=AB12CD takes a friend straight to your room).
 
 const ONLINE_SERVER_URL := "wss://pong-3l48.onrender.com"
+## Where the game is hosted; used for invite links outside the browser.
+const GAME_URL := "https://gr33nops.github.io/pong/"
 const SETTINGS_FILE := "user://settings.cfg"
+const MAX_NAME_LENGTH := 12
+
+
+func player_name() -> String:
+	return str(load_config().get_value("player", "name", ""))
+
+
+func save_player_name(player_name_text: String) -> void:
+	var config := load_config()
+	config.set_value("player", "name", player_name_text)
+	save_config(config)
+
+
+## Capital letters, digits and single spaces, at most 12 characters.
+func clean_name(raw: String) -> String:
+	var allowed := RegEx.new()
+	allowed.compile("[^A-Z0-9 ]")
+	var spaces := RegEx.new()
+	spaces.compile(" +")
+	var text := spaces.sub(allowed.sub(raw.to_upper(), "", true), " ", true).strip_edges()
+	return text.substr(0, MAX_NAME_LENGTH).strip_edges()
+
+
+## A link that opens the game and joins this room.
+func invite_link(room_code: String) -> String:
+	var page := GAME_URL
+	if OS.has_feature("web"):
+		var here = JavaScriptBridge.eval("window.location.origin + window.location.pathname", true)
+		if here != null and not str(here).is_empty():
+			page = str(here)
+	return "%s?room=%s" % [page, room_code]
+
+
+## The room code from an invite link this page was opened with, or "".
+func invite_code_from_page() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var value = JavaScriptBridge.eval("String(new URLSearchParams(window.location.search).get('room') || '')", true)
+	var code := str(value).strip_edges().to_upper() if value != null else ""
+	var six_characters := RegEx.new()
+	six_characters.compile("^[A-Z0-9]{6}$")
+	return code if six_characters.search(code) != null else ""
 
 
 func load_config() -> ConfigFile:

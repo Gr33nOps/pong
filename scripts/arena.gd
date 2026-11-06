@@ -1,40 +1,37 @@
 extends Node2D
-## Paddle Polygon: Pong for 2 to 10 players.
+## Paddle Polygon: online Pong for 2 to 10 friends.
 ##
 ## This script runs the game flow: which screen is showing, what your keys
-## do, and starting matches. The other scripts do the actual work:
-##   arena_simulation.gd - the rules (also used by the server)
+## do, and the room you're in. The other scripts do the actual work:
+##   arena_simulation.gd - the rules (the server runs the real match)
 ##   court_view.gd       - drawing the court
 ##   menu_overlay.gd     - the menus
-##   online_view.gd      - hiding network delay in online matches
+##   online_view.gd      - hiding network delay
+##
+## Screens: TITLE -> PLAY (your name, create or join) -> ROOM (code, invite,
+## who's in) -> the match -> OVER (who won) -> back to the ROOM.
 
 const ArenaSimulation = preload("res://scripts/arena_simulation.gd")
 const CourtView = preload("res://scripts/court_view.gd")
 const MenuOverlay = preload("res://scripts/menu_overlay.gd")
 const OnlineView = preload("res://scripts/online_view.gd")
 
-enum Phase { TITLE, SOLO_SETUP, ONLINE_MENU, ONLINE_JOIN, ONLINE_ROOM, PLAYING, PAUSED, OVER }
+enum Phase { TITLE, PLAY, JOIN, ROOM, PLAYING, PAUSED, OVER }
 
 const SHAPE_NAMES := ["1D LINE", "TRIANGLE", "SQUARE", "PENTAGON", "HEXAGON", "HEPTAGON", "OCTAGON", "NONAGON", "DECAGON"]
-const SKILLS := [ArenaSimulation.SKILL_EASY, ArenaSimulation.SKILL_NORMAL, ArenaSimulation.SKILL_HARD]
-const SKILL_NAMES := ["EASY", "NORMAL", "HARD"]
 const STICK_DEADZONE := 0.18
 
 var phase := Phase.TITLE
-var online := false
-## The match being played (solo), or a copy of the server's match (online).
+## A copy of the server's match, kept up to date by the online view.
 var sim := ArenaSimulation.new()
 var my_seat := 0
 var player_names: Array[String] = []
 
-# Solo setup choices.
-var solo_players := 4
-var solo_skill := 1
-
-# Online room state.
-var room_size := 4
+# The room you're in.
+var room_names: Array = []
 var room_host := -1
-var room_people: Array = []
+## A room code from an invite link, joined as soon as you have a name.
+var invite_code := ""
 var _waiting_for := ""
 var _join_code := ""
 
@@ -49,88 +46,82 @@ func _ready() -> void:
 	menu = MenuOverlay.new()
 	add_child(menu)
 	menu.chosen.connect(_on_menu_choice)
-	menu.code_clicked.connect(_copy_room_code)
-	menu.code_entered.connect(_join_typed_code)
+	menu.text_entered.connect(menu.press)
 	Network.connection_changed.connect(_on_connection_changed)
 	Network.online_error.connect(_on_online_error)
 	Network.room_joined.connect(_on_room_joined)
 	Network.lobby_changed.connect(_on_lobby_changed)
-	Network.match_started.connect(_on_online_match_started)
+	Network.match_started.connect(_on_match_started)
 	Network.snapshot_received.connect(_on_snapshot)
-	show_title()
+	invite_code = Settings.invite_code_from_page()
+	if invite_code.is_empty():
+		show_title()
+	else:
+		show_play_menu()
+		if not Settings.player_name().is_empty():
+			_join_room(invite_code)
 
 
 # --- screens ------------------------------------------------------------------
 
 func show_title() -> void:
 	phase = Phase.TITLE
-	online = false
 	menu.cursor = 0
 	if Network.state != Network.STATE_DISCONNECTED:
 		Network.disconnect_from_server()
-	menu.open("", "", [["solo", "PLAY VS AI"], ["online", "PLAY ONLINE"]], "UP/DOWN MOVE   SPACE SELECT")
-	menu.show_big_title("PADDLE POLYGON", "2 TO 10 PLAYERS   ONE PADDLE PER SIDE")
+	menu.open("", "", [["play", "PLAY"]], "SPACE SELECT   M MUTE")
+	menu.show_big_title("PADDLE POLYGON", "ONLINE PONG FOR 2 TO 10 FRIENDS")
 	court.show_preview(5)
 
 
-func show_solo_setup() -> void:
-	phase = Phase.SOLO_SETUP
-	var buttons := [
-		["players", "PLAYERS   <  %d  >" % solo_players],
-		["skill", "AI   <  %s  >" % SKILL_NAMES[solo_skill]],
-		["go", "START"],
-		["back", "BACK"],
-	]
-	var description := "YOU AND %d AI   %s" % [solo_players - 1, _shape_name(solo_players)]
-	menu.open("PLAY VS AI", description, buttons, "LEFT/RIGHT CHANGE   SPACE SELECT   ESC BACK", 250.0)
-	court.show_preview(solo_players)
-
-
-func show_online_menu(message: String = "") -> void:
-	phase = Phase.ONLINE_MENU
-	online = true
+## Type your name, then create a room or join one.
+func show_play_menu(message: String = "") -> void:
+	phase = Phase.PLAY
 	_waiting_for = ""
 	online_view.have_snapshot = false
 	menu.cursor = 0
 	if Network.state == Network.STATE_DISCONNECTED:
 		Network.connect_to_server()
 	var status := message if not message.is_empty() else Network.status_message
-	menu.open("ONLINE", status, [["create", "CREATE ROOM"], ["join", "JOIN ROOM"], ["back", "BACK"]], "UP TO 10 PLAYERS   EMPTY SIDES PLAY AS AI")
+	var buttons := [["create", "CREATE ROOM"], ["join", "JOIN ROOM"], ["back", "BACK"]]
+	if not invite_code.is_empty():
+		buttons = [["join_invite", "JOIN ROOM %s" % invite_code], ["back", "BACK"]]
+	menu.open("PLAY", status, buttons, "TYPE YOUR NAME   UP/DOWN MOVE   ENTER SELECT")
+	menu.show_text_box("YOUR NAME", Settings.MAX_NAME_LENGTH, Settings.player_name())
 	court.show_preview(4)
 
 
 func show_join_screen() -> void:
-	phase = Phase.ONLINE_JOIN
+	phase = Phase.JOIN
 	menu.cursor = 0
-	menu.open("JOIN ROOM", "TYPE THE ROOM CODE", [["join_code", "JOIN"], ["online", "BACK"]])
-	menu.show_code_box()
+	menu.open("JOIN ROOM", "TYPE THE ROOM CODE YOUR FRIEND SENT YOU", [["join_code", "JOIN"], ["back", "BACK"]])
+	menu.show_text_box("ROOM CODE", 6)
 
 
 func show_room() -> void:
-	phase = Phase.ONLINE_ROOM
-	my_seat = Network.seat
-	var i_am_host := my_seat == room_host
-	var joined := room_people.count(true)
+	phase = Phase.ROOM
+	var i_am_host := Network.seat == room_host
+	var count := room_names.size()
 	var buttons := []
 	if i_am_host:
-		buttons.append(["size", "PLAYERS   <  %d  >" % room_size])
 		buttons.append(["start", "START MATCH"])
+	buttons.append(["invite", "INVITE FRIENDS"])
 	buttons.append(["copy", "COPY CODE"])
 	buttons.append(["leave", "LEAVE ROOM"])
-	var status := "%d OF %d JOINED   %s" % [joined, room_size, _shape_name(room_size)]
-	status += "   EMPTY SIDES PLAY AS AI" if i_am_host else "   WAITING FOR THE HOST"
-	menu.open("ROOM", status, buttons, "SHARE THE CODE   LEFT/RIGHT CHANGES PLAYERS", 290.0)
-	menu.show_code(Network.room_code)
-	court.show_preview(room_size)
+	var status := "1 PLAYER" if count == 1 else "%d PLAYERS   %s" % [count, _shape_name(count)]
+	if i_am_host:
+		status += "   START WHEN EVERYONE IS IN" if count >= 2 else "   INVITE AT LEAST ONE FRIEND"
+	else:
+		status += "   WAITING FOR %s TO START" % _room_name(room_host)
+	menu.open("ROOM  %s" % Network.room_code, status, buttons, "SEND THE CODE OR INVITE LINK TO YOUR FRIENDS", 290.0)
+	menu.show_players(_players_text())
+	court.show_preview(clampi(count, ArenaSimulation.MIN_PLAYERS, ArenaSimulation.MAX_PLAYERS))
 
 
 func pause() -> void:
 	phase = Phase.PAUSED
 	menu.cursor = 0
-	if online:
-		menu.open("MENU", "THE MATCH KEEPS RUNNING ONLINE", [["resume", "RESUME"], ["leave", "LEAVE MATCH"]])
-	else:
-		menu.open("PAUSED", "", [["resume", "RESUME"], ["back", "MENU"]])
+	menu.open("MENU", "THE MATCH KEEPS RUNNING", [["resume", "RESUME"], ["leave", "LEAVE ROOM"]])
 
 
 func resume() -> void:
@@ -144,74 +135,73 @@ func show_game_over(winner: int) -> void:
 	var heading := "NO WINNER"
 	if winner == my_seat:
 		heading = "YOU WIN"
-	elif winner >= 0:
-		var winner_name := player_names[winner] if winner < player_names.size() else "AI"
-		heading = "%s WINS" % (winner_name if winner_name != "AI" else "P%d" % (winner + 1))
+	elif winner >= 0 and winner < player_names.size():
+		heading = "%s WINS" % player_names[winner]
 	menu.cursor = 0
-	menu.open(heading, "", [["again", "PLAY AGAIN"], ["back", "MENU"]])
+	menu.open(heading, "", [["room", "BACK TO ROOM"], ["leave", "LEAVE ROOM"]])
 
 
 func _shape_name(players: int) -> String:
 	return SHAPE_NAMES[clampi(players - 2, 0, SHAPE_NAMES.size() - 1)]
 
 
-## Player counts go 2, 3, ... 10 and then wrap back to 2.
-func _wrap_players(count: int) -> int:
-	var span := ArenaSimulation.MAX_PLAYERS - ArenaSimulation.MIN_PLAYERS + 1
-	return ArenaSimulation.MIN_PLAYERS + posmod(count - ArenaSimulation.MIN_PLAYERS, span)
+func _room_name(seat: int) -> String:
+	return str(room_names[seat]) if seat >= 0 and seat < room_names.size() else "THE HOST"
+
+
+## "ALI (HOST)   SARA   ZAIN (YOU)"
+func _players_text() -> String:
+	var parts: Array[String] = []
+	for seat in room_names.size():
+		var text := str(room_names[seat])
+		if seat == room_host:
+			text += " (HOST)"
+		elif seat == Network.seat:
+			text += " (YOU)"
+		parts.append(text)
+	return "   ".join(parts)
 
 
 # --- menu choices -------------------------------------------------------------
 
-func _on_menu_choice(id: String, direction: int) -> void:
+func _on_menu_choice(id: String) -> void:
 	match id:
-		"solo":
+		"play":
 			Sound.play("confirm")
-			show_solo_setup()
-		"players":
-			Sound.play("nav")
-			solo_players = _wrap_players(solo_players + direction)
-			show_solo_setup()
-		"skill":
-			Sound.play("nav")
-			solo_skill = posmod(solo_skill + direction, SKILLS.size())
-			show_solo_setup()
-		"go":
-			Sound.play("confirm")
-			start_solo_match()
-		"online":
-			Sound.play("confirm")
-			show_online_menu()
+			show_play_menu()
 		"create":
-			Sound.play("confirm")
-			_ask_server("create")
+			if _take_name():
+				_ask_server("create")
 		"join":
-			Sound.play("confirm")
-			show_join_screen()
+			if _take_name():
+				Sound.play("confirm")
+				show_join_screen()
+		"join_invite":
+			if _take_name():
+				_join_room(invite_code)
 		"join_code":
 			_join_typed_code()
-		"size":
-			Sound.play("nav")
-			Network.set_room_size(_wrap_players(room_size + direction))
 		"start":
 			Sound.play("confirm")
 			Network.start_match()
 			menu.status.text = "STARTING..."
+		"invite":
+			_copy_text(Settings.invite_link(Network.room_code), "INVITE LINK COPIED. SEND IT TO YOUR FRIENDS")
 		"copy":
-			_copy_room_code()
+			_copy_text(Network.room_code, "ROOM CODE COPIED")
 		"leave":
 			Sound.play("nav")
 			Network.leave_room()
-			show_online_menu()
+			show_play_menu()
 		"resume":
 			Sound.play("confirm")
 			resume()
-		"again":
+		"room":
 			Sound.play("confirm")
-			_play_again()
+			show_room()
 		"back":
 			Sound.play("nav")
-			show_title()
+			_go_back()
 
 
 ## Esc / controller Start: one step back.
@@ -221,13 +211,25 @@ func _go_back() -> void:
 			pause()
 		Phase.PAUSED:
 			resume()
-		Phase.SOLO_SETUP, Phase.ONLINE_MENU, Phase.OVER:
+		Phase.PLAY:
+			invite_code = ""
 			show_title()
-		Phase.ONLINE_JOIN:
-			show_online_menu()
-		Phase.ONLINE_ROOM:
+		Phase.JOIN:
+			show_play_menu()
+		Phase.ROOM, Phase.OVER:
 			Network.leave_room()
-			show_online_menu()
+			show_play_menu()
+
+
+## Saves the name typed in the box. Returns false (and asks for one) if empty.
+func _take_name() -> bool:
+	var player_name := Settings.clean_name(menu.text_box.text)
+	if player_name.is_empty():
+		menu.status.text = "TYPE YOUR NAME FIRST"
+		menu.text_box.grab_focus()
+		return false
+	Settings.save_player_name(player_name)
+	return true
 
 
 # --- keyboard and controller --------------------------------------------------
@@ -249,16 +251,12 @@ func handle_key(key: int) -> void:
 		menu.move_cursor(-1)
 	elif key in [KEY_DOWN, KEY_S]:
 		menu.move_cursor(1)
-	elif key in [KEY_LEFT, KEY_A]:
-		_change_value(-1)
-	elif key in [KEY_RIGHT, KEY_D]:
-		_change_value(1)
 	elif key in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
 		menu.press()
 
 
 func _handle_pad_button(button: int) -> void:
-	if button == JOY_BUTTON_START or button == JOY_BUTTON_BACK:
+	if button == JOY_BUTTON_START or button == JOY_BUTTON_BACK or button == JOY_BUTTON_B:
 		_go_back()
 	elif phase == Phase.PLAYING:
 		if button == JOY_BUTTON_A:
@@ -267,20 +265,8 @@ func _handle_pad_button(button: int) -> void:
 		menu.move_cursor(-1)
 	elif button == JOY_BUTTON_DPAD_DOWN:
 		menu.move_cursor(1)
-	elif button == JOY_BUTTON_DPAD_LEFT:
-		_change_value(-1)
-	elif button == JOY_BUTTON_DPAD_RIGHT:
-		_change_value(1)
 	elif button == JOY_BUTTON_A:
 		menu.press()
-	elif button == JOY_BUTTON_B:
-		_go_back()
-
-
-## Left/right on a button that holds a value (players, AI level, room size).
-func _change_value(direction: int) -> void:
-	if menu.selected() in ["players", "skill", "size"]:
-		menu.press(direction)
 
 
 ## Left/right as a number from -1 to 1. Your wall is drawn at the bottom and
@@ -310,61 +296,119 @@ func swing() -> void:
 	if not sim.is_line() or not sim.is_alive(my_seat):
 		return
 	court.flash_swing()
-	if online:
-		Network.send_swing(online_view.swing())
+	Network.send_swing(online_view.swing())
+
+
+# --- rooms --------------------------------------------------------------------
+
+func _ask_server(action: String) -> void:
+	Sound.play("confirm")
+	_waiting_for = action
+	menu.status.text = "JOINING ROOM..." if action == "join" else "CREATING ROOM..."
+	if Network.state == Network.STATE_DISCONNECTED:
+		Network.connect_to_server()
+	_send_waiting_request()
+
+
+func _send_waiting_request() -> void:
+	if _waiting_for.is_empty() or Network.state != Network.STATE_CONNECTED:
+		return
+	var action := _waiting_for
+	_waiting_for = ""
+	if action == "create":
+		Network.create_room(Settings.player_name())
 	else:
-		sim.press_hit(my_seat)
+		Network.join_room(_join_code, Settings.player_name())
+
+
+func _join_room(code: String) -> void:
+	_join_code = code
+	_ask_server("join")
+
+
+func _join_typed_code() -> void:
+	var typed := menu.text_box.text.strip_edges().to_upper()
+	if typed.length() != 6:
+		menu.status.text = "ENTER THE SIX-CHARACTER ROOM CODE"
+		return
+	menu.text_box.release_focus()
+	_join_room(typed)
+
+
+func _copy_text(text: String, done_message: String) -> void:
+	if Network.room_code.is_empty():
+		return
+	Sound.play("confirm")
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("navigator.clipboard.writeText(%s)" % JSON.stringify(text))
+	else:
+		DisplayServer.clipboard_set(text)
+	menu.status.text = done_message
+
+
+func _on_connection_changed(state: int, message: String) -> void:
+	if phase == Phase.TITLE:
+		return
+	if state == Network.STATE_DISCONNECTED:
+		# Show why, and forget any waiting request so the player can try again.
+		_waiting_for = ""
+		if phase == Phase.PLAY:
+			menu.status.text = message
+		else:
+			show_play_menu(message)
+	elif phase in [Phase.PLAY, Phase.JOIN]:
+		if state == Network.STATE_CONNECTED and not _waiting_for.is_empty():
+			_send_waiting_request()
+		elif _waiting_for.is_empty() and not message.is_empty():
+			menu.status.text = message
+
+
+func _on_online_error(message: String) -> void:
+	_waiting_for = ""
+	if phase in [Phase.PLAY, Phase.JOIN, Phase.ROOM, Phase.OVER]:
+		menu.status.text = message
+
+
+func _on_room_joined(_code: String, seat: int) -> void:
+	invite_code = ""
+	room_host = seat
+	room_names = [Settings.player_name()]
+	menu.cursor = 0
+	show_room()
+
+
+func _on_lobby_changed(lobby: Dictionary) -> void:
+	var names = lobby.get("names", room_names)
+	room_names = names.duplicate() if names is Array else room_names
+	room_host = int(lobby.get("host", room_host))
+	if phase == Phase.ROOM:
+		show_room()
+
+
+func _on_match_started(names: Array) -> void:
+	my_seat = Network.seat
+	player_names.clear()
+	for seat_name in names:
+		player_names.append(str(seat_name))
+	online_view.start(my_seat)
+	sim = online_view.sim
+	phase = Phase.PLAYING
+	menu.close()
 
 
 # --- playing ------------------------------------------------------------------
 
-func start_solo_match() -> void:
-	online = false
-	my_seat = 0
-	var ai_seats := []
-	player_names.clear()
-	for seat in solo_players:
-		ai_seats.append(seat != 0)
-		player_names.append("YOU" if seat == 0 else "AI")
-	sim = ArenaSimulation.new()
-	sim.cpu_skill = SKILLS[solo_skill]
-	sim.reset_match(ai_seats)
-	_begin_playing()
-
-
-func _begin_playing() -> void:
-	phase = Phase.PLAYING
-	court.start_match(sim)
-	menu.close()
-
-
-func _play_again() -> void:
-	if online:
-		Network.ask_for_rematch()
-		menu.status.text = "STARTING A NEW MATCH..."
-	else:
-		start_solo_match()
-
-
 func _physics_process(delta: float) -> void:
-	if online:
-		_online_frame(delta)
-	elif phase in [Phase.PLAYING, Phase.PAUSED, Phase.OVER]:
-		if phase == Phase.PLAYING:
-			_solo_step(delta)
-		draw_frame(sim.ball_pos, func(seat: int) -> float: return sim.paddle_pos[seat], delta)
-
-
-func _solo_step(delta: float) -> void:
-	if sim.is_alive(my_seat) and not sim.is_line():
-		sim.set_axis(my_seat, paddle_input())
-	var order_before := sim.order.duplicate()
-	var corners_before := court.corners_on_screen(order_before.size()) if order_before.size() >= 3 else PackedVector2Array()
-	sim.tick(delta)
-	_react_to(sim.events)
-	sim.events.clear()
-	if sim.wall_count() != order_before.size():
-		court.start_fold(sim, order_before, corners_before)
+	if not online_view.have_snapshot or not phase in [Phase.PLAYING, Phase.PAUSED, Phase.OVER]:
+		return
+	online_view.move_my_paddle(paddle_input() if phase == Phase.PLAYING else 0.0, delta)
+	online_view.fade_corrections(delta)
+	var ball_position := Vector2.ZERO
+	if sim.state == ArenaSimulation.STATE_PLAY:
+		var ball := online_view.predict_ball(Time.get_ticks_usec() / 1000000.0, delta)
+		ball_position = ball["position"]
+		_react_to(ball["events"])
+	draw_frame(ball_position, online_view.paddle_position, delta)
 
 
 func draw_frame(ball_position: Vector2, paddle_position: Callable, delta: float) -> void:
@@ -373,8 +417,10 @@ func draw_frame(ball_position: Vector2, paddle_position: Callable, delta: float)
 
 ## The only in-game instructions.
 func _hint_text() -> String:
-	if phase != Phase.PLAYING or not sim.is_alive(my_seat):
+	if phase != Phase.PLAYING:
 		return ""
+	if not sim.is_alive(my_seat):
+		return "YOU'RE OUT   WATCHING UNTIL THE END   ESC MENU"
 	if sim.is_line():
 		return "SPACE WHEN THE BALL IS IN YOUR ZONE"
 	if sim.state == ArenaSimulation.STATE_COUNTDOWN and sim.wall_count() == sim.seat_count:
@@ -397,122 +443,10 @@ func _react_to(events: Array) -> void:
 			"whiff":
 				if int(event.get("seat", -1)) == my_seat:
 					Sound.play("nav", 0.7)
-			"goal":
-				_player_out(where)
-			"win":
-				show_game_over(int(event.get("seat", -1)))
 
-
-## Someone missed the ball and is out.
-func _player_out(where: Vector2) -> void:
-	Sound.play_point()
-	InkEffects.point_lost(where)
-
-
-# --- online lobby -------------------------------------------------------------
-
-func _ask_server(action: String) -> void:
-	_waiting_for = action
-	menu.status.text = "JOINING ROOM..." if action == "join" else "CREATING ROOM..."
-	if Network.state == Network.STATE_DISCONNECTED:
-		Network.connect_to_server()
-	_send_waiting_request()
-
-
-func _send_waiting_request() -> void:
-	if _waiting_for.is_empty() or Network.state != Network.STATE_CONNECTED:
-		return
-	var action := _waiting_for
-	_waiting_for = ""
-	if action == "create":
-		Network.create_room(room_size)
-	else:
-		Network.join_room(_join_code)
-
-
-func _join_typed_code() -> void:
-	var typed := menu.code_box.text.strip_edges().to_upper()
-	if typed.length() != 6:
-		menu.status.text = "ENTER THE SIX-CHARACTER ROOM CODE"
-		return
-	Sound.play("confirm")
-	_join_code = typed
-	menu.code_box.release_focus()
-	_ask_server("join")
-
-
-func _copy_room_code() -> void:
-	if phase != Phase.ONLINE_ROOM or Network.room_code.is_empty():
-		return
-	Sound.play("confirm")
-	if OS.has_feature("web"):
-		JavaScriptBridge.eval("navigator.clipboard.writeText('%s')" % Network.room_code)
-	else:
-		DisplayServer.clipboard_set(Network.room_code)
-	menu.status.text = "ROOM CODE COPIED"
-
-
-func _on_connection_changed(state: int, message: String) -> void:
-	if not online:
-		return
-	if state == Network.STATE_DISCONNECTED:
-		# Show why, and forget any waiting request so the player can try again.
-		_waiting_for = ""
-		if phase == Phase.ONLINE_MENU:
-			menu.status.text = message
-		else:
-			show_online_menu(message)
-	elif phase in [Phase.ONLINE_MENU, Phase.ONLINE_JOIN]:
-		if state == Network.STATE_CONNECTED and not _waiting_for.is_empty():
-			_send_waiting_request()
-		elif _waiting_for.is_empty() and not message.is_empty():
-			menu.status.text = message
-
-
-func _on_online_error(message: String) -> void:
-	if not online:
-		return
-	_waiting_for = ""
-	if phase in [Phase.ONLINE_MENU, Phase.ONLINE_JOIN, Phase.ONLINE_ROOM, Phase.OVER]:
-		menu.status.text = message
-
-
-func _on_room_joined(_code: String, seat: int) -> void:
-	my_seat = seat
-	room_host = seat
-	room_people = []
-	for index in room_size:
-		room_people.append(index == seat)
-	menu.cursor = 0
-	show_room()
-
-
-func _on_lobby_changed(lobby: Dictionary) -> void:
-	room_size = int(lobby.get("size", room_size))
-	room_people = lobby.get("seats", room_people).duplicate()
-	my_seat = int(lobby.get("you", my_seat))
-	room_host = int(lobby.get("host", room_host))
-	if phase == Phase.ONLINE_ROOM:
-		show_room()
-
-
-func _on_online_match_started() -> void:
-	if not online:
-		return
-	player_names.clear()
-	for seat in room_size:
-		var person: bool = seat < room_people.size() and room_people[seat]
-		player_names.append("YOU" if seat == my_seat else ("P%d" % (seat + 1) if person else "AI"))
-	online_view.start(my_seat)
-	sim = online_view.sim
-	phase = Phase.PLAYING
-	menu.close()
-
-
-# --- online playing -----------------------------------------------------------
 
 func _on_snapshot(data: Dictionary) -> void:
-	if not online or not phase in [Phase.PLAYING, Phase.PAUSED, Phase.OVER]:
+	if not phase in [Phase.PLAYING, Phase.PAUSED, Phase.OVER]:
 		return
 	var corners_before := court.corners_on_screen(sim.wall_count()) if sim.wall_count() >= 3 else PackedVector2Array()
 	var change := online_view.take_snapshot(data)
@@ -521,19 +455,7 @@ func _on_snapshot(data: Dictionary) -> void:
 		return
 	if sim.wall_count() != change["order_before"].size():
 		court.start_fold(sim, change["order_before"], corners_before)
-		_player_out(CourtView.CENTER)
+		Sound.play_point()
+		InkEffects.point_lost(CourtView.CENTER)
 	if sim.state == ArenaSimulation.STATE_OVER and phase != Phase.OVER:
 		show_game_over(sim.winner)
-
-
-func _online_frame(delta: float) -> void:
-	if not online_view.have_snapshot or not phase in [Phase.PLAYING, Phase.PAUSED, Phase.OVER]:
-		return
-	online_view.move_my_paddle(paddle_input() if phase == Phase.PLAYING else 0.0, delta)
-	online_view.fade_corrections(delta)
-	var ball_position := Vector2.ZERO
-	if sim.state == ArenaSimulation.STATE_PLAY:
-		var ball := online_view.predict_ball(Time.get_ticks_usec() / 1000000.0, delta)
-		ball_position = ball["position"]
-		_react_to(ball["events"])
-	draw_frame(ball_position, online_view.paddle_position, delta)

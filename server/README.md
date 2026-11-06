@@ -20,15 +20,15 @@ The free service may sleep when idle. The client therefore keeps the explicit wa
 
 ## Protocol
 
-Every room is a polygon match for 2 to 10 players. The rules live in `arena_simulation.gd`, a verbatim copy of the client's file (a client test checks they match).
+Every room is a polygon match with one side per person in the room, from 2 to 10. There are no AI players. The rules live in `arena_simulation.gd`, a verbatim copy of the client's file (a client test checks they match).
 
 Clients send:
-- `create_room` with `size` (2–10), and `join_room` with `code`
-- `set_size` and `start` (host only, before the match), `rematch` after it ends, and `leave_room`
-- `input` with `target_y`: the client's predicted paddle position along its wall. The server moves its paddle toward it under a speed cap, so clients never set positions, the ball, or lives directly.
+- `create_room` with `name`, and `join_room` with `code` and `name` (names are cleaned to capital letters, digits and spaces, at most 12 characters)
+- `start` (host only, at least 2 people, between matches) and `leave_room`
+- `input` with `target_y`: the client's predicted paddle position along its wall. The server moves its paddle toward it under a speed cap, so clients never set positions, the ball, or who is out directly.
 - `hit` with `tick`: a swing in the line finale, stamped with the server tick the player saw. A swing that arrives late is judged against the ball's recorded position at that tick; one that arrives early is held until that tick.
 - `ping` with an optional timestamp `t`, echoed in `pong` so the client can measure round-trip time.
 
-The server answers with `arena_room` (your seat), keeps everyone updated with `arena_lobby` (size, filled seats, host), sends `arena_started` when the host starts, with AI in every empty seat, and then streams `arena_snapshot` messages at 40 Hz. A player who drops out mid-match is replaced by AI.
+The server answers with `arena_room` (your seat), keeps everyone updated with `arena_lobby` (names, your seat, host, whether a match is running), sends `arena_started` with everyone's names when the host starts, and then streams `arena_snapshot` messages at 40 Hz. A player who leaves mid-match is knocked out and the others play on. When the match ends the room waits for the host to start the next one, and new friends can join.
 
 Clients draw the ball one round trip ahead of the latest snapshot, which is when their own input reaches the server, and replay their own recent paddle positions when predicting returns. Corrections from new snapshots glide out instead of snapping.

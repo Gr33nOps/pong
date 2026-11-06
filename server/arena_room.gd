@@ -1,19 +1,24 @@
 class_name ArenaRoom
 extends RefCounted
-## Online polygon room. The host picks how many sides (2-10), people take seats
-## in join order, and the host starts; AI paddles fill every empty seat and take
-## over from anyone who drops out mid-match.
+## One online room. People join in order (up to 10) and the court gets one
+## side per person. The host (whoever made the room, or the next person if
+## they leave) starts the match. Anyone who leaves mid-match is knocked out
+## and the others play on. When the match ends the room waits again, so the
+## host can start another one.
 
 const SNAPSHOT_INTERVAL := 1.0 / 40.0
 const SIM_STEP := 1.0 / 120.0
 const MAX_FRAME_CATCH_UP := 0.25
 ## Swings that arrive before the tick the player saw are held until then.
 const MAX_HELD_HIT_TICKS := 36
+const MAX_NAME_LENGTH := 12
 const ARENA_SIMULATION_SCRIPT = preload("res://arena_simulation.gd")
 
 var code := ""
-var size := 4
+## Peer ids in seat order. During a match a leaver's seat becomes -1 so
+## everyone else keeps their seat; the gaps close when the match ends.
 var seats: Array[int] = []
+var names: Array[String] = []
 var host_peer := -1
 var started := false
 var simulation = ARENA_SIMULATION_SCRIPT.new()
@@ -23,25 +28,21 @@ var _held_hits: Array[Vector2i] = []
 var _send_callback: Callable
 
 
-func configure(room_code: String, send_callback: Callable, room_size: int = 4) -> void:
+func configure(room_code: String, send_callback: Callable) -> void:
 	code = room_code
 	_send_callback = send_callback
-	_resize(room_size)
 
 
 func has_peer(peer_id: int) -> bool:
 	return seats.has(peer_id)
 
 
-func is_full() -> bool:
-	return not seats.has(-1)
-
-
+## Why someone can't join right now, or "" if they can.
 func join_refusal() -> String:
-	if is_full():
-		return "ROOM IS FULL"
-	if started and simulation.state != simulation.STATE_OVER:
+	if started:
 		return "MATCH ALREADY STARTED"
+	if seats.size() >= simulation.MAX_PLAYERS:
+		return "ROOM IS FULL"
 	return ""
 
 
@@ -53,39 +54,32 @@ func peers() -> Array[int]:
 	return result
 
 
-func add_creator(peer_id: int) -> bool:
-	if not peers().is_empty():
-		return false
-	seats[0] = peer_id
-	host_peer = peer_id
-	_send(peer_id, {"type": "arena_room", "code": code, "seat": 0})
-	_broadcast_lobby()
-	return true
-
-
-func add_joiner(peer_id: int) -> bool:
+func add_player(peer_id: int, player_name: String) -> bool:
 	if has_peer(peer_id) or not join_refusal().is_empty():
 		return false
-	var seat := seats.find(-1)
-	seats[seat] = peer_id
+	seats.append(peer_id)
+	names.append(clean_name(player_name, seats.size()))
 	if host_peer == -1:
 		host_peer = peer_id
-	_send(peer_id, {"type": "arena_room", "code": code, "seat": seat})
+	_send(peer_id, {"type": "arena_room", "code": code, "seat": seats.size() - 1})
 	_broadcast_lobby()
 	return true
 
 
-func remove_peer(peer_id: int) -> Array[int]:
+func remove_peer(peer_id: int) -> void:
 	var seat := seats.find(peer_id)
-	if seat != -1:
+	if seat == -1:
+		return
+	if started:
 		seats[seat] = -1
-		if started:
-			simulation.set_cpu(seat, true)
+		simulation.knock_out(seat)
+	else:
+		seats.remove_at(seat)
+		names.remove_at(seat)
 	if host_peer == peer_id:
 		var remaining := peers()
 		host_peer = remaining[0] if not remaining.is_empty() else -1
 	_broadcast_lobby()
-	return peers()
 
 
 func handle_message(peer_id: int, message: Dictionary) -> bool:
@@ -103,16 +97,13 @@ func handle_message(peer_id: int, message: Dictionary) -> bool:
 		"hit":
 			if started:
 				_queue_hit(seat, int(message.get("tick", -1)))
-		"set_size":
-			if peer_id == host_peer and not started:
-				_resize(int(message.get("size", size)))
-				_broadcast_lobby()
 		"start":
-			if peer_id == host_peer and not started:
-				_start_match()
-		"rematch":
-			if started and simulation.state == simulation.STATE_OVER:
-				_start_match()
+			if peer_id != host_peer or started:
+				return true
+			if seats.size() < simulation.MIN_PLAYERS:
+				_send(peer_id, {"type": "error", "message": "NEED AT LEAST 2 PLAYERS"})
+				return true
+			_start_match()
 		_:
 			return false
 	return true
@@ -127,23 +118,26 @@ func tick(delta: float) -> void:
 		simulation.tick(SIM_STEP)
 		simulation.events.clear()
 		_sim_accumulator -= SIM_STEP
+	if simulation.state == simulation.STATE_OVER:
+		_broadcast(simulation.snapshot())
+		_end_match()
+		return
 	_snapshot_timer += delta
 	if _snapshot_timer >= SNAPSHOT_INTERVAL:
 		_snapshot_timer = fmod(_snapshot_timer, SNAPSHOT_INTERVAL)
 		_broadcast(simulation.snapshot())
 
 
-## People already seated always keep a seat; the room never shrinks below them.
-func _resize(next_size: int) -> void:
-	var humans := peers().size()
-	size = clampi(next_size, maxi(simulation.MIN_PLAYERS, humans), simulation.MAX_PLAYERS)
-	var kept: Array[int] = []
-	for peer_id in seats:
-		if peer_id != -1:
-			kept.append(peer_id)
-	seats.clear()
-	for seat in size:
-		seats.append(kept[seat] if seat < kept.size() else -1)
+## Capital letters, digits and single spaces, at most 12 characters.
+## An empty name becomes "PLAYER 3" (by seat number).
+static func clean_name(raw: String, number: int) -> String:
+	var allowed := RegEx.new()
+	allowed.compile("[^A-Z0-9 ]")
+	var spaces := RegEx.new()
+	spaces.compile(" +")
+	var text := spaces.sub(allowed.sub(raw.to_upper(), "", true), " ", true).strip_edges()
+	text = text.substr(0, MAX_NAME_LENGTH).strip_edges()
+	return text if not text.is_empty() else "PLAYER %d" % number
 
 
 func _queue_hit(seat: int, at_tick: int) -> void:
@@ -164,29 +158,32 @@ func _apply_due_hits() -> void:
 
 
 func _start_match() -> void:
-	var cpu_seats := []
-	for peer_id in seats:
-		cpu_seats.append(peer_id == -1)
-	simulation.reset_match(cpu_seats)
+	simulation.reset_match(seats.size())
 	started = true
 	_held_hits.clear()
 	_sim_accumulator = 0.0
 	_snapshot_timer = 0.0
-	_broadcast({"type": "arena_started"})
+	_broadcast({"type": "arena_started", "names": names.duplicate()})
 	_broadcast_lobby()
 	_broadcast(simulation.snapshot())
 
 
+## Back to waiting: people who left during the match lose their seats.
+func _end_match() -> void:
+	started = false
+	for seat in range(seats.size() - 1, -1, -1):
+		if seats[seat] == -1:
+			seats.remove_at(seat)
+			names.remove_at(seat)
+	_broadcast_lobby()
+
+
 func _broadcast_lobby() -> void:
-	var humans := []
-	for peer_id in seats:
-		humans.append(peer_id != -1)
 	for peer_id in peers():
 		_send(peer_id, {
 			"type": "arena_lobby",
 			"code": code,
-			"size": size,
-			"seats": humans,
+			"names": names.duplicate(),
 			"you": seats.find(peer_id),
 			"host": seats.find(host_peer),
 			"started": started,

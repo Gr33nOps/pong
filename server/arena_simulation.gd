@@ -2,14 +2,14 @@ extends RefCounted
 ## Polygon Pong for 2-10 players. Each player defends one wall of a regular
 ## polygon. Miss the ball once and you are out: your wall disappears and the
 ## court shrinks to the next polygon; with two players left it collapses to a
-## line for a timing-based 1D Pong finale. The same file runs on the client (solo play and online
-## prediction) and on the server as server/arena_simulation.gd; a test keeps
-## the two copies identical.
+## line for a timing-based 1D Pong finale. The last player left wins.
+##
+## The server runs the real match with this file (server/arena_simulation.gd is
+## an identical copy, checked by a test). The game uses it too, to predict
+## the ball between server updates.
 
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 10
-## One miss and you are out.
-const STARTING_LIVES := 1
 
 # Polygon court, in local units around the court centre.
 const RADIUS := 270.0
@@ -38,15 +38,11 @@ const WHIFF_LOCK := 0.4
 const HIT_HISTORY_SECONDS := 0.5
 
 const START_DELAY := 1.6
-const POINT_DELAY := 1.1
 const SHRINK_DELAY := 1.8
 const INPUT_TIMEOUT := 0.3
 const STEP_DISTANCE := 4.0
 const MAX_SUBSTEPS := 64
 const SIM_RATE := 120.0
-const SKILL_EASY := 0.55
-const SKILL_NORMAL := 0.82
-const SKILL_HARD := 1.0
 
 const STATE_COUNTDOWN := "countdown"
 const STATE_PLAY := "play"
@@ -55,8 +51,6 @@ const STATE_OVER := "over"
 var seat_count := 0
 var state := STATE_COUNTDOWN
 var timer := START_DELAY
-var lives: Array[int] = []
-var cpu: Array[bool] = []
 ## Seats still playing, in order around the court; wall j belongs to order[j].
 var order: Array[int] = []
 var paddle_pos: Array[float] = []
@@ -70,7 +64,6 @@ var winner := -1
 var last_loser := -1
 var serve_seat := 0
 var tick_number := 0
-var cpu_skill := SKILL_NORMAL
 var rng := RandomNumberGenerator.new()
 ## Things that happened during the last ticks, for sound and effects.
 var events: Array[Dictionary] = []
@@ -78,10 +71,6 @@ var _axis: Array[float] = []
 var _target: Array[float] = []
 var _input_age: Array[float] = []
 var _hit_lock: Array[float] = []
-var _ai_incoming: Array[bool] = []
-var _ai_reaction: Array[float] = []
-var _ai_offset: Array[float] = []
-var _ai_depth: Array[float] = []
 var _line_history: Array[Vector3] = []
 var _last_goal_tick := -1
 
@@ -90,10 +79,9 @@ func _init() -> void:
 	rng.randomize()
 
 
-func reset_match(cpu_seats: Array) -> void:
-	seat_count = clampi(cpu_seats.size(), MIN_PLAYERS, MAX_PLAYERS)
-	lives.clear()
-	cpu.clear()
+## Starts a new match for this many players, everyone in.
+func reset_match(players: int) -> void:
+	seat_count = clampi(players, MIN_PLAYERS, MAX_PLAYERS)
 	order.clear()
 	paddle_pos.clear()
 	paddle_prev.clear()
@@ -103,13 +91,7 @@ func reset_match(cpu_seats: Array) -> void:
 	_target.clear()
 	_input_age.clear()
 	_hit_lock.clear()
-	_ai_incoming.clear()
-	_ai_reaction.clear()
-	_ai_offset.clear()
-	_ai_depth.clear()
 	for seat in seat_count:
-		lives.append(STARTING_LIVES)
-		cpu.append(bool(cpu_seats[seat]) if seat < cpu_seats.size() else true)
 		order.append(seat)
 		paddle_pos.append(0.0)
 		paddle_prev.append(0.0)
@@ -119,10 +101,6 @@ func reset_match(cpu_seats: Array) -> void:
 		_target.append(-1.0)
 		_input_age.append(0.0)
 		_hit_lock.append(0.0)
-		_ai_incoming.append(false)
-		_ai_reaction.append(0.0)
-		_ai_offset.append(0.0)
-		_ai_depth.append(0.0)
 	_center_paddles()
 	ball_pos = Vector2.ZERO
 	ball_vel = Vector2.ZERO
@@ -142,10 +120,8 @@ func reset_match(cpu_seats: Array) -> void:
 ## (online prediction uses this on a scratch copy of the server's match).
 func copy_from(other) -> void:
 	seat_count = other.seat_count
-	lives = other.lives.duplicate()
 	order = other.order.duplicate()
 	zone = other.zone.duplicate()
-	cpu = other.cpu.duplicate()
 	paddle_pos = other.paddle_pos.duplicate()
 	paddle_prev = other.paddle_pos.duplicate()
 	paddle_vel = other.paddle_vel.duplicate()
@@ -179,7 +155,7 @@ func wall_of(seat: int) -> int:
 
 
 func is_alive(seat: int) -> bool:
-	return seat >= 0 and seat < lives.size() and lives[seat] > 0
+	return order.has(seat)
 
 
 static func vertex(index: int, walls: int) -> Vector2:
@@ -222,12 +198,6 @@ func line_end(seat: int) -> float:
 
 
 # --- input --------------------------------------------------------------------
-
-func set_cpu(seat: int, enabled: bool) -> void:
-	if seat >= 0 and seat < seat_count:
-		cpu[seat] = enabled
-		_ai_incoming[seat] = false
-
 
 func set_axis(seat: int, axis: float) -> void:
 	if seat < 0 or seat >= seat_count:
@@ -304,7 +274,7 @@ func tick(delta: float) -> void:
 
 
 ## Moves the polygon ball through corners and paddles. Returns false once it has
-## left the court; only applies lives when apply_goals is set.
+## left the court; only knocks the player out when apply_goals is set.
 func advance_ball(delta: float, apply_goals: bool) -> bool:
 	if ball_vel == Vector2.ZERO or is_line():
 		return true
@@ -320,23 +290,23 @@ func advance_ball(delta: float, apply_goals: bool) -> bool:
 		var out_wall := _exited_wall()
 		if out_wall >= 0:
 			if apply_goals:
-				_lose_life(order[out_wall])
+				_missed(order[out_wall])
 			return false
 	return true
 
 
-## Moves the line ball and lets CPU players swing. Returns false once it leaves.
+## Moves the line ball. Returns false once it leaves.
 func advance_line(delta: float, apply_goals: bool) -> bool:
 	ball_pos.x += ball_vel.x * delta
 	var left := order[0]
 	var right := order[1]
 	if ball_pos.x < -LINE_LENGTH * 0.5 - BALL_RADIUS * 2.0:
 		if apply_goals:
-			_lose_life(left)
+			_missed(left)
 		return false
 	if ball_pos.x > LINE_LENGTH * 0.5 + BALL_RADIUS * 2.0:
 		if apply_goals:
-			_lose_life(right)
+			_missed(right)
 		return false
 	return true
 
@@ -345,9 +315,6 @@ func _advance_line(delta: float) -> void:
 	_line_history.append(Vector3(ball_pos.x, ball_vel.x, tick_number))
 	while _line_history.size() > int(HIT_HISTORY_SECONDS * SIM_RATE) + 2:
 		_line_history.pop_front()
-	for seat in order:
-		if cpu[seat]:
-			_ai_line(seat)
 	advance_line(delta, true)
 
 
@@ -376,8 +343,7 @@ func snapshot() -> Dictionary:
 		"paddles": paddles,
 		"pvel": velocities,
 		"zones": zones,
-		"lives": lives.duplicate(),
-		"cpu": cpu.duplicate(),
+		"seats": seat_count,
 		"winner": winner,
 		"loser": last_loser,
 		"serve": serve_seat,
@@ -386,12 +352,9 @@ func snapshot() -> Dictionary:
 
 
 func apply_snapshot(data: Dictionary) -> void:
-	var remote_lives = data.get("lives", [])
-	if remote_lives is Array and remote_lives.size() != seat_count:
-		var flags := []
-		for _seat in remote_lives.size():
-			flags.append(true)
-		reset_match(flags)
+	var players := int(data.get("seats", seat_count))
+	if players != seat_count:
+		reset_match(players)
 	state = str(data.get("state", state))
 	timer = float(data.get("timer", timer))
 	var remote_order = data.get("order", [])
@@ -406,12 +369,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	_read_floats(data.get("paddles", []), paddle_pos)
 	_read_floats(data.get("pvel", []), paddle_vel)
 	_read_floats(data.get("zones", []), zone)
-	var remote_cpu = data.get("cpu", [])
 	for seat in seat_count:
-		if remote_lives is Array and seat < remote_lives.size():
-			lives[seat] = int(remote_lives[seat])
-		if remote_cpu is Array and seat < remote_cpu.size():
-			cpu[seat] = bool(remote_cpu[seat])
 		paddle_prev[seat] = paddle_pos[seat]
 	winner = int(data.get("winner", winner))
 	last_loser = int(data.get("loser", last_loser))
@@ -445,91 +403,22 @@ func _update_paddle(seat: int, delta: float) -> void:
 		return
 	var walls := wall_count()
 	var next := before
-	if cpu[seat]:
-		next = move_toward(before, _ai_target(seat, wall, delta), PADDLE_SPEED * cpu_skill * delta)
+	# No word from this player for a moment: the paddle stops.
+	_input_age[seat] += delta
+	if _input_age[seat] > INPUT_TIMEOUT:
+		_axis[seat] = 0.0
+		_target[seat] = -1.0
+	if _target[seat] >= 0.0:
+		next = move_toward(before, _target[seat], PADDLE_SPEED * TARGET_CATCH_UP * delta)
 	else:
-		_input_age[seat] += delta
-		if _input_age[seat] > INPUT_TIMEOUT:
-			_axis[seat] = 0.0
-			_target[seat] = -1.0
-		if _target[seat] >= 0.0:
-			next = move_toward(before, _target[seat], PADDLE_SPEED * TARGET_CATCH_UP * delta)
-		else:
-			next = before + _axis[seat] * PADDLE_SPEED * delta
+		next = before + _axis[seat] * PADDLE_SPEED * delta
 	paddle_pos[seat] = clampf(next, paddle_min(walls), paddle_max(walls))
 	paddle_vel[seat] = (paddle_pos[seat] - before) / delta if delta > 0.0 else 0.0
-
-
-func _ai_target(seat: int, wall: int, delta: float) -> float:
-	var walls := wall_count()
-	var middle := side_length(walls) * 0.5
-	if state != STATE_PLAY:
-		_ai_incoming[seat] = false
-		return middle
-	var frame := wall_frame(wall, walls)
-	var local := ball_pos - frame[0]
-	var u := local.dot(frame[1])
-	var v := local.dot(frame[2])
-	var vt := ball_vel.dot(frame[1])
-	var vn := ball_vel.dot(frame[2])
-	if vn >= 0.0:
-		_ai_incoming[seat] = false
-		return lerpf(middle, u, 0.25)
-	if not _ai_incoming[seat]:
-		_ai_incoming[seat] = true
-		_ai_reaction[seat] = 0.0
-		var error := _ai_error()
-		_ai_offset[seat] = rng.randf_range(-error, error)
-	else:
-		_ai_reaction[seat] += delta
-	if _ai_reaction[seat] < _ai_delay():
-		return paddle_pos[seat]
-	var time := (v - contact_plane()) / -vn
-	return u + vt * maxf(time, 0.0) + _ai_offset[seat]
-
-
-func _ai_line(seat: int) -> void:
-	var end := line_end(seat)
-	var toward := ball_vel.x < 0.0 if end < 0.0 else ball_vel.x > 0.0
-	if not toward:
-		_ai_incoming[seat] = false
-		return
-	if not _ai_incoming[seat]:
-		_ai_incoming[seat] = true
-		var speed_ratio := clampf((absf(ball_vel.x) - LINE_START_SPEED) / (LINE_MAX_SPEED - LINE_START_SPEED), 0.0, 1.0)
-		var miss_chance := clampf((0.02 + speed_ratio * 0.4) * (1.25 - cpu_skill), 0.01, 0.6)
-		# A planned depth below zero means the CPU swings too late and misses.
-		_ai_depth[seat] = -BALL_RADIUS * 4.0 if rng.randf() < miss_chance else rng.randf_range(0.08, 0.9) * zone[seat]
-	var depth := absf(end - ball_pos.x)
-	if depth <= _ai_depth[seat] and _ai_depth[seat] >= 0.0:
-		_ai_depth[seat] = -INF
-		press_hit(seat)
-
-
-func _ai_delay() -> float:
-	if cpu_skill <= 0.8:
-		return 0.3
-	if cpu_skill >= 0.97:
-		return 0.0
-	return 0.1
-
-
-## Aim error grows with ball speed so long rallies eventually end.
-func _ai_error() -> float:
-	var base := paddle_length(wall_count()) * 0.4
-	if cpu_skill <= 0.8:
-		base *= 1.5
-	elif cpu_skill >= 0.97:
-		base *= 0.75
-	var speed_ratio := clampf((ball_vel.length() - START_SPEED) / (MAX_SPEED - START_SPEED), 0.0, 1.0)
-	return base * (1.0 + speed_ratio)
 
 
 func _serve() -> void:
 	if not is_alive(serve_seat):
 		serve_seat = order[rng.randi_range(0, order.size() - 1)]
-	for seat in seat_count:
-		_ai_incoming[seat] = false
 	hits = 0
 	state = STATE_PLAY
 	ball_pos = Vector2.ZERO
@@ -617,26 +506,30 @@ func _exited_wall() -> int:
 	return result
 
 
-func _lose_life(seat: int) -> void:
-	lives[seat] = maxi(lives[seat] - 1, 0)
+## The ball got past this player.
+func _missed(seat: int) -> void:
+	events.append({"type": "goal", "seat": seat, "x": ball_pos.x, "y": ball_pos.y})
+	knock_out(seat)
+
+
+## Takes a player out of the match (they missed, or left the room). Their wall
+## disappears and the court shrinks; the last player left wins.
+func knock_out(seat: int) -> void:
+	if not is_alive(seat) or state == STATE_OVER:
+		return
 	last_loser = seat
 	_last_goal_tick = tick_number
-	var was_line := is_line()
-	events.append({"type": "goal", "seat": seat, "lives": lives[seat], "x": ball_pos.x, "y": ball_pos.y, "line": was_line})
 	ball_pos = Vector2.ZERO
 	ball_vel = Vector2.ZERO
 	_line_history.clear()
-	timer = POINT_DELAY
-	if lives[seat] == 0:
-		var removed_wall := wall_of(seat)
-		order.erase(seat)
-		events.append({"type": "out", "seat": seat, "wall": removed_wall, "walls_before": order.size() + 1})
-		if order.size() <= 1:
-			state = STATE_OVER
-			winner = order[0] if order.size() == 1 else -1
-			events.append({"type": "win", "seat": winner})
-			return
-		_center_paddles()
-		timer = SHRINK_DELAY
-	serve_seat = seat if is_alive(seat) else order[rng.randi_range(0, order.size() - 1)]
+	events.append({"type": "out", "seat": seat, "wall": wall_of(seat)})
+	order.erase(seat)
+	if order.size() <= 1:
+		state = STATE_OVER
+		winner = order[0] if order.size() == 1 else -1
+		events.append({"type": "win", "seat": winner})
+		return
+	_center_paddles()
 	state = STATE_COUNTDOWN
+	timer = SHRINK_DELAY
+	serve_seat = order[rng.randi_range(0, order.size() - 1)]
